@@ -269,7 +269,7 @@ const ITEMS_PER_PAGE = 10
 export function ServicesPage() {
   const [searchParams] = useSearchParams()
 
-  const [search, setSearch]           = useState('')
+  const [search, setSearch]           = useState(searchParams.get('q') ?? '')
   const [page, setPage]               = useState(1)
   const [orgFilter, setOrgFilter]     = useState<string[]>(
     searchParams.get('org_name') ? [searchParams.get('org_name')!] : []

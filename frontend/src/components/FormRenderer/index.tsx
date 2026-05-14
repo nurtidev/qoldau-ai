@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import type { FormSchema, FormField, FormStep } from '@/types'
 
 interface Props {
@@ -46,25 +46,22 @@ export function FormRenderer({ schema, initialData = {}, onSubmit, submitting }:
   const [currentStep, setCurrentStep] = useState(0)
   const [values, setValues] = useState<Record<string, unknown>>(initialData)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const prevVisibleCount = useRef(0)
 
   const visibleSteps = schema.steps.filter((step) =>
     checkCondition(step.condition, values)
   )
 
-  // Recalculate calculated fields on value change
+  const getVisibleFields = (step: FormStep) =>
+    step.fields.filter(f => checkCondition(f.condition, values))
+
+  // Clamp currentStep when visible steps shrink (e.g. conditional step hides)
   useEffect(() => {
-    const calculated: Record<string, unknown> = {}
-    schema.steps.forEach((step) => {
-      step.fields.forEach((field) => {
-        if (field.type === 'calculated' && field.formula) {
-          calculated[field.id] = evaluateFormula(field.formula, values)
-        }
-      })
-    })
-    if (Object.keys(calculated).length > 0) {
-      setValues((prev) => ({ ...prev, ...calculated }))
+    if (currentStep >= visibleSteps.length && visibleSteps.length > 0) {
+      setCurrentStep(visibleSteps.length - 1)
     }
-  }, [schema]) // eslint-disable-line react-hooks/exhaustive-deps
+    prevVisibleCount.current = visibleSteps.length
+  }, [visibleSteps.length, currentStep])
 
   const handleChange = useCallback((fieldId: string, value: unknown) => {
     setValues((prev) => {
@@ -84,10 +81,12 @@ export function FormRenderer({ schema, initialData = {}, onSubmit, submitting }:
 
   const validateStep = (step: FormStep): boolean => {
     const newErrors: Record<string, string> = {}
-    step.fields.forEach((field) => {
+    getVisibleFields(step).forEach((field) => {
       if (field.required && field.type !== 'calculated') {
         const val = values[field.id]
-        if (val === undefined || val === null || val === '') {
+        const isEmpty = val === undefined || val === null || val === '' ||
+          (Array.isArray(val) && val.length === 0)
+        if (isEmpty) {
           newErrors[field.id] = 'Обязательное поле'
         }
       }
@@ -109,7 +108,14 @@ export function FormRenderer({ schema, initialData = {}, onSubmit, submitting }:
 
   const handleSubmit = () => {
     if (!validateStep(visibleSteps[currentStep])) return
-    onSubmit(values)
+    const visibleFieldIds = new Set(
+      visibleSteps.flatMap(s => getVisibleFields(s).map(f => f.id))
+    )
+    const cleanValues: Record<string, unknown> = {}
+    for (const [key, val] of Object.entries(values)) {
+      if (visibleFieldIds.has(key)) cleanValues[key] = val
+    }
+    onSubmit(cleanValues)
   }
 
   const step = visibleSteps[currentStep]
@@ -146,7 +152,7 @@ export function FormRenderer({ schema, initialData = {}, onSubmit, submitting }:
 
       {/* Step content */}
       <div className="space-y-5 mb-8">
-        {step.fields.map((field) => (
+        {getVisibleFields(step).map((field) => (
           <FieldRenderer
             key={field.id}
             field={field}
@@ -259,16 +265,25 @@ function FieldRenderer({ field, value, error, onChange }: FieldProps) {
       )}
 
       {field.type === 'multiselect' && (
-        <select
-          multiple
-          value={Array.isArray(value) ? value as string[] : []}
-          onChange={(e) => onChange(Array.from(e.target.selectedOptions, (o) => o.value))}
-          className={`input h-32 ${error ? 'border-red-400' : ''}`}
-        >
-          {field.options?.map((opt) => (
-            <option key={opt} value={opt}>{opt}</option>
-          ))}
-        </select>
+        <div className={`space-y-2 mt-1 rounded-lg border p-3 ${error ? 'border-red-400' : 'border-gray-200'}`}>
+          {field.options?.map((opt) => {
+            const checked = Array.isArray(value) && (value as string[]).includes(opt)
+            return (
+              <label key={opt} className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={(e) => {
+                    const current = Array.isArray(value) ? (value as string[]) : []
+                    onChange(e.target.checked ? [...current, opt] : current.filter(v => v !== opt))
+                  }}
+                  className="w-4 h-4 text-primary-600"
+                />
+                <span className="text-sm">{opt}</span>
+              </label>
+            )
+          })}
+        </div>
       )}
 
       {field.type === 'date' && (

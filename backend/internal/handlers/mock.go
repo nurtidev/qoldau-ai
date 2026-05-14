@@ -15,16 +15,22 @@ var egovData = map[string]map[string]interface{}{
 	"default": {
 		"full_name":     "Иванов Иван Иванович",
 		"org_name":      "ТОО «Тест Компания»",
+		"bin":           "123456789012",
 		"org_type":      "МСБ",
 		"region":        "Астана",
+		"address":       "г. Астана, ул. Бейбитшилик, 18",
+		"phone":         "+7 (701) 234-56-78",
 		"registered_at": "2020-01-15",
 	},
 	"000000000000": {
 		"full_name":     "Администратор",
-		"org_name":      nil,
-		"org_type":      nil,
+		"org_name":      "АО «НИХ «Байтерек»",
+		"bin":           "000000000000",
+		"org_type":      "Крупный бизнес",
 		"region":        "Астана",
-		"registered_at": "2020-01-01",
+		"address":       "г. Астана, пр. Мангилик Ел, 55А",
+		"phone":         "+7 (7172) 79-70-70",
+		"registered_at": "2010-06-01",
 	},
 }
 

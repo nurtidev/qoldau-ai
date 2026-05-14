@@ -38,7 +38,7 @@ export function AdminApplications() {
   const filtered = filter === 'all' ? applications : applications.filter((a) => a.status === filter)
 
   return (
-    <div className="page-fade">
+    <div className="page-fade" style={{ padding: '32px 40px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
         <h1 style={{ fontSize: 26, fontWeight: 700, margin: 0 }}>
           Заявки <span style={{ fontSize: 14, color: 'var(--color-text-3)', fontWeight: 500 }}>· {filtered.length}</span>

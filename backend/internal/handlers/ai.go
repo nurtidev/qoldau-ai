@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -140,4 +141,120 @@ func (h *AIHandler) GenerateForm(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respond(w, http.StatusOK, map[string]interface{}{"form_schema": schema})
+}
+
+func (h *AIHandler) GenerateFormStream(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Description string `json:"description"`
+	}
+	if err := decode(r, &req); err != nil || strings.TrimSpace(req.Description) == "" {
+		respondErr(w, http.StatusBadRequest, "description required")
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("X-Accel-Buffering", "no")
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "streaming unsupported", http.StatusInternalServerError)
+		return
+	}
+
+	type streamPayload struct {
+		Model     string          `json:"model"`
+		MaxTokens int             `json:"max_tokens"`
+		System    string          `json:"system"`
+		Messages  []claudeMessage `json:"messages"`
+		Stream    bool            `json:"stream"`
+	}
+
+	payload := streamPayload{
+		Model:     "claude-sonnet-4-6",
+		MaxTokens: 4096,
+		System:    systemPrompt,
+		Messages:  []claudeMessage{{Role: "user", Content: req.Description}},
+		Stream:    true,
+	}
+
+	body, _ := json.Marshal(payload)
+	httpReq, err := http.NewRequestWithContext(r.Context(), http.MethodPost,
+		"https://api.anthropic.com/v1/messages", bytes.NewReader(body))
+	if err != nil {
+		fmt.Fprintf(w, "data: {\"error\":\"request build failed\"}\n\n")
+		flusher.Flush()
+		return
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("x-api-key", h.apiKey)
+	httpReq.Header.Set("anthropic-version", "2023-06-01")
+
+	resp, err := http.DefaultClient.Do(httpReq)
+	if err != nil {
+		fmt.Fprintf(w, "data: {\"error\":\"claude api unreachable\"}\n\n")
+		flusher.Flush()
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		errBody, _ := io.ReadAll(resp.Body)
+		errMsg, _ := json.Marshal(string(errBody))
+		fmt.Fprintf(w, "data: {\"error\":%s}\n\n", errMsg)
+		flusher.Flush()
+		return
+	}
+
+	scanner := bufio.NewScanner(resp.Body)
+	scanner.Buffer(make([]byte, 512*1024), 512*1024)
+
+	for scanner.Scan() {
+		select {
+		case <-r.Context().Done():
+			return
+		default:
+		}
+
+		line := scanner.Text()
+		if !strings.HasPrefix(line, "data: ") {
+			continue
+		}
+		data := strings.TrimPrefix(line, "data: ")
+
+		var event struct {
+			Type  string `json:"type"`
+			Delta *struct {
+				Type string `json:"type"`
+				Text string `json:"text"`
+			} `json:"delta"`
+			Error *struct {
+				Message string `json:"message"`
+			} `json:"error"`
+		}
+		if err := json.Unmarshal([]byte(data), &event); err != nil {
+			continue
+		}
+
+		switch event.Type {
+		case "content_block_delta":
+			if event.Delta != nil && event.Delta.Type == "text_delta" {
+				chunk, _ := json.Marshal(map[string]string{"t": event.Delta.Text})
+				fmt.Fprintf(w, "data: %s\n\n", chunk)
+				flusher.Flush()
+			}
+		case "message_stop":
+			fmt.Fprintf(w, "data: {\"done\":true}\n\n")
+			flusher.Flush()
+			return
+		case "error":
+			if event.Error != nil {
+				errMsg, _ := json.Marshal(event.Error.Message)
+				fmt.Fprintf(w, "data: {\"error\":%s}\n\n", errMsg)
+				flusher.Flush()
+			}
+			return
+		}
+	}
 }

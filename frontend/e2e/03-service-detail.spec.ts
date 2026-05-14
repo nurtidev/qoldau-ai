@@ -2,6 +2,11 @@ import { test, expect } from '@playwright/test'
 
 test.describe('Детальная страница услуги', () => {
   test.beforeEach(async ({ page }) => {
+    // Логин, чтобы виджет показывал "Подать заявку" (без auth — "Войти и проверить готовность")
+    await page.goto('/login')
+    await page.getByPlaceholder('123456789012').fill('123456789012')
+    await page.getByRole('button', { name: /войти через egov/i }).click()
+    await page.waitForURL(/\/cabinet/, { timeout: 15_000 })
     // Переходим через каталог, чтобы не зашивать UUID
     await page.goto('/services')
     await expect(page.locator('a.card').first()).toBeVisible({ timeout: 20_000 })

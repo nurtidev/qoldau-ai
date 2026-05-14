@@ -89,6 +89,7 @@ func main() {
 
 		// AI
 		r.With(authMw).Post("/ai/generate-form", aiH.GenerateForm)
+		r.With(authMw).Post("/ai/generate-form-stream", aiH.GenerateFormStream)
 
 		// Applications
 		r.Route("/applications", func(r chi.Router) {
@@ -102,6 +103,7 @@ func main() {
 		// Documents
 		r.Route("/documents", func(r chi.Router) {
 			r.Use(authMw)
+			r.Get("/", docsH.ListAll)
 			r.Post("/upload", docsH.Upload)
 			r.Get("/{app_id}", docsH.ListByApplication)
 		})

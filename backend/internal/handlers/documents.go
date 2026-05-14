@@ -82,6 +82,20 @@ func (h *DocumentsHandler) Upload(w http.ResponseWriter, r *http.Request) {
 	respond(w, http.StatusCreated, doc)
 }
 
+func (h *DocumentsHandler) ListAll(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.ClaimsFromCtx(r.Context())
+	docs := []models.Document{}
+	if err := h.db.Select(&docs,
+		`SELECT d.* FROM documents d
+		 JOIN applications a ON a.id = d.application_id
+		 WHERE a.user_id = $1
+		 ORDER BY d.created_at DESC`, claims.UserID); err != nil {
+		respondErr(w, http.StatusInternalServerError, "failed to fetch documents")
+		return
+	}
+	respond(w, http.StatusOK, docs)
+}
+
 func (h *DocumentsHandler) ListByApplication(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.ClaimsFromCtx(r.Context())
 	appID := chi.URLParam(r, "app_id")

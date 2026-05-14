@@ -15,8 +15,9 @@ export function ApplyPage() {
   const toast          = useToast()
 
   const [submitting, setSubmitting]   = useState(false)
-  const [egovLoaded, setEgovLoaded]   = useState(false)
-  const [initialData, setInitialData] = useState<Record<string, unknown>>({})
+  const [egovLoaded, setEgovLoaded]     = useState(false)
+  const [egovChecked, setEgovChecked]   = useState(false)
+  const [initialData, setInitialData]   = useState<Record<string, unknown>>({})
 
   const { data: service, isLoading } = useQuery<Service>({
     queryKey: ['service', service_id],
@@ -39,7 +40,7 @@ export function ApplyPage() {
       })
       setInitialData(prefilled)
       setEgovLoaded(Object.keys(prefilled).length > 0)
-    }).catch(() => {})
+    }).catch(() => {}).finally(() => setEgovChecked(true))
   }, [user, service])
 
   const handleSubmit = async (formData: Record<string, unknown>) => {
@@ -119,12 +120,15 @@ export function ApplyPage() {
       )}
 
       <div className="card" style={{ padding: 32 }}>
-        <FormRenderer
-          schema={service.form_schema}
-          initialData={initialData}
-          onSubmit={handleSubmit}
-          submitting={submitting}
-        />
+        {!egovChecked
+          ? <div className="skeleton" style={{ height: 480, borderRadius: 8 }} />
+          : <FormRenderer
+              schema={service.form_schema}
+              initialData={initialData}
+              onSubmit={handleSubmit}
+              submitting={submitting}
+            />
+        }
       </div>
     </div>
   )

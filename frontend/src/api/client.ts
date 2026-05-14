@@ -71,6 +71,7 @@ export const documentsApi = {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
   },
+  listAll: () => api.get('/documents'),
   list: (app_id: string) => api.get(`/documents/${app_id}`),
 }
 

@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { servicesApi, aiApi } from '@/api/client'
+import { servicesApi } from '@/api/client'
 import { I } from '@/components/icons'
 import { useToast } from '@/components/Toast'
+import { FormRenderer } from '@/components/FormRenderer'
 import type { FormField, FormStep, FieldType, Service, FormFieldCondition } from '@/types'
 
 // ─── constants ────────────────────────────────────────────────────────────────
@@ -15,8 +16,9 @@ const FIELD_TYPE_META: { id: BuilderFieldType; label: string; iconKey: keyof typ
   { id: 'textarea',   label: 'Длинный текст',      iconKey: 'Document',    desc: 'Многострочное поле' },
   { id: 'number',     label: 'Число',              iconKey: 'Hash',        desc: 'Числовое значение' },
   { id: 'currency',   label: 'Сумма (₸)',          iconKey: 'Coins',       desc: 'Числовое с маской валюты' },
-  { id: 'select',     label: 'Выпадающий список',  iconKey: 'List',        desc: 'Выбор одного из…' },
-  { id: 'radio',      label: 'Переключатели',      iconKey: 'CheckCircle', desc: 'Один из вариантов' },
+  { id: 'select',      label: 'Выпадающий список',  iconKey: 'List',        desc: 'Выбор одного из…' },
+  { id: 'multiselect', label: 'Мультивыбор',        iconKey: 'List',        desc: 'Несколько вариантов' },
+  { id: 'radio',       label: 'Переключатели',       iconKey: 'CheckCircle', desc: 'Один из вариантов' },
   { id: 'checkbox',   label: 'Чекбокс',            iconKey: 'Check',       desc: 'Да / нет' },
   { id: 'date',       label: 'Дата',               iconKey: 'Calendar',    desc: 'Календарь' },
   { id: 'file',       label: 'Файл',               iconKey: 'Upload',      desc: 'Загрузка документов' },
@@ -25,8 +27,8 @@ const FIELD_TYPE_META: { id: BuilderFieldType; label: string; iconKey: keyof typ
 
 const FIELD_BY_ID = Object.fromEntries(FIELD_TYPE_META.map(t => [t.id, t]))
 
-const CATEGORIES = ['Кредитование', 'Гарантии', 'Лизинг', 'Экспорт', 'Инвестиции', 'Гранты', 'Страхование']
-const ORGS = ['БРК', 'КазАгро', 'КМС', 'KAZAKH INVEST', 'KAZNEX INVEST', 'DAMU', 'Байтерек Девелопмент']
+const CATEGORIES = ['Финансирование', 'Гарантии', 'Лизинг', 'Экспорт', 'Инвестиции', 'Гранты', 'Субсидии', 'Агросектор', 'Страхование']
+const ORGS = ['АО «НИХ «Байтерек»', 'Демеу', 'KazGuarantee', 'KazExport', 'АгроКапитал', 'ИнноФонд', 'Astana Cap.']
 
 const OP_LABELS: Record<FormFieldCondition['operator'], string> = {
   equals:       'равно',
@@ -155,84 +157,231 @@ function LeftPanel({ meta, setMeta, onSaveDraft, onPublish, saving }: {
 
 // ─── AiBlock ──────────────────────────────────────────────────────────────────
 
+const AI_STREAM_STYLES = `
+  @keyframes aiSlideIn {
+    from { opacity: 0; transform: translateX(-10px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes aiBlink { 50% { opacity: 0; } }
+  @keyframes aiPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+`
+
+function parseSteps(raw: string): BuilderStep[] {
+  let json = raw.trim()
+    .replace(/^```json\n?/, '').replace(/^```\n?/, '').replace(/\n?```$/, '').trim()
+  const schema = JSON.parse(json) as {
+    steps: {
+      id?: string; title: string
+      fields: { id?: string; type?: string; label: string; required?: boolean; options?: string[]; formula?: string; placeholder?: string; accept?: string; prefill_from?: string }[]
+      condition?: FormStep['condition']
+    }[]
+  }
+  if (!schema?.steps) throw new Error('no steps')
+  return schema.steps.map((s, i) => ({
+    id: s.id || `s${i + 1}_ai`,
+    title: s.title || `Этап ${i + 1}`,
+    condition: s.condition,
+    fields: (s.fields || []).map((f, j) => ({
+      id: f.id || `f${i + 1}_${j + 1}_ai`,
+      type: (f.type as BuilderFieldType) || 'text',
+      label: f.label || 'Поле',
+      required: !!f.required,
+      options: f.options,
+      formula: f.formula,
+      placeholder: f.placeholder,
+      accept: f.accept,
+      prefill_from: f.prefill_from,
+    })),
+  }))
+}
+
 function AiBlock({ onApply }: { onApply: (steps: BuilderStep[]) => void }) {
-  const [prompt, setPrompt] = useState('Льготный кредит для микробизнеса под залог сельхозтехники, до 50 млн тенге, срок до 5 лет')
-  const [state, setState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
-  const [progress, setProgress] = useState(0)
+  const [prompt, setPrompt] = useState('Лизинг производственного оборудования от Байтерека для МСБ. Сумма до 500 млн тенге, срок до 7 лет, аванс от 20%. Нужны: данные о компании из eGov (БИН, название, адрес), информация об оборудовании (наименование, стоимость, поставщик, страна происхождения), финансовые показатели (выручка за 2 года, чистая прибыль), автоматический расчёт ежемесячного платежа по формуле, загрузка документов (бизнес-план, финансовая отчётность, уставные документы).')
+  const [state, setState] = useState<'idle' | 'streaming' | 'revealing' | 'success' | 'error'>('idle')
+  const [streamText, setStreamText] = useState('')
   const [generated, setGenerated] = useState<BuilderStep[] | null>(null)
+  const [elapsed, setElapsed] = useState(0)
+  const termRef = useRef<HTMLPreElement>(null)
   const toast = useToast()
+
+  // auto-scroll terminal while streaming
+  useEffect(() => {
+    if (termRef.current) termRef.current.scrollTop = termRef.current.scrollHeight
+  }, [streamText])
+
+  // switch revealing → success after staggered animation
+  useEffect(() => {
+    if (state !== 'revealing' || !generated) return
+    const total = generated.reduce((n, s) => n + s.fields.length, 0)
+    const timer = setTimeout(() => setState('success'), total * 110 + 600)
+    return () => clearTimeout(timer)
+  }, [state, generated])
 
   const generate = async () => {
     if (!prompt.trim()) { toast.push('Опишите услугу', 'error'); return }
-    setState('loading')
-    setProgress(0)
-
-    const tick = setInterval(() => setProgress(p => Math.min(p + 7, 92)), 220)
+    setState('streaming')
+    setStreamText('')
+    setGenerated(null)
+    const t0 = Date.now()
 
     try {
-      const res = await aiApi.generateForm(prompt)
-      clearInterval(tick)
-      setProgress(100)
+      const token = localStorage.getItem('token')
+      const res = await fetch('/api/ai/generate-form-stream', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ description: prompt }),
+      })
+      if (!res.ok || !res.body) throw new Error('stream failed')
 
-      const schema = res.data.form_schema as {
-        steps: {
-          id?: string; title: string
-          fields: { id?: string; type?: string; label: string; required?: boolean; options?: string[]; formula?: string; placeholder?: string; accept?: string; prefill_from?: string }[]
-        }[]
+      const reader = res.body.getReader()
+      const dec = new TextDecoder()
+      let accumulated = ''
+      let sseBuffer = ''
+      let done = false
+
+      while (!done) {
+        const { done: rdDone, value } = await reader.read()
+        if (rdDone) break
+        sseBuffer += dec.decode(value, { stream: true })
+        const lines = sseBuffer.split('\n')
+        sseBuffer = lines.pop() ?? ''
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue
+          try {
+            const evt = JSON.parse(line.slice(6))
+            if (evt.error) throw new Error(evt.error)
+            if (evt.t) { accumulated += evt.t; setStreamText(accumulated) }
+            if (evt.done) { done = true }
+          } catch (e) {
+            if (e instanceof SyntaxError) continue
+            throw e
+          }
+        }
       }
-      if (!schema?.steps) throw new Error('Invalid schema')
 
-      const steps: BuilderStep[] = schema.steps.map((s, i) => ({
-        id: s.id || `s${i + 1}_ai`,
-        title: s.title || `Этап ${i + 1}`,
-        fields: (s.fields || []).map((f, j) => ({
-          id: f.id || `f${i + 1}_${j + 1}_ai`,
-          type: (f.type as BuilderFieldType) || 'text',
-          label: f.label || 'Поле',
-          required: !!f.required,
-          options: f.options,
-          formula: f.formula,
-          placeholder: f.placeholder,
-          accept: f.accept,
-          prefill_from: f.prefill_from,
-        })),
-      }))
-
+      const steps = parseSteps(accumulated)
       setGenerated(steps)
-      setState('success')
-      toast.push('Форма сгенерирована', 'success')
+      setElapsed(Date.now() - t0)
+      setState('revealing')
     } catch {
-      clearInterval(tick)
       setState('error')
       toast.push('Ошибка генерации. Попробуйте ещё раз', 'error')
     }
   }
 
-  if (state === 'success' && generated) {
-    const total = generated.reduce((n, s) => n + s.fields.length, 0)
+  // ── streaming UI ─────────────────────────────────────────────────────────────
+  if (state === 'streaming') {
     return (
-      <div style={{ background: 'linear-gradient(135deg,#EEF2FF 0%,#DBEAFE 100%)', border: '1px solid #C7D2FE', borderRadius: 12, padding: 20, marginBottom: 24 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-          <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--color-accent)', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-            <I.CheckCircle size={15} />
-          </div>
-          <div style={{ fontSize: 14, fontWeight: 600 }}>Готово · {generated.length} этап(ов), {total} полей</div>
+      <div style={{ background: 'linear-gradient(135deg,#0F172A 0%,#1E3A8A 100%)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 20, marginBottom: 24, color: '#fff' }}>
+        <style>{AI_STREAM_STYLES}</style>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#34D399', display: 'inline-block', animation: 'aiPulse 1.2s infinite' }} />
+          <span style={{ fontSize: 13, fontWeight: 600 }}>Claude генерирует форму…</span>
+          <span style={{ marginLeft: 'auto', fontSize: 11, color: 'rgba(255,255,255,0.45)', fontFamily: 'monospace' }}>{streamText.length} симв.</span>
         </div>
-        <div style={{ fontSize: 13, color: 'var(--color-text-2)', marginBottom: 14 }}>
-          Claude сгенерировал черновик формы. Проверьте поля и примените к холсту — заменит текущие этапы.
-        </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn btn-primary btn-sm" onClick={() => { onApply(generated); setState('idle'); setGenerated(null) }}>
-            <I.Check size={14} /> Применить к холсту
-          </button>
-          <button className="btn btn-secondary btn-sm" onClick={() => { setState('idle'); setGenerated(null) }}>Отменить</button>
-          <div style={{ flex: 1 }} />
-          <button className="btn btn-ghost btn-sm" onClick={generate}><I.Sparkle size={14} /> Пересоздать</button>
+        <pre ref={termRef} style={{
+          background: 'rgba(0,0,0,0.45)', borderRadius: 8, padding: '12px 14px', margin: 0,
+          fontSize: 11, fontFamily: 'Monaco,Consolas,monospace', color: '#A5F3FC',
+          maxHeight: 210, overflowY: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all', lineHeight: 1.65,
+        }}>
+          {streamText || ' '}
+          <span style={{ animation: 'aiBlink 1s step-end infinite', opacity: 1 }}>▋</span>
+        </pre>
+        <div style={{ marginTop: 10, fontSize: 12, color: 'rgba(255,255,255,0.4)', textAlign: 'center' }}>
+          Анализирую описание, подбираю поля и условия…
         </div>
       </div>
     )
   }
 
+  // ── revealing / success UI ───────────────────────────────────────────────────
+  if ((state === 'revealing' || state === 'success') && generated) {
+    const total = generated.reduce((n, s) => n + s.fields.length, 0)
+    const manualMin = Math.round(total * 5 + 10)
+    const elapsedSec = (elapsed / 1000).toFixed(1)
+    let gfi = 0
+
+    return (
+      <div style={{
+        background: 'linear-gradient(135deg,#EEF2FF 0%,#DBEAFE 100%)',
+        border: '1px solid #C7D2FE', borderRadius: 12, padding: 20, marginBottom: 24,
+      }}>
+        <style>{AI_STREAM_STYLES}</style>
+
+        {/* header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+          {state === 'revealing' ? (
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#22C55E', display: 'inline-block', animation: 'aiPulse 1s infinite' }} />
+          ) : (
+            <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--color-success)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <I.Check size={13} style={{ color: '#fff' }} />
+            </div>
+          )}
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 14, fontWeight: 600 }}>
+              {state === 'revealing' ? 'Создаю структуру формы…' : `Готово за ${elapsedSec} сек`}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--color-text-3)' }}>
+              {generated.length} этапов · {total} полей
+            </div>
+          </div>
+          {state === 'success' && (
+            <div style={{ textAlign: 'right', fontSize: 12 }}>
+              <div style={{ fontWeight: 600, color: 'var(--color-success)' }}>{elapsedSec} сек с AI</div>
+              <div style={{ color: 'var(--color-text-3)' }}>vs ~{manualMin} мин вручную</div>
+            </div>
+          )}
+        </div>
+
+        {/* steps preview with staggered animation */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: state === 'success' ? 16 : 0 }}>
+          {generated.map((step, si) => (
+            <div key={step.id} style={{ background: '#fff', borderRadius: 8, padding: '12px 14px', border: '1px solid var(--color-border)', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <span style={{ width: 20, height: 20, borderRadius: '50%', background: 'var(--color-primary)', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{si + 1}</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text)' }}>{step.title}</span>
+                <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--color-text-3)' }}>{step.fields.length} полей</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {step.fields.map((f) => {
+                  const delay = gfi++ * 0.11
+                  return (
+                    <div key={f.id} style={{
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      padding: '5px 8px', background: 'var(--color-surface-2)', borderRadius: 6,
+                      animation: `aiSlideIn 0.2s ease ${delay}s both`,
+                    }}>
+                      <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--color-accent)', flexShrink: 0 }} />
+                      <span style={{ fontSize: 12, color: 'var(--color-text)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.label}</span>
+                      <span style={{ fontSize: 10, color: 'var(--color-text-3)', flexShrink: 0, fontFamily: 'monospace' }}>{f.type}</span>
+                      {f.required && <span style={{ fontSize: 10, color: 'var(--color-danger)', flexShrink: 0 }}>*</span>}
+                      {f.prefill_from && <span style={{ fontSize: 10, color: 'var(--color-accent)', flexShrink: 0 }}>eGov</span>}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {state === 'success' && (
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn btn-primary btn-sm" onClick={() => { onApply(generated); setState('idle'); setGenerated(null) }}>
+              <I.Check size={14} /> Применить к холсту
+            </button>
+            <button className="btn btn-secondary btn-sm" onClick={() => { setState('idle'); setGenerated(null) }}>Отменить</button>
+            <div style={{ flex: 1 }} />
+            <button className="btn btn-ghost btn-sm" onClick={generate}><I.Sparkle size={14} /> Пересоздать</button>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // ── idle / error UI ──────────────────────────────────────────────────────────
   return (
     <div style={{ background: 'linear-gradient(135deg,#1E3A8A 0%,#3B82F6 100%)', borderRadius: 12, padding: 20, marginBottom: 24, color: '#fff', position: 'relative', overflow: 'hidden' }}>
       <div style={{ position: 'absolute', top: -30, right: -30, width: 180, height: 180, borderRadius: '50%', background: 'rgba(255,255,255,0.06)' }} />
@@ -254,7 +403,6 @@ function AiBlock({ onApply }: { onApply: (steps: BuilderStep[]) => void }) {
           value={prompt}
           onChange={e => setPrompt(e.target.value)}
           placeholder="Например: льготный кредит для МСБ под 9% годовых, сумма до 100 млн тенге…"
-          disabled={state === 'loading'}
           style={{
             width: '100%', minHeight: 76, marginTop: 2,
             background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)',
@@ -263,35 +411,21 @@ function AiBlock({ onApply }: { onApply: (steps: BuilderStep[]) => void }) {
           }}
         />
 
-        {state === 'loading' && (
-          <div style={{ marginTop: 10 }}>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)', marginBottom: 6, display: 'flex', justifyContent: 'space-between' }}>
-              <span>Claude анализирует описание…</span>
-              <span>{progress}%</span>
-            </div>
-            <div style={{ height: 4, background: 'rgba(255,255,255,0.15)', borderRadius: 2, overflow: 'hidden' }}>
-              <div style={{ width: `${progress}%`, height: '100%', background: '#fff', transition: 'width 220ms ease' }} />
-            </div>
-          </div>
-        )}
-
-        {state !== 'loading' && (
-          <div style={{ marginTop: 10, display: 'flex', gap: 8, alignItems: 'center' }}>
-            <button onClick={generate} style={{
-              height: 38, padding: '0 18px', borderRadius: 8, border: 'none',
-              background: '#fff', color: 'var(--color-primary)',
-              fontSize: 14, fontWeight: 600, cursor: 'pointer',
-              display: 'inline-flex', alignItems: 'center', gap: 8,
-            }}>
-              <I.Sparkle size={15} /> Сгенерировать форму через AI
-            </button>
-            {state === 'error' && (
-              <span style={{ fontSize: 12, color: '#FCA5A5', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                <I.Alert size={13} /> Ошибка генерации
-              </span>
-            )}
-          </div>
-        )}
+        <div style={{ marginTop: 10, display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button onClick={generate} style={{
+            height: 38, padding: '0 18px', borderRadius: 8, border: 'none',
+            background: '#fff', color: 'var(--color-primary)',
+            fontSize: 14, fontWeight: 600, cursor: 'pointer',
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+          }}>
+            <I.Sparkle size={15} /> Сгенерировать форму через AI
+          </button>
+          {state === 'error' && (
+            <span style={{ fontSize: 12, color: '#FCA5A5', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <I.Alert size={13} /> Ошибка. Попробуйте ещё раз
+            </span>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -534,7 +668,7 @@ function StepBlock({ step, idx, total, selectedFieldId, onSelectField, onUpdateS
       type,
       label: 'Новое поле (' + meta.label.toLowerCase() + ')',
       required: false,
-      ...(type === 'select' || type === 'radio' ? { options: ['Вариант 1', 'Вариант 2'] } : {}),
+      ...(type === 'select' || type === 'radio' || type === 'multiselect' ? { options: ['Вариант 1', 'Вариант 2'] } : {}),
       ...(type === 'calculated' ? { formula: '' } : {}),
     })
     setShowAdd(false)
@@ -735,7 +869,7 @@ function RightPanel({ field, allFields, onChange, onClose }: {
           </span>
         </label>
 
-        {(field.type === 'select' || field.type === 'radio') && (
+        {(field.type === 'select' || field.type === 'radio' || field.type === 'multiselect') && (
           <div>
             <label className="field-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span>Варианты</span>
@@ -806,108 +940,25 @@ function RightPanel({ field, allFields, onChange, onClose }: {
 // ─── PreviewDrawer ────────────────────────────────────────────────────────────
 
 function PreviewDrawer({ steps, title, onClose }: { steps: BuilderStep[]; title: string; onClose: () => void }) {
-  const [stepIdx, setStepIdx] = useState(0)
-  const step = steps[stepIdx]
-  if (!step) return null
-
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 70 }}>
       <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(15,23,42,0.5)' }} />
       <div style={{
-        position: 'absolute', top: 0, right: 0, bottom: 0, width: 520,
+        position: 'absolute', top: 0, right: 0, bottom: 0, width: 540,
         background: 'var(--color-bg)', boxShadow: '-12px 0 40px rgba(0,0,0,0.18)',
         display: 'flex', flexDirection: 'column',
       }}>
         <div style={{ padding: '14px 24px', background: '#fff', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: 12 }}>
           <I.Eye size={18} style={{ color: 'var(--color-accent)' }} />
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 11, color: 'var(--color-text-3)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Предпросмотр</div>
+            <div style={{ fontSize: 11, color: 'var(--color-text-3)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Предпросмотр · интерактивный</div>
             <div style={{ fontSize: 14, fontWeight: 600 }}>{title || 'Без названия'}</div>
           </div>
           <button className="btn btn-ghost btn-sm" onClick={onClose} style={{ width: 32, padding: 0 }}><I.X size={15} /></button>
         </div>
 
-        <div style={{ padding: '14px 24px', background: '#fff', borderBottom: '1px solid var(--color-border)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {steps.map((s, i) => (
-              <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, flex: i < steps.length - 1 ? 1 : undefined }}>
-                <div style={{
-                  width: 26, height: 26, borderRadius: '50%', flexShrink: 0,
-                  background: i <= stepIdx ? 'var(--color-primary)' : 'var(--color-surface-2)',
-                  color: i <= stepIdx ? '#fff' : 'var(--color-text-3)',
-                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 12, fontWeight: 600,
-                }}>{i + 1}</div>
-                {i < steps.length - 1 && (
-                  <div style={{ flex: 1, height: 2, background: i < stepIdx ? 'var(--color-primary)' : 'var(--color-border)' }} />
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-
         <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px' }}>
-          <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0, marginBottom: 4 }}>{step.title}</h2>
-          <p style={{ fontSize: 13, color: 'var(--color-text-3)', marginTop: 0, marginBottom: 24 }}>Шаг {stepIdx + 1} из {steps.length}</p>
-
-          {step.fields.map(f => (
-            <div key={f.id} style={{ marginBottom: 18 }}>
-              <label className="field-label">{f.label}{f.required && <span className="req">*</span>}</label>
-              {f.type === 'textarea' ? (
-                <textarea className="textarea" placeholder={f.placeholder} disabled rows={3} />
-              ) : f.type === 'select' ? (
-                <select className="select" disabled style={{ appearance: 'none' }}>
-                  <option>{f.placeholder || 'Выберите вариант'}</option>
-                  {(f.options || []).map(o => <option key={o}>{o}</option>)}
-                </select>
-              ) : f.type === 'radio' ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {(f.options || []).map((o, i) => (
-                    <label key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', border: '1px solid var(--color-border)', borderRadius: 6, fontSize: 13 }}>
-                      <input type="radio" disabled style={{ accentColor: 'var(--color-accent)' }} /> {o}
-                    </label>
-                  ))}
-                </div>
-              ) : f.type === 'checkbox' ? (
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
-                  <input type="checkbox" disabled style={{ accentColor: 'var(--color-accent)' }} />
-                  {f.placeholder || 'Согласен с условиями'}
-                </label>
-              ) : f.type === 'file' ? (
-                <div style={{ padding: 18, border: '1.5px dashed var(--color-border-strong)', borderRadius: 8, textAlign: 'center', color: 'var(--color-text-3)', fontSize: 13 }}>
-                  <I.Upload size={18} /><br />Перетащите файл или нажмите для выбора
-                  {f.accept && <div style={{ fontSize: 11, marginTop: 4 }}>{f.accept}</div>}
-                </div>
-              ) : f.type === 'calculated' ? (
-                <div style={{ padding: '10px 14px', background: 'var(--color-accent-soft)', borderRadius: 6, fontSize: 14, color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <I.Sparkle size={14} /> Авто: {f.formula || '—'}
-                </div>
-              ) : f.type === 'currency' ? (
-                <div style={{ position: 'relative' }}>
-                  <input className="input" placeholder={f.placeholder || '0'} disabled style={{ paddingRight: 32, fontFamily: 'monospace' }} />
-                  <span style={{ position: 'absolute', right: 12, top: 9, color: 'var(--color-text-3)', fontSize: 13 }}>₸</span>
-                </div>
-              ) : (
-                <input className="input" type={f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : 'text'} placeholder={f.placeholder} disabled />
-              )}
-              {f.prefill_from && (
-                <div style={{ fontSize: 11, color: 'var(--color-accent)', marginTop: 4 }}>
-                  Автозаполнение: {EGOV_OPTS.find(o => o.value === f.prefill_from)?.label || f.prefill_from}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-
-        <div style={{ padding: '14px 24px', background: '#fff', borderTop: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between' }}>
-          <button className="btn btn-secondary" disabled={stepIdx === 0} onClick={() => setStepIdx(i => i - 1)}>
-            <I.ArrowLeft size={14} /> Назад
-          </button>
-          {stepIdx < steps.length - 1 ? (
-            <button className="btn btn-primary" onClick={() => setStepIdx(i => i + 1)}>Далее <I.ArrowRight size={14} /></button>
-          ) : (
-            <button className="btn btn-primary" disabled>Подать заявку <I.Check size={14} /></button>
-          )}
+          <FormRenderer schema={{ steps }} onSubmit={() => {}} />
         </div>
       </div>
     </div>
@@ -994,7 +1045,7 @@ export function ServiceFormPage() {
         if (kind === 'publish' && svcId) await servicesApi.publish(svcId)
       }
       toast.push(kind === 'publish' ? 'Услуга опубликована' : 'Черновик сохранён', 'success')
-      navigate('/admin/services')
+      navigate(`/admin/services/${svcId}/edit`)
     } catch {
       toast.push('Ошибка сохранения', 'error')
     } finally {
@@ -1115,7 +1166,7 @@ export function ServiceFormPage() {
               onAddField={f => addField(i, f)}
               onMoveField={(fi, dir) => moveField(i, fi, dir)}
               onDeleteField={fi => deleteField(i, fi)}
-              allPrevFields={steps.filter((_, j) => j !== i).flatMap(s => s.fields)}
+              allPrevFields={steps.filter((_, j) => j < i).flatMap(s => s.fields)}
             />
           ))}
 

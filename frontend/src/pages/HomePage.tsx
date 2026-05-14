@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { servicesApi } from '@/api/client'
 import { I } from '@/components/icons'
+import { EligibilityScreener } from '@/components/EligibilityScreener'
 import type { Service } from '@/types'
 
 const DIRECTIONS = [
@@ -80,15 +81,15 @@ function HeroSearch() {
               onBlur={() => setTimeout(() => setFocused(false), 150)}
               placeholder="Например: «кредит на пополнение оборотных средств» или «грант»"
               style={{ flex: 1, height: 44, border: 'none', outline: 'none', fontSize: 15, padding: '0 12px', background: 'transparent' }}
-              onKeyDown={(e) => { if (e.key === 'Enter') navigate('/services') }}
+              onKeyDown={(e) => { if (e.key === 'Enter' && q.trim()) navigate(`/services?q=${encodeURIComponent(q.trim())}`) }}
             />
-            <button className="btn btn-primary" onClick={() => navigate('/services')}>Найти</button>
+            <button className="btn btn-primary" onClick={() => navigate(q.trim() ? `/services?q=${encodeURIComponent(q.trim())}` : '/services')}>Найти</button>
           </div>
           {focused && (
             <div className="card" style={{ position: 'absolute', top: 64, left: 0, right: 0, padding: 8, zIndex: 10, boxShadow: 'var(--sh-md)' }}>
               <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-3)', textTransform: 'uppercase', padding: '8px 12px 6px', letterSpacing: '0.06em' }}>Популярные запросы</div>
               {suggestions.map((s, i) => (
-                <div key={i} onMouseDown={() => navigate('/services')} style={{ padding: '10px 12px', borderRadius: 6, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10 }}
+                <div key={i} onMouseDown={() => navigate(`/services?q=${encodeURIComponent(s)}`)} style={{ padding: '10px 12px', borderRadius: 6, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10 }}
                   onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'var(--color-surface-2)' }}
                   onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
                 >
@@ -174,6 +175,7 @@ export function HomePage() {
   return (
     <div className="page-fade">
       <HeroSearch />
+      <EligibilityScreener services={services} />
 
       {/* Directions */}
       <section className="container" style={{ paddingTop: 64 }}>

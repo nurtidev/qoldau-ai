@@ -153,6 +153,73 @@ export function Header() {
   )
 }
 
+const ADMIN_NAV = [
+  { id: 'dash',     label: 'Дашборд',      icon: 'Grid',      to: '/admin' },
+  { id: 'apps',     label: 'Заявки',       icon: 'Document',  to: '/admin/applications' },
+  { id: 'services', label: 'Услуги',       icon: 'Briefcase', to: '/admin/services' },
+  { id: 'users',    label: 'Пользователи', icon: 'User',      to: null },
+  { id: 'analytics',label: 'Аналитика',    icon: 'Hash',      to: null },
+  { id: 'settings', label: 'Настройки',    icon: 'Sliders',   to: null },
+]
+
+export function AdminSidebar() {
+  const location = useLocation()
+  const navigate = useNavigate()
+
+  const active = location.pathname.startsWith('/admin/applications') ? 'apps'
+    : location.pathname.startsWith('/admin/services') ? 'services'
+    : 'dash'
+
+  return (
+    <aside style={{
+      width: 240, flexShrink: 0,
+      background: '#0F172A', color: '#CBD5E1',
+      padding: '20px 12px', display: 'flex', flexDirection: 'column', gap: 2,
+      minHeight: 'calc(100vh - 64px)', position: 'sticky', top: 64,
+    }}>
+      <div style={{ padding: '8px 12px 16px', borderBottom: '1px solid rgba(255,255,255,0.08)', marginBottom: 8 }}>
+        <div style={{ fontSize: 11, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>Админ-панель</div>
+      </div>
+      {ADMIN_NAV.map((it) => {
+        const Ic = I[it.icon as keyof typeof I]
+        const isActive = active === it.id
+        return (
+          <button
+            key={it.id}
+            onClick={() => it.to && navigate(it.to)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 12,
+              padding: '10px 12px', border: 'none', cursor: it.to ? 'pointer' : 'not-allowed',
+              background: isActive ? 'rgba(59,130,246,0.18)' : 'transparent',
+              color: isActive ? '#fff' : it.to ? '#94A3B8' : '#475569',
+              borderRadius: 6, fontSize: 13, fontWeight: isActive ? 600 : 500,
+              transition: 'all 120ms', opacity: it.to ? 1 : 0.5,
+              borderLeft: isActive ? '3px solid #3B82F6' : '3px solid transparent',
+            }}
+            onMouseEnter={(e) => {
+              if (!isActive && it.to) {
+                const el = e.currentTarget as HTMLElement
+                el.style.background = 'rgba(255,255,255,0.04)'
+                el.style.color = '#fff'
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isActive) {
+                const el = e.currentTarget as HTMLElement
+                el.style.background = 'transparent'
+                el.style.color = it.to ? '#94A3B8' : '#475569'
+              }
+            }}
+          >
+            {Ic && <Ic size={16} />}
+            <span style={{ flex: 1, textAlign: 'left' }}>{it.label}</span>
+          </button>
+        )
+      })}
+    </aside>
+  )
+}
+
 export function AdminTopBar() {
   const { logout } = useAuthStore()
   const navigate = useNavigate()

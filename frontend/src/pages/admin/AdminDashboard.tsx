@@ -1,19 +1,8 @@
-import { useNavigate, useLocation, Link } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { analyticsApi } from '@/api/client'
 import { I } from '@/components/icons'
-import { AdminApplications } from './AdminApplications'
-import { AdminServices } from './AdminServices'
 import type { AnalyticsSummary } from '@/types'
-
-const NAV = [
-  { id: 'dash',     label: 'Дашборд',      icon: 'Grid',     to: '/admin' },
-  { id: 'apps',     label: 'Заявки',       icon: 'Document', to: '/admin/applications' },
-  { id: 'services', label: 'Услуги',       icon: 'Briefcase',to: '/admin/services' },
-  { id: 'users',    label: 'Пользователи', icon: 'User',     to: null },
-  { id: 'analytics',label: 'Аналитика',    icon: 'Hash',     to: null },
-  { id: 'settings', label: 'Настройки',    icon: 'Sliders',  to: null },
-]
 
 const CHART_DAYS = [32, 41, 38, 52, 49, 65, 71, 58, 84, 79]
 const CHART_LABELS = ['01','04','07','10','13','16','19','22','25','28']
@@ -26,40 +15,6 @@ const ORGS = [
   { short: 'KazGuarantee',color: '#DC2626', pct:  4 },
 ]
 
-function Sidebar({ active }: { active: string }) {
-  const navigate = useNavigate()
-  return (
-    <aside style={{
-      width: 240, background: '#0F172A', color: '#CBD5E1',
-      padding: '20px 12px', display: 'flex', flexDirection: 'column', gap: 2,
-      minHeight: 'calc(100vh - 64px)', position: 'sticky', top: 64,
-    }}>
-      <div style={{ padding: '8px 12px 16px', borderBottom: '1px solid rgba(255,255,255,0.08)', marginBottom: 8 }}>
-        <div style={{ fontSize: 11, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>Админ-панель</div>
-      </div>
-      {NAV.map((it) => {
-        const Ic = I[it.icon as keyof typeof I]
-        const isActive = active === it.id
-        return (
-          <button key={it.id} onClick={() => it.to && navigate(it.to)} style={{
-            display: 'flex', alignItems: 'center', gap: 12,
-            padding: '10px 12px', border: 'none', cursor: it.to ? 'pointer' : 'not-allowed',
-            background: isActive ? 'rgba(59,130,246,0.18)' : 'transparent',
-            color: isActive ? '#fff' : it.to ? '#94A3B8' : '#475569',
-            borderRadius: 6, fontSize: 13, fontWeight: 500, transition: 'all 120ms',
-            opacity: it.to ? 1 : 0.5,
-          }}
-            onMouseEnter={(e) => { if (!isActive && it.to) { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)'; (e.currentTarget as HTMLElement).style.color = '#fff' } }}
-            onMouseLeave={(e) => { if (!isActive) { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = it.to ? '#94A3B8' : '#475569' } }}
-          >
-            {Ic && <Ic size={16} />}
-            <span style={{ flex: 1, textAlign: 'left' }}>{it.label}</span>
-          </button>
-        )
-      })}
-    </aside>
-  )
-}
 
 function DashboardContent() {
   const { data: summary } = useQuery<AnalyticsSummary>({
@@ -146,19 +101,9 @@ function DashboardContent() {
 }
 
 export function AdminDashboard() {
-  const location = useLocation()
-  const isApps     = location.pathname.startsWith('/admin/applications')
-  const isServices = location.pathname.startsWith('/admin/services')
-  const active = isApps ? 'apps' : isServices ? 'services' : 'dash'
-
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr', minHeight: 'calc(100vh - 64px)' }}>
-      <Sidebar active={active} />
-      <main style={{ padding: '32px 40px', background: 'var(--color-bg)', overflow: 'hidden' }}>
-        {active === 'apps'     && <AdminApplications />}
-        {active === 'services' && <AdminServices />}
-        {active === 'dash'     && <DashboardContent />}
-      </main>
+    <div style={{ padding: '32px 40px' }}>
+      <DashboardContent />
     </div>
   )
 }

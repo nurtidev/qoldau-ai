@@ -22,8 +22,8 @@ test.describe('Главная страница', () => {
 
   test('клик на направление открывает каталог с фильтром', async ({ page }) => {
     await page.goto('/')
-    // DirectionCard ссылки — кликаем на карточку Финансирование
-    await page.getByText('Финансирование').first().click()
+    // DirectionCard — именно ссылки (a.card) с текстом направления, не кнопки screener
+    await page.locator('a.card').filter({ hasText: 'Финансирование' }).first().click()
     await expect(page).toHaveURL(/\/services/)
   })
 

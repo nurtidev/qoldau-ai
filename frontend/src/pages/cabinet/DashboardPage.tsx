@@ -104,6 +104,32 @@ function ApplicationDetailModal({ app, onClose }: { app: Application; onClose: (
           </div>
         </div>
 
+        {(() => {
+          const nextStep: Record<ApplicationStatus, string> = {
+            draft:     'Завершите заполнение и отправьте заявку.',
+            submitted: 'Ожидайте проверки документов — обычно 1–2 рабочих дня.',
+            in_review: 'Заявка на рассмотрении у комитета. Решение принимается в течение 10 рабочих дней.',
+            approved:  'Поздравляем! Ожидайте звонка менеджера для подписания договора.',
+            rejected:  'По этой заявке отказ. Вы можете подать повторно или выбрать другую программу.',
+          }
+          const isPositive = app.status === 'approved'
+          const isNegative = app.status === 'rejected'
+          const bg = isPositive ? 'var(--color-success-soft)' : isNegative ? '#FEF2F2' : 'var(--color-info-soft)'
+          const color = isPositive ? '#047857' : isNegative ? '#B91C1C' : 'var(--color-info)'
+          return (
+            <div style={{ margin: '0 24px 20px', padding: '12px 16px', background: bg, borderRadius: 8, fontSize: 13, color, lineHeight: 1.5 }}>
+              <strong>Что делать сейчас:</strong> {nextStep[app.status]}
+              {app.status === 'rejected' && (
+                <div style={{ marginTop: 8 }}>
+                  <Link to="/services" onClick={onClose} style={{ color: 'var(--color-accent)', fontWeight: 500 }}>
+                    Найти другую программу →
+                  </Link>
+                </div>
+              )}
+            </div>
+          )
+        })()}
+
         <div style={{ padding: '16px 24px', borderTop: '1px solid var(--color-border)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
           <button className="btn btn-secondary" onClick={onClose}>Закрыть</button>
         </div>
@@ -131,11 +157,9 @@ export function CabinetDashboard() {
     queryFn: () => notificationsApi.list().then(r => r.data),
   })
 
-  const firstAppId = applications[0]?.id
   const { data: documents = [], isLoading: docsLoading } = useQuery<Document[]>({
-    queryKey: ['documents', firstAppId],
-    queryFn: () => documentsApi.list(firstAppId!).then(r => r.data),
-    enabled: !!firstAppId,
+    queryKey: ['documents'],
+    queryFn: () => documentsApi.listAll().then(r => r.data ?? []),
   })
 
   const markRead = useMutation({
@@ -265,12 +289,26 @@ export function CabinetDashboard() {
               </div>
 
               {filtered.length === 0 ? (
-                <div className="card" style={{ padding: 48, textAlign: 'center' }}>
-                  <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--color-surface-2)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14, color: 'var(--color-text-3)' }}>
-                    <I.Document size={24} />
+                <div className="card" style={{ padding: 56, textAlign: 'center' }}>
+                  <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--color-accent-soft)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', color: 'var(--color-primary)' }}>
+                    <I.Document size={28} />
                   </div>
-                  <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0, marginBottom: 6 }}>Заявок не найдено</h3>
-                  <p style={{ fontSize: 13, color: 'var(--color-text-3)', margin: 0 }}>В этой категории пока нет заявок</p>
+                  {filter === 'all' ? (
+                    <>
+                      <h3 style={{ fontSize: 18, fontWeight: 600, margin: '0 0 8px' }}>Вы ещё не подавали заявки</h3>
+                      <p style={{ fontSize: 14, color: 'var(--color-text-3)', margin: '0 auto 24px', maxWidth: 340 }}>
+                        Узнайте, какие программы государственной поддержки вам подходят — это займёт 2 минуты
+                      </p>
+                      <Link to="/services" className="btn btn-primary">
+                        Найти программу <I.ArrowRight size={15} />
+                      </Link>
+                    </>
+                  ) : (
+                    <>
+                      <h3 style={{ fontSize: 16, fontWeight: 600, margin: '0 0 6px' }}>В этой категории пока нет заявок</h3>
+                      <p style={{ fontSize: 13, color: 'var(--color-text-3)', margin: 0 }}>Попробуйте другой фильтр</p>
+                    </>
+                  )}
                 </div>
               ) : (
                 <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
@@ -339,8 +377,17 @@ export function CabinetDashboard() {
               </div>
               <div className="card" style={{ padding: 0 }}>
                 {notifications.length === 0 ? (
-                  <div style={{ padding: 40, textAlign: 'center', color: 'var(--color-text-3)', fontSize: 14 }}>
-                    Нет уведомлений
+                  <div style={{ padding: '48px 24px', textAlign: 'center' }}>
+                    <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--color-surface-2)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', color: 'var(--color-text-3)' }}>
+                      <I.Bell size={24} />
+                    </div>
+                    <h3 style={{ fontSize: 16, fontWeight: 600, margin: '0 0 8px' }}>Уведомлений пока нет</h3>
+                    <p style={{ fontSize: 13, color: 'var(--color-text-3)', margin: '0 auto 20px', maxWidth: 300, lineHeight: 1.5 }}>
+                      Здесь будут обновления по вашим заявкам — подайте первую и мы будем держать вас в курсе
+                    </p>
+                    <Link to="/services" className="btn btn-secondary btn-sm">
+                      Подать заявку
+                    </Link>
                   </div>
                 ) : (
                   notifications.map((n, i) => {
@@ -423,25 +470,22 @@ export function CabinetDashboard() {
           {section === 'docs' && (
             <div className="page-fade">
               <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0, marginBottom: 20 }}>Мои документы</h2>
-              {!firstAppId ? (
-                <div className="card" style={{ padding: 48, textAlign: 'center' }}>
-                  <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--color-surface-2)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14, color: 'var(--color-text-3)' }}>
-                    <I.Document size={24} />
+              {!docsLoading && documents.length === 0 ? (
+                <div className="card" style={{ padding: 56, textAlign: 'center' }}>
+                  <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--color-accent-soft)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', color: 'var(--color-primary)' }}>
+                    <I.Briefcase size={28} />
                   </div>
-                  <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0, marginBottom: 6 }}>Документов пока нет</h3>
-                  <p style={{ fontSize: 13, color: 'var(--color-text-3)', margin: 0 }}>Документы появятся после подачи заявки</p>
+                  <h3 style={{ fontSize: 18, fontWeight: 600, margin: '0 0 8px' }}>Документов пока нет</h3>
+                  <p style={{ fontSize: 14, color: 'var(--color-text-3)', margin: '0 auto 24px', maxWidth: 360, lineHeight: 1.55 }}>
+                    Документы, которые вы загрузите при подаче заявки, сохранятся здесь — не придётся загружать повторно
+                  </p>
+                  <Link to="/services" className="btn btn-primary">
+                    Подать первую заявку <I.ArrowRight size={15} />
+                  </Link>
                 </div>
               ) : docsLoading ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {[1, 2, 3].map(i => <div key={i} className="skeleton" style={{ height: 64, borderRadius: 8 }} />)}
-                </div>
-              ) : documents.length === 0 ? (
-                <div className="card" style={{ padding: 48, textAlign: 'center' }}>
-                  <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--color-surface-2)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14, color: 'var(--color-text-3)' }}>
-                    <I.Document size={24} />
-                  </div>
-                  <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0, marginBottom: 6 }}>Документов пока нет</h3>
-                  <p style={{ fontSize: 13, color: 'var(--color-text-3)', margin: 0 }}>Документы появятся после подачи заявки</p>
                 </div>
               ) : (
                 <div className="card" style={{ padding: 0 }}>

@@ -3,23 +3,15 @@ import { useNavigate, Link } from 'react-router-dom'
 import { authApi, mockApi } from '@/api/client'
 import { useAuthStore } from '@/store/auth'
 import { I } from '@/components/icons'
-import { useToast } from '@/components/Toast'
 import { Logo } from '@/components/Layout/Header'
 
 export function LoginPage() {
-  const [role, setRole]       = useState<'user' | 'admin'>('user')
-  const [iin, setIin]         = useState('')
-  const [email, setEmail]     = useState('')
-  const [password, setPassword] = useState('')
-  const [showPwd, setShowPwd] = useState(false)
-  const [remember, setRemember] = useState(false)
-  const [mode, setMode]       = useState<'login' | 'register'>('login')
+  const [iin, setIin]     = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState('')
 
   const { setAuth } = useAuthStore()
   const navigate    = useNavigate()
-  const toast       = useToast()
 
   const handleEgov = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -34,7 +26,6 @@ export function LoginPage() {
       const egov    = egovRes.data
       const res     = await authApi.login(iin, egov.full_name, egov.org_name ?? '')
       setAuth(res.data.user, res.data.token)
-      toast.push('Вход выполнен успешно', 'success')
       if (res.data.user.role === 'admin' || res.data.user.role === 'author') {
         navigate('/admin')
       } else {
@@ -45,11 +36,6 @@ export function LoginPage() {
     } finally {
       setLoading(false)
     }
-  }
-
-  const handlePassword = (e: React.FormEvent) => {
-    e.preventDefault()
-    toast.push('Вход по паролю в разработке', 'info')
   }
 
   return (
@@ -66,34 +52,16 @@ export function LoginPage() {
 
           <div style={{ padding: '20px 28px 28px' }}>
             <h2 style={{ fontSize: 22, fontWeight: 700, margin: 0, marginBottom: 6, letterSpacing: '-0.01em' }}>
-              {mode === 'login' ? 'Войти в Qoldau AI' : 'Регистрация'}
+              Войти в Qoldau AI
             </h2>
             <p style={{ fontSize: 14, color: 'var(--color-text-3)', marginTop: 0, marginBottom: 20 }}>
-              {mode === 'login' ? 'Используйте eGov для быстрого входа' : 'Создайте аккаунт за 2 минуты'}
+              Используйте ИИН/БИН для входа через eGov
             </p>
 
-            {/* Role switcher */}
-            <div style={{ display: 'flex', gap: 4, background: 'var(--color-surface-2)', padding: 3, borderRadius: 8, marginBottom: 20 }}>
-              {([
-                { id: 'user',  label: 'Пользователь' },
-                { id: 'admin', label: 'Сотрудник / Админ' },
-              ] as { id: 'user' | 'admin'; label: string }[]).map(r => (
-                <button
-                  key={r.id}
-                  type="button"
-                  onClick={() => setRole(r.id)}
-                  style={{
-                    flex: 1, height: 32, border: 'none', borderRadius: 6,
-                    background: role === r.id ? '#fff' : 'transparent',
-                    color:      role === r.id ? 'var(--color-text)' : 'var(--color-text-3)',
-                    fontSize: 13, fontWeight: 500, cursor: 'pointer',
-                    boxShadow: role === r.id ? '0 1px 2px rgba(15,23,42,0.08)' : 'none',
-                    transition: 'all 120ms',
-                  }}
-                >
-                  {r.label}
-                </button>
-              ))}
+            {/* eGov trust badge */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'var(--color-info-soft)', borderRadius: 8, marginBottom: 20, fontSize: 13, color: 'var(--color-info)' }}>
+              <I.Shield size={16} style={{ flexShrink: 0 }} />
+              <span>Защищённое подключение через eGov — данные компании заполнятся автоматически</span>
             </div>
 
             {/* eGov form */}
@@ -107,6 +75,7 @@ export function LoginPage() {
                   onChange={e => setIin(e.target.value.replace(/\D/g, '').slice(0, 12))}
                   placeholder="123456789012"
                   maxLength={12}
+                  autoFocus
                   style={{ letterSpacing: '0.08em', fontSize: 15 }}
                 />
                 <div className="field-help">{iin.length}/12 · Для теста: <strong>000000000000</strong> (админ) или любой 12-значный</div>
@@ -130,89 +99,8 @@ export function LoginPage() {
               </button>
             </form>
 
-            {/* Divider */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0' }}>
-              <div style={{ flex: 1, height: 1, background: 'var(--color-border)' }} />
-              <span style={{ fontSize: 12, color: 'var(--color-text-3)' }}>или</span>
-              <div style={{ flex: 1, height: 1, background: 'var(--color-border)' }} />
-            </div>
-
-            {/* Email/password form */}
-            <form onSubmit={handlePassword}>
-              <div style={{ marginBottom: 14 }}>
-                <label className="field-label">Email</label>
-                <input
-                  className="input"
-                  type="email"
-                  placeholder="example@mail.kz"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                />
-              </div>
-              <div style={{ marginBottom: 16 }}>
-                <label className="field-label">Пароль</label>
-                <div style={{ position: 'relative' }}>
-                  <input
-                    className="input"
-                    type={showPwd ? 'text' : 'password'}
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    style={{ paddingRight: 40 }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPwd(!showPwd)}
-                    style={{
-                      position: 'absolute', right: 8, top: 8,
-                      width: 28, height: 28, background: 'none', border: 'none',
-                      cursor: 'pointer', color: 'var(--color-text-3)',
-                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 4,
-                    }}
-                  >
-                    <I.Eye size={16} />
-                  </button>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--color-text-2)', cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={remember}
-                    onChange={e => setRemember(e.target.checked)}
-                    style={{ accentColor: 'var(--color-accent)' }}
-                  />
-                  Запомнить меня
-                </label>
-                <button type="button" onClick={() => toast.push('Сброс пароля в разработке', 'info')}
-                  style={{ fontSize: 13, color: 'var(--color-accent)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                  Забыли пароль?
-                </button>
-              </div>
-
-              <button type="submit" className="btn btn-secondary btn-block">
-                Войти по паролю
-              </button>
-            </form>
-
-            {/* Register link */}
             <div style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: 'var(--color-text-3)' }}>
-              {mode === 'login' ? (
-                <>Нет аккаунта?{' '}
-                  <button type="button" onClick={() => setMode('register')}
-                    style={{ color: 'var(--color-accent)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500, padding: 0, fontSize: 13 }}>
-                    Зарегистрироваться
-                  </button>
-                </>
-              ) : (
-                <>Уже есть аккаунт?{' '}
-                  <button type="button" onClick={() => setMode('login')}
-                    style={{ color: 'var(--color-accent)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 500, padding: 0, fontSize: 13 }}>
-                    Войти
-                  </button>
-                </>
-              )}
+              Нет аккаунта? Просто введите ваш ИИН — он будет создан автоматически.
             </div>
           </div>
         </div>

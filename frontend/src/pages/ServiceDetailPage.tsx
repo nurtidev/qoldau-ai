@@ -68,6 +68,80 @@ function fileTypeBadge(accept?: string): { label: string; bg: string; color: str
   return { label: first, bg, color }
 }
 
+function ReadinessWidget({ user, fileFields, serviceId }: {
+  user: { full_name: string; org_name?: string } | null
+  fileFields: FormField[]
+  serviceId: string
+}) {
+  const items = [
+    { label: 'ИИН подтверждён',                done: !!user },
+    { label: 'Данные организации загружены из eGov', done: !!(user?.org_name) },
+    ...fileFields.slice(0, 2).map(f => ({ label: f.label, done: false })),
+  ]
+  const doneCount = items.filter(i => i.done).length
+  const pct = Math.round((doneCount / items.length) * 100)
+  const isHigh = pct >= 75
+
+  return (
+    <div className="card" style={{ padding: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text)' }}>Готовность к подаче</div>
+        <div style={{ fontSize: 22, fontWeight: 700, color: isHigh ? 'var(--color-success)' : 'var(--color-accent)' }}>
+          {pct}%
+        </div>
+      </div>
+
+      <div style={{ height: 6, background: 'var(--color-surface-2)', borderRadius: 999, overflow: 'hidden', marginBottom: 18 }}>
+        <div style={{
+          height: '100%', width: `${pct}%`, borderRadius: 999,
+          background: isHigh ? 'var(--color-success)' : 'var(--color-accent)',
+          transition: 'width 600ms ease',
+        }} />
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
+        {items.map((item, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13 }}>
+            <div style={{
+              width: 20, height: 20, borderRadius: '50%', flexShrink: 0, marginTop: 1,
+              background: item.done ? 'var(--color-success-soft)' : 'var(--color-surface-2)',
+              color: item.done ? 'var(--color-success)' : 'var(--color-text-3)',
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              {item.done
+                ? <I.Check size={11} strokeWidth={3} />
+                : <I.X size={11} strokeWidth={2.5} />
+              }
+            </div>
+            <span style={{ color: item.done ? 'var(--color-text-2)' : 'var(--color-text-3)', lineHeight: 1.4 }}>
+              {item.label}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {user ? (
+        <Link to={`/cabinet/apply/${serviceId}`} className="btn btn-primary btn-lg btn-block">
+          Подать заявку <I.ArrowRight size={16} />
+        </Link>
+      ) : (
+        <Link to="/login" className="btn btn-primary btn-lg btn-block">
+          Войти и проверить готовность <I.ArrowRight size={16} />
+        </Link>
+      )}
+
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 8,
+        marginTop: 14, padding: '10px 12px',
+        background: 'var(--color-success-soft)', borderRadius: 8,
+      }}>
+        <I.Lock size={14} style={{ color: 'var(--color-success)' }} />
+        <span style={{ fontSize: 12, color: '#047857' }}>Защищённое подключение через eGov</span>
+      </div>
+    </div>
+  )
+}
+
 function EmptySchemaInfo() {
   return (
     <div style={{ padding: '32px 0', textAlign: 'center', color: 'var(--color-text-3)', fontSize: 14 }}>
@@ -385,30 +459,7 @@ export function ServiceDetailPage() {
         {/* Sticky sidebar */}
         <aside>
           <div style={{ position: 'sticky', top: 80, display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {/* CTA */}
-            <div className="card" style={{ padding: 24 }}>
-              <div style={{ fontSize: 12, color: 'var(--color-text-3)', marginBottom: 4 }}>Готовы подать заявку?</div>
-              <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 16, lineHeight: 1.4 }}>
-                Заполнение займёт около 8 минут
-              </div>
-              {user ? (
-                <Link to={`/cabinet/apply/${service.id}`} className="btn btn-primary btn-lg btn-block">
-                  Подать заявку <I.ArrowRight size={16} />
-                </Link>
-              ) : (
-                <Link to="/login" className="btn btn-primary btn-lg btn-block">
-                  Войти и подать заявку <I.ArrowRight size={16} />
-                </Link>
-              )}
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                marginTop: 16, padding: '10px 12px',
-                background: 'var(--color-success-soft)', borderRadius: 8,
-              }}>
-                <I.Lock size={14} style={{ color: 'var(--color-success)' }} />
-                <span style={{ fontSize: 12, color: '#047857' }}>Защищённое подключение через eGov</span>
-              </div>
-            </div>
+            <ReadinessWidget user={user} fileFields={fileFields} serviceId={service.id} />
 
             {/* Org */}
             {service.org_name && (
