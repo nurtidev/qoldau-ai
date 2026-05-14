@@ -74,23 +74,28 @@ func (h *ServicesHandler) Get(w http.ResponseWriter, r *http.Request) {
 func (h *ServicesHandler) Create(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.ClaimsFromCtx(r.Context())
 	var req struct {
-		Title       string            `json:"title"`
-		Description string            `json:"description"`
-		Category    string            `json:"category"`
-		OrgName     string            `json:"org_name"`
-		FormSchema  models.JSONB      `json:"form_schema"`
+		Title            string       `json:"title"`
+		Description      string       `json:"description"`
+		Category         string       `json:"category"`
+		OrgName          string       `json:"org_name"`
+		FormSchema       models.JSONB `json:"form_schema"`
+		EligibilityRules models.JSONB `json:"eligibility_rules"`
 	}
 	if err := decode(r, &req); err != nil || req.Title == "" {
 		respondErr(w, http.StatusBadRequest, "title required")
 		return
 	}
 
+	if req.EligibilityRules == nil {
+		req.EligibilityRules = models.JSONB{"rules": []interface{}{}}
+	}
+
 	var service models.Service
 	err := h.db.QueryRowx(
-		`INSERT INTO services (title, description, category, org_name, form_schema, created_by)
-		 VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+		`INSERT INTO services (title, description, category, org_name, form_schema, eligibility_rules, created_by)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
 		req.Title, nullStr(req.Description), nullStr(req.Category),
-		nullStr(req.OrgName), req.FormSchema, claims.UserID,
+		nullStr(req.OrgName), req.FormSchema, req.EligibilityRules, claims.UserID,
 	).StructScan(&service)
 	if err != nil {
 		respondErr(w, http.StatusInternalServerError, "failed to create service")
@@ -102,23 +107,29 @@ func (h *ServicesHandler) Create(w http.ResponseWriter, r *http.Request) {
 func (h *ServicesHandler) Update(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	var req struct {
-		Title       string       `json:"title"`
-		Description string       `json:"description"`
-		Category    string       `json:"category"`
-		OrgName     string       `json:"org_name"`
-		FormSchema  models.JSONB `json:"form_schema"`
+		Title            string       `json:"title"`
+		Description      string       `json:"description"`
+		Category         string       `json:"category"`
+		OrgName          string       `json:"org_name"`
+		FormSchema       models.JSONB `json:"form_schema"`
+		EligibilityRules models.JSONB `json:"eligibility_rules"`
 	}
 	if err := decode(r, &req); err != nil {
 		respondErr(w, http.StatusBadRequest, "invalid request")
 		return
 	}
 
+	if req.EligibilityRules == nil {
+		req.EligibilityRules = models.JSONB{"rules": []interface{}{}}
+	}
+
 	var service models.Service
 	err := h.db.QueryRowx(
-		`UPDATE services SET title=$1, description=$2, category=$3, org_name=$4, form_schema=$5
-		 WHERE id=$6 RETURNING *`,
+		`UPDATE services SET title=$1, description=$2, category=$3, org_name=$4,
+		   form_schema=$5, eligibility_rules=$6
+		 WHERE id=$7 RETURNING *`,
 		req.Title, nullStr(req.Description), nullStr(req.Category),
-		nullStr(req.OrgName), req.FormSchema, id,
+		nullStr(req.OrgName), req.FormSchema, req.EligibilityRules, id,
 	).StructScan(&service)
 	if err != nil {
 		respondErr(w, http.StatusInternalServerError, "failed to update service")

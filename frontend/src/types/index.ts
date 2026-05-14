@@ -56,6 +56,32 @@ export interface FormSchema {
 
 export type ServiceStatus = 'draft' | 'published'
 
+export type EligibilityLevel = 'blocking' | 'warning' | 'info'
+export type EligibilitySource = 'kgd' | 'kgd_derived' | 'egov' | 'form'
+export type EligibilityOp =
+  | 'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte' | 'between' | 'truthy' | 'falsy'
+
+export interface EligibilityCheck {
+  source: EligibilitySource
+  field: string
+  op: EligibilityOp
+  value?: unknown
+}
+
+export interface EligibilityRule {
+  id: string
+  level: EligibilityLevel
+  title: string
+  ok_label?: string
+  fail_label?: string
+  detail?: string
+  check: EligibilityCheck
+}
+
+export interface EligibilityRuleset {
+  rules: EligibilityRule[]
+}
+
 export interface Service {
   id: string
   title: string
@@ -64,8 +90,21 @@ export interface Service {
   org_name?: string
   status: ServiceStatus
   form_schema: FormSchema
+  eligibility_rules?: EligibilityRuleset
   created_by?: string
   created_at: string
+}
+
+export interface RecommendationItem {
+  service_id: string
+  title: string
+  org_name?: string
+  reason: string
+}
+
+export interface RecommendationResponse {
+  recommendations: RecommendationItem[]
+  note?: string
 }
 
 export type ApplicationStatus =

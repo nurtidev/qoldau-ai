@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/auth'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { notificationsApi } from '@/api/client'
 import { I } from '@/components/icons'
 import { LoginModal } from '@/components/LoginModal'
+import type { Notification } from '@/types'
 
 const LINKS = [
   { id: 'services',  label: 'Услуги',       to: '/services' },
@@ -43,13 +44,13 @@ export function Header() {
     : location.pathname.startsWith('/contacts') ? 'contacts'
     : ''
 
-  const { data: notifs = [] } = useQuery({
+  const { data: notifs = [] } = useQuery<Notification[]>({
     queryKey: ['notifications'],
     queryFn: () => notificationsApi.list().then((r) => r.data),
     enabled: !!user,
     refetchInterval: 30000,
   })
-  const unread = notifs.filter((n: { is_read: boolean }) => !n.is_read).length
+  const unread = notifs.filter((n) => !n.is_read).length
 
   return (
     <>
@@ -98,18 +99,7 @@ export function Header() {
 
             {user ? (
               <>
-                {/* Notifications */}
-                <Link to="/cabinet" style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, color: 'var(--color-text-2)' }}>
-                  <I.Bell size={18} />
-                  {unread > 0 && (
-                    <span style={{
-                      position: 'absolute', top: 4, right: 4,
-                      width: 8, height: 8, borderRadius: '50%',
-                      background: 'var(--color-danger)',
-                      border: '2px solid #fff',
-                    }} />
-                  )}
-                </Link>
+                <NotificationsBell notifications={notifs} unread={unread} />
                 {/* Avatar */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <div style={{
@@ -150,6 +140,217 @@ export function Header() {
         />
       )}
     </>
+  )
+}
+
+// ─── NotificationsBell ────────────────────────────────────────────────────────
+
+function NotificationsBell({ notifications, unread }: {
+  notifications: Notification[]
+  unread: number
+}) {
+  const [open, setOpen] = useState(false)
+  const wrapRef = useRef<HTMLDivElement>(null)
+  const qc = useQueryClient()
+  const navigate = useNavigate()
+
+  // Закрытие по клику снаружи + Esc
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
+  const recent = notifications.slice(0, 7)
+
+  const markOne = async (id: string) => {
+    try { await notificationsApi.markRead(id) }
+    catch { /* ignore */ }
+    qc.invalidateQueries({ queryKey: ['notifications'] })
+  }
+  const markAll = async () => {
+    const unreadIds = notifications.filter(n => !n.is_read).map(n => n.id)
+    if (unreadIds.length === 0) return
+    try { await Promise.all(unreadIds.map(id => notificationsApi.markRead(id))) }
+    catch { /* ignore */ }
+    qc.invalidateQueries({ queryKey: ['notifications'] })
+  }
+
+  const openAll = () => {
+    setOpen(false)
+    navigate('/cabinet?section=notifs')
+  }
+
+  return (
+    <div ref={wrapRef} style={{ position: 'relative' }}>
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        aria-label={unread > 0 ? `Уведомления, непрочитанных: ${unread}` : 'Уведомления'}
+        aria-haspopup="true"
+        aria-expanded={open}
+        style={{
+          position: 'relative', display: 'inline-flex',
+          alignItems: 'center', justifyContent: 'center',
+          width: 36, height: 36, borderRadius: 6,
+          background: open ? 'var(--color-surface-2)' : 'transparent',
+          border: 'none', cursor: 'pointer', color: 'var(--color-text-2)',
+          transition: 'background 120ms',
+        }}
+      >
+        <I.Bell size={18} />
+        {unread > 0 && (
+          <span style={{
+            position: 'absolute', top: 4, right: 4,
+            minWidth: 16, height: 16, padding: '0 4px',
+            borderRadius: 999, background: 'var(--color-danger)',
+            border: '2px solid #fff', color: '#fff',
+            fontSize: 10, fontWeight: 700,
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            lineHeight: 1,
+          }}>
+            {unread > 9 ? '9+' : unread}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div
+          role="dialog"
+          aria-label="Уведомления"
+          style={{
+            position: 'absolute', top: 'calc(100% + 8px)', right: 0,
+            width: 360, maxHeight: 'min(70vh, 540px)',
+            background: '#fff', border: '1px solid var(--color-border)',
+            borderRadius: 12, boxShadow: 'var(--sh-lg)',
+            display: 'flex', flexDirection: 'column',
+            zIndex: 60,
+            animation: 'pageFade 140ms ease both',
+          }}
+        >
+          {/* header */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            padding: '12px 16px', borderBottom: '1px solid var(--color-border)',
+          }}>
+            <div style={{ fontSize: 14, fontWeight: 600, flex: 1 }}>Уведомления</div>
+            {unread > 0 && (
+              <button
+                type="button"
+                onClick={markAll}
+                style={{
+                  background: 'transparent', border: 'none', padding: 0,
+                  color: 'var(--color-accent)', fontSize: 12, fontWeight: 500,
+                  cursor: 'pointer',
+                }}
+              >
+                Прочитать все
+              </button>
+            )}
+          </div>
+
+          {/* list */}
+          <div style={{ flex: 1, overflowY: 'auto' }}>
+            {recent.length === 0 ? (
+              <div style={{ padding: '32px 20px', textAlign: 'center' }}>
+                <div style={{
+                  width: 44, height: 44, borderRadius: '50%',
+                  background: 'var(--color-surface-2)',
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  color: 'var(--color-text-3)', marginBottom: 10,
+                }}>
+                  <I.Bell size={18} />
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 2 }}>
+                  Уведомлений пока нет
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--color-text-3)', lineHeight: 1.5 }}>
+                  Здесь будут обновления по вашим заявкам
+                </div>
+              </div>
+            ) : (
+              recent.map((n, i) => (
+                <button
+                  key={n.id}
+                  type="button"
+                  onClick={() => { if (!n.is_read) markOne(n.id) }}
+                  style={{
+                    width: '100%', textAlign: 'left',
+                    display: 'flex', gap: 12, alignItems: 'flex-start',
+                    padding: '12px 16px', border: 'none',
+                    background: n.is_read ? '#fff' : 'rgba(59,130,246,0.04)',
+                    borderTop: i > 0 ? '1px solid var(--color-border)' : 'none',
+                    cursor: n.is_read ? 'default' : 'pointer',
+                  }}
+                  onMouseEnter={e => { if (!n.is_read) (e.currentTarget.style.background = 'rgba(59,130,246,0.07)') }}
+                  onMouseLeave={e => { (e.currentTarget.style.background = n.is_read ? '#fff' : 'rgba(59,130,246,0.04)') }}
+                >
+                  <I.Info size={16} style={{ color: 'var(--color-accent)', flexShrink: 0, marginTop: 2 }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{
+                      fontSize: 13, fontWeight: n.is_read ? 400 : 600,
+                      color: 'var(--color-text)', lineHeight: 1.4,
+                    }}>
+                      {n.title}
+                    </div>
+                    {n.message && (
+                      <div style={{
+                        fontSize: 12, color: 'var(--color-text-3)',
+                        marginTop: 2, lineHeight: 1.5,
+                        overflow: 'hidden', textOverflow: 'ellipsis',
+                        display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 2,
+                      }}>
+                        {n.message}
+                      </div>
+                    )}
+                    <div style={{ fontSize: 11, color: 'var(--color-text-3)', marginTop: 4 }}>
+                      {new Date(n.created_at).toLocaleDateString('ru-KZ', { day: 'numeric', month: 'short' })}
+                      {' · '}
+                      {new Date(n.created_at).toLocaleTimeString('ru-KZ', { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  </div>
+                  {!n.is_read && (
+                    <span style={{
+                      width: 8, height: 8, borderRadius: '50%',
+                      background: 'var(--color-accent)', flexShrink: 0, marginTop: 6,
+                    }} />
+                  )}
+                </button>
+              ))
+            )}
+          </div>
+
+          {/* footer */}
+          <div style={{
+            padding: '10px 16px',
+            borderTop: '1px solid var(--color-border)',
+            background: 'var(--color-surface-2)',
+          }}>
+            <button
+              type="button"
+              onClick={openAll}
+              style={{
+                width: '100%', display: 'inline-flex',
+                alignItems: 'center', justifyContent: 'center', gap: 6,
+                background: 'transparent', border: 'none', padding: '6px 0',
+                color: 'var(--color-accent)', fontSize: 13, fontWeight: 500,
+                cursor: 'pointer',
+              }}
+            >
+              Все уведомления <I.ArrowRight size={13} />
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 

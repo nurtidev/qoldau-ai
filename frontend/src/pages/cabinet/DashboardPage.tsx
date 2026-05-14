@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { applicationsApi, notificationsApi, documentsApi } from '@/api/client'
 import { useAuthStore } from '@/store/auth'
@@ -143,7 +143,21 @@ export function CabinetDashboard() {
   const qc       = useQueryClient()
   const toast    = useToast()
 
-  const [section, setSection] = useState<Section>('apps')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const initialSection = (searchParams.get('section') as Section) || 'apps'
+  const [section, setSectionState] = useState<Section>(initialSection)
+  const setSection = (s: Section) => {
+    setSectionState(s)
+    if (s === 'apps') searchParams.delete('section')
+    else searchParams.set('section', s)
+    setSearchParams(searchParams, { replace: true })
+  }
+  // Реакция на смену query-параметра извне (например, навигация из колокольчика)
+  useEffect(() => {
+    const q = (searchParams.get('section') as Section) || 'apps'
+    if (q !== section) setSectionState(q)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
   const [filter, setFilter]   = useState<AppFilter>('all')
   const [openApp, setOpenApp] = useState<Application | null>(null)
 

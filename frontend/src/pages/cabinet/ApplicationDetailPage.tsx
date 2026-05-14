@@ -3,6 +3,8 @@ import { useQuery, useMutation } from '@tanstack/react-query'
 import { applicationsApi, documentsApi, mockApi } from '@/api/client'
 import { I } from '@/components/icons'
 import { useRef } from 'react'
+import { useAuthStore } from '@/store/auth'
+import { AlternativeRecommendations } from '@/components/AlternativeRecommendations'
 import type { Application, Document, ApplicationStatus } from '@/types'
 import { APPLICATION_STATUS_LABELS } from '@/types'
 
@@ -34,6 +36,7 @@ function fileTypeBg(name: string) {
 export function ApplicationDetailPage() {
   const { id }    = useParams<{ id: string }>()
   const fileRef   = useRef<HTMLInputElement>(null)
+  const { user }  = useAuthStore()
 
   const { data: app } = useQuery<Application>({
     queryKey: ['application', id],
@@ -117,7 +120,28 @@ export function ApplicationDetailPage() {
                 </button>
               </div>
             )}
+
+            {app.status === 'rejected' && (
+              <div style={{
+                marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--color-border)',
+                fontSize: 13, color: 'var(--color-text-2)', lineHeight: 1.55,
+              }}>
+                <strong style={{ color: 'var(--color-danger)' }}>Заявка отклонена.</strong>{' '}
+                Ниже мы подобрали альтернативные программы на основе вашего профиля.
+              </div>
+            )}
           </div>
+
+          {app.status === 'rejected' && user && (
+            <AlternativeRecommendations
+              iin={user.iin}
+              excludeServiceId={app.service_id}
+              rejectionReason={`Заявителю отказали по программе «${app.service_title}»`}
+              title="Альтернативные программы для вас"
+              subtitle="AI подобрал программы под ваш профиль и налоговую историю"
+              autoRun
+            />
+          )}
 
           {/* Form data */}
           {formEntries.length > 0 && (

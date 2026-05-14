@@ -1,11 +1,14 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { servicesApi, applicationsApi, documentsApi, mockApi } from '@/api/client'
+import { servicesApi, applicationsApi, documentsApi, mockApi, type KGDData } from '@/api/client'
 import { useAuthStore } from '@/store/auth'
 import { I } from '@/components/icons'
 import { useToast } from '@/components/Toast'
 import { FormRenderer } from '@/components/FormRenderer'
+import { KGDCheck } from '@/components/KGDCheck'
+import { PreflightPanel } from '@/components/PreflightPanel'
+import { AlternativeRecommendations } from '@/components/AlternativeRecommendations'
 import type { Service } from '@/types'
 
 export function ApplyPage() {
@@ -17,7 +20,13 @@ export function ApplyPage() {
   const [submitting, setSubmitting]   = useState(false)
   const [egovLoaded, setEgovLoaded]     = useState(false)
   const [egovChecked, setEgovChecked]   = useState(false)
+  const [egovData, setEgovData]         = useState<Record<string, unknown> | null>(null)
+  const [kgdData, setKgdData]           = useState<KGDData | null>(null)
   const [initialData, setInitialData]   = useState<Record<string, unknown>>({})
+  const [prefilledKeys, setPrefilledKeys] = useState<Set<string>>(new Set())
+  const [currentValues, setCurrentValues] = useState<Record<string, unknown>>({})
+  const [hasBlocking, setHasBlocking]     = useState(false)
+  const [showAlternatives, setShowAlternatives] = useState(false)
 
   const { data: service, isLoading } = useQuery<Service>({
     queryKey: ['service', service_id],
@@ -29,6 +38,7 @@ export function ApplyPage() {
     if (!user || !service) return
     mockApi.egov(user.iin).then(res => {
       const egov = res.data as Record<string, string>
+      setEgovData(egov)
       const prefilled: Record<string, unknown> = {}
       service.form_schema.steps.forEach(step => {
         step.fields.forEach(field => {
@@ -39,6 +49,7 @@ export function ApplyPage() {
         })
       })
       setInitialData(prefilled)
+      setPrefilledKeys(new Set(Object.keys(prefilled)))
       setEgovLoaded(Object.keys(prefilled).length > 0)
     }).catch(() => {}).finally(() => setEgovChecked(true))
   }, [user, service])
@@ -75,6 +86,9 @@ export function ApplyPage() {
     }
   }
 
+  const handleBlockingChange = useCallback((v: boolean) => setHasBlocking(v), [])
+  const handleValuesChange   = useCallback((v: Record<string, unknown>) => setCurrentValues(v), [])
+
   if (isLoading) {
     return (
       <div className="container page-fade" style={{ paddingTop: 24, paddingBottom: 60, maxWidth: 980 }}>
@@ -110,12 +124,39 @@ export function ApplyPage() {
       {egovLoaded && (
         <div style={{
           background: 'var(--color-success-soft)', border: '1px solid #A7F3D0',
-          borderRadius: 10, padding: '14px 18px', display: 'flex', gap: 12, marginBottom: 24,
+          borderRadius: 10, padding: '14px 18px', display: 'flex', gap: 12, marginBottom: 12,
         }}>
           <I.CheckCircle size={20} style={{ color: 'var(--color-success)', flexShrink: 0, marginTop: 1 }} />
           <div style={{ fontSize: 14, color: '#065F46', lineHeight: 1.55 }}>
             <strong>Данные подгружены из eGov.</strong> Проверьте корректность и при необходимости отредактируйте поля.
           </div>
+        </div>
+      )}
+
+      {egovChecked && user && (
+        <KGDCheck bin={user.iin} onComplete={setKgdData} />
+      )}
+
+      <PreflightPanel
+        ruleset={service.eligibility_rules}
+        formData={currentValues}
+        egov={egovData}
+        kgd={kgdData}
+        onBlockingChange={handleBlockingChange}
+        onRequestAlternatives={() => setShowAlternatives(true)}
+      />
+
+      {showAlternatives && user && (
+        <div style={{ marginBottom: 16 }}>
+          <AlternativeRecommendations
+            iin={user.iin}
+            excludeServiceId={service.id}
+            rejectionReason={hasBlocking
+              ? 'Текущая программа имеет блокирующие риски по профилю заявителя'
+              : 'Заявитель ищет более подходящую программу'}
+            title="Подходящие альтернативы"
+            subtitle="AI подобрал программы под ваш профиль из каталога Байтерек"
+          />
         </div>
       )}
 
@@ -127,6 +168,13 @@ export function ApplyPage() {
               initialData={initialData}
               onSubmit={handleSubmit}
               submitting={submitting}
+              prefilledKeys={prefilledKeys}
+              draftKey={user ? `qoldau:draft:${service_id}:${user.id}` : undefined}
+              onValuesChange={handleValuesChange}
+              submitBlocked={hasBlocking}
+              submitBlockedHint={hasBlocking
+                ? 'Есть стоп-факторы программы — устраните их или выберите альтернативу'
+                : undefined}
             />
         }
       </div>

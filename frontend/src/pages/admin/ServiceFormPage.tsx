@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Parser as FormulaParser } from 'expr-eval'
 import { servicesApi } from '@/api/client'
 import { I } from '@/components/icons'
 import { useToast } from '@/components/Toast'
 import { FormRenderer } from '@/components/FormRenderer'
+import { parseAiFormSchema } from '@/types/schema'
 import type { FormField, FormStep, FieldType, Service, FormFieldCondition } from '@/types'
 
 // ─── constants ────────────────────────────────────────────────────────────────
@@ -26,6 +28,42 @@ const FIELD_TYPE_META: { id: BuilderFieldType; label: string; iconKey: keyof typ
 ]
 
 const FIELD_BY_ID = Object.fromEntries(FIELD_TYPE_META.map(t => [t.id, t]))
+
+const refParser = new FormulaParser()
+
+interface FieldRefs {
+  formulas: { id: string; label: string; formula: string }[]
+  conditions: { kind: 'step' | 'field'; label: string }[]
+}
+
+function findFieldRefs(fieldId: string, steps: BuilderStep[]): FieldRefs {
+  const refs: FieldRefs = { formulas: [], conditions: [] }
+  for (const step of steps) {
+    if (step.condition?.field_id === fieldId) {
+      refs.conditions.push({ kind: 'step', label: step.title })
+    }
+    for (const f of step.fields) {
+      if (f.id === fieldId) continue
+      if (f.condition?.field_id === fieldId) {
+        refs.conditions.push({ kind: 'field', label: f.label })
+      }
+      if (f.type === 'calculated' && f.formula) {
+        let used = false
+        try { used = refParser.parse(f.formula).variables().includes(fieldId) }
+        catch { used = new RegExp(`\\b${fieldId}\\b`).test(f.formula) }
+        if (used) refs.formulas.push({ id: f.id, label: f.label, formula: f.formula })
+      }
+    }
+  }
+  return refs
+}
+
+function pluralRu(n: number, one: string, few: string, many: string): string {
+  const m10 = n % 10, m100 = n % 100
+  if (m10 === 1 && m100 !== 11) return one
+  if (m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20)) return few
+  return many
+}
 
 const CATEGORIES = ['Финансирование', 'Гарантии', 'Лизинг', 'Экспорт', 'Инвестиции', 'Гранты', 'Субсидии', 'Агросектор', 'Страхование']
 const ORGS = ['АО «НИХ «Байтерек»', 'Демеу', 'KazGuarantee', 'KazExport', 'АгроКапитал', 'ИнноФонд', 'Astana Cap.']
@@ -167,32 +205,8 @@ const AI_STREAM_STYLES = `
 `
 
 function parseSteps(raw: string): BuilderStep[] {
-  let json = raw.trim()
-    .replace(/^```json\n?/, '').replace(/^```\n?/, '').replace(/\n?```$/, '').trim()
-  const schema = JSON.parse(json) as {
-    steps: {
-      id?: string; title: string
-      fields: { id?: string; type?: string; label: string; required?: boolean; options?: string[]; formula?: string; placeholder?: string; accept?: string; prefill_from?: string }[]
-      condition?: FormStep['condition']
-    }[]
-  }
-  if (!schema?.steps) throw new Error('no steps')
-  return schema.steps.map((s, i) => ({
-    id: s.id || `s${i + 1}_ai`,
-    title: s.title || `Этап ${i + 1}`,
-    condition: s.condition,
-    fields: (s.fields || []).map((f, j) => ({
-      id: f.id || `f${i + 1}_${j + 1}_ai`,
-      type: (f.type as BuilderFieldType) || 'text',
-      label: f.label || 'Поле',
-      required: !!f.required,
-      options: f.options,
-      formula: f.formula,
-      placeholder: f.placeholder,
-      accept: f.accept,
-      prefill_from: f.prefill_from,
-    })),
-  }))
+  // Валидация через zod — кидает читаемую ошибку с указанием поля/типа
+  return parseAiFormSchema(raw) as BuilderStep[]
 }
 
 function AiBlock({ onApply }: { onApply: (steps: BuilderStep[]) => void }) {
@@ -266,9 +280,10 @@ function AiBlock({ onApply }: { onApply: (steps: BuilderStep[]) => void }) {
       setGenerated(steps)
       setElapsed(Date.now() - t0)
       setState('revealing')
-    } catch {
+    } catch (e) {
       setState('error')
-      toast.push('Ошибка генерации. Попробуйте ещё раз', 'error')
+      const msg = e instanceof Error && e.message ? e.message : 'Ошибка генерации. Попробуйте ещё раз'
+      toast.push(msg, 'error')
     }
   }
 
@@ -369,7 +384,13 @@ function AiBlock({ onApply }: { onApply: (steps: BuilderStep[]) => void }) {
 
         {state === 'success' && (
           <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn btn-primary btn-sm" onClick={() => { onApply(generated); setState('idle'); setGenerated(null) }}>
+            <button className="btn btn-primary btn-sm" onClick={() => {
+              onApply(generated)
+              const aiSeconds = Math.max(1, Math.round(elapsed / 1000))
+              const saved = Math.max(1, manualMin - Math.ceil(aiSeconds / 60))
+              toast.push(`Структура применена за ${aiSeconds} сек · вручную ≈ ${manualMin} мин. Сэкономлено около ${saved} мин.`, 'success')
+              setState('idle'); setGenerated(null)
+            }}>
               <I.Check size={14} /> Применить к холсту
             </button>
             <button className="btn btn-secondary btn-sm" onClick={() => { setState('idle'); setGenerated(null) }}>Отменить</button>
@@ -784,6 +805,320 @@ function StepBlock({ step, idx, total, selectedFieldId, onSelectField, onUpdateS
   )
 }
 
+// ─── FormulaBuilder ───────────────────────────────────────────────────────────
+
+const formulaParserInstance = new FormulaParser()
+
+type OpValue = '+' | '-' | '*' | '/' | '(' | ')'
+type FormulaToken =
+  | { kind: 'var'; value: string }
+  | { kind: 'num'; value: string }
+  | { kind: 'op';  value: OpValue }
+
+function tokenizeFormula(formula: string): FormulaToken[] {
+  if (!formula?.trim()) return []
+  const tokens: FormulaToken[] = []
+  const re = /\s*([+\-*/()]|[A-Za-z_][A-Za-z0-9_]*|\d+(?:\.\d+)?)/g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(formula)) !== null) {
+    const t = m[1]
+    if (/^[A-Za-z_]/.test(t))     tokens.push({ kind: 'var', value: t })
+    else if (/^\d/.test(t))       tokens.push({ kind: 'num', value: t })
+    else                          tokens.push({ kind: 'op',  value: t as OpValue })
+  }
+  return tokens
+}
+
+function tokensToFormula(tokens: FormulaToken[]): string {
+  return tokens.map(t => t.value).join(' ')
+}
+
+function sampleValueFor(field: BuilderField | undefined): number {
+  if (!field) return 100
+  if (field.placeholder) {
+    const n = parseFloat(field.placeholder.replace(/\s/g, '').replace(/[^\d.-]/g, ''))
+    if (Number.isFinite(n) && n !== 0) return n
+  }
+  // Разумные значения по типу
+  if (field.type === 'currency') return 1_000_000
+  if (field.type === 'number')   return 12
+  return 100
+}
+
+function evaluatePreview(
+  formula: string,
+  numericFields: BuilderField[],
+): { ok: true; result: number; samples: Record<string, number> } | { ok: false; error: string } {
+  if (!formula.trim()) return { ok: false, error: 'Формула пустая' }
+  try {
+    const expr = formulaParserInstance.parse(formula)
+    const vars = expr.variables()
+    const samples: Record<string, number> = {}
+    for (const v of vars) {
+      const f = numericFields.find(x => x.id === v)
+      if (!f) return { ok: false, error: `Поле ${v} не найдено` }
+      samples[v] = sampleValueFor(f)
+    }
+    const r = expr.evaluate(samples)
+    if (!Number.isFinite(r)) return { ok: false, error: 'Результат не число (деление на 0?)' }
+    return { ok: true, result: Number(r), samples }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'Ошибка в формуле' }
+  }
+}
+
+function FormulaBuilder({ formula, mask, numericFields, onChange }: {
+  formula: string
+  mask?: 'currency' | 'percent'
+  numericFields: BuilderField[]
+  onChange: (next: string) => void
+}) {
+  const [pickerOpen, setPickerOpen] = useState<null | 'field' | 'op' | 'num'>(null)
+  const [numInput, setNumInput] = useState('')
+
+  const tokens = tokenizeFormula(formula)
+  const preview = evaluatePreview(formula, numericFields)
+
+  const append = (tok: FormulaToken) => {
+    onChange(tokensToFormula([...tokens, tok]))
+    setPickerOpen(null)
+    setNumInput('')
+  }
+  const removeAt = (idx: number) => {
+    onChange(tokensToFormula(tokens.filter((_, i) => i !== idx)))
+  }
+  const clearAll = () => onChange('')
+
+  const ops: OpValue[] = ['+', '-', '*', '/', '(', ')']
+  const opLabel = (o: string) => ({ '+': '+', '-': '−', '*': '×', '/': '÷', '(': '(', ')': ')' } as Record<string, string>)[o] || o
+
+  const formatPreview = (n: number) => {
+    if (mask === 'currency') return new Intl.NumberFormat('ru-KZ').format(Math.round(n)) + ' ₸'
+    if (mask === 'percent')  return n.toFixed(2) + '%'
+    return n % 1 === 0 ? String(Math.round(n)) : n.toFixed(2)
+  }
+
+  return (
+    <div>
+      <label className="field-label">Формула</label>
+
+      {/* Холст с чипами */}
+      <div style={{
+        minHeight: 44, padding: '6px 8px',
+        border: `1px solid ${preview.ok ? 'var(--color-border)' : tokens.length > 0 ? 'var(--color-danger)' : 'var(--color-border)'}`,
+        borderRadius: 'var(--r-input)', background: '#fff',
+        display: 'flex', flexWrap: 'wrap', gap: 4, alignItems: 'center',
+      }}>
+        {tokens.length === 0 && (
+          <span style={{ fontSize: 12, color: 'var(--color-text-4)', padding: '4px 6px' }}>
+            Добавьте поля, операторы или числа ниже
+          </span>
+        )}
+        {tokens.map((t, i) => {
+          const isVar = t.kind === 'var'
+          const isOp  = t.kind === 'op'
+          const isParen = isOp && (t.value === '(' || t.value === ')')
+          const field = isVar ? numericFields.find(f => f.id === t.value) : undefined
+          const label = isVar ? (field?.label || t.value) : (isOp ? opLabel(t.value) : t.value)
+          const known = !isVar || !!field
+
+          return (
+            <button
+              key={i}
+              type="button"
+              onClick={() => removeAt(i)}
+              title="Кликните, чтобы удалить"
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                padding: isVar ? '4px 8px' : isParen ? '4px 6px' : '4px 8px',
+                borderRadius: 6, border: 'none', cursor: 'pointer',
+                background: isVar
+                  ? (known ? 'var(--color-accent-soft)' : 'var(--color-danger-soft)')
+                  : isOp
+                    ? 'var(--color-surface-2)'
+                    : '#FEF3C7',
+                color: isVar
+                  ? (known ? 'var(--color-primary)' : 'var(--color-danger)')
+                  : isOp
+                    ? 'var(--color-text-2)'
+                    : '#92400E',
+                fontFamily: isOp || t.kind === 'num' ? 'monospace' : 'inherit',
+                fontSize: 12, fontWeight: 500,
+              }}
+            >
+              {isVar && <I.Hash size={10} />}
+              <span>{label}</span>
+              <I.X size={10} style={{ opacity: 0.6 }} />
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Кнопки добавления */}
+      <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap', position: 'relative' }}>
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm"
+          onClick={() => setPickerOpen(pickerOpen === 'field' ? null : 'field')}
+          disabled={numericFields.length === 0}
+        >
+          <I.Plus size={12} /> Поле
+        </button>
+        <button type="button" className="btn btn-secondary btn-sm"
+          onClick={() => setPickerOpen(pickerOpen === 'op' ? null : 'op')}>
+          <I.Plus size={12} /> Оператор
+        </button>
+        <button type="button" className="btn btn-secondary btn-sm"
+          onClick={() => setPickerOpen(pickerOpen === 'num' ? null : 'num')}>
+          <I.Plus size={12} /> Число
+        </button>
+        {tokens.length > 0 && (
+          <button type="button" className="btn btn-ghost btn-sm" onClick={clearAll}
+            style={{ marginLeft: 'auto', color: 'var(--color-text-3)' }}>
+            Очистить
+          </button>
+        )}
+
+        {/* Popover: выбор поля */}
+        {pickerOpen === 'field' && (
+          <div style={{
+            position: 'absolute', top: 36, left: 0, zIndex: 20,
+            background: '#fff', border: '1px solid var(--color-border)',
+            borderRadius: 8, boxShadow: 'var(--sh-md)', padding: 4,
+            minWidth: 220, maxHeight: 220, overflowY: 'auto',
+          }}>
+            {numericFields.length === 0 ? (
+              <div style={{ padding: 12, fontSize: 12, color: 'var(--color-text-3)' }}>
+                Нет числовых полей. Добавьте сначала поля типа «Число» или «Сумма».
+              </div>
+            ) : numericFields.map(f => (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => append({ kind: 'var', value: f.id })}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+                  padding: '8px 10px', background: 'transparent', border: 'none',
+                  borderRadius: 6, cursor: 'pointer', textAlign: 'left',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-surface-2)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              >
+                <I.Hash size={12} style={{ color: 'var(--color-accent)' }} />
+                <span style={{ fontSize: 13, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {f.label}
+                </span>
+                <code style={{ fontSize: 10, color: 'var(--color-text-3)' }}>{f.id}</code>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Popover: оператор */}
+        {pickerOpen === 'op' && (
+          <div style={{
+            position: 'absolute', top: 36, left: 80, zIndex: 20,
+            background: '#fff', border: '1px solid var(--color-border)',
+            borderRadius: 8, boxShadow: 'var(--sh-md)', padding: 6,
+            display: 'grid', gridTemplateColumns: 'repeat(3,40px)', gap: 4,
+          }}>
+            {ops.map(op => (
+              <button
+                key={op}
+                type="button"
+                onClick={() => append({ kind: 'op', value: op })}
+                style={{
+                  height: 32, border: '1px solid var(--color-border)', borderRadius: 6,
+                  background: '#fff', cursor: 'pointer', fontFamily: 'monospace',
+                  fontSize: 14, fontWeight: 600, color: 'var(--color-text-2)',
+                }}
+              >
+                {opLabel(op)}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Popover: число */}
+        {pickerOpen === 'num' && (
+          <div style={{
+            position: 'absolute', top: 36, left: 170, zIndex: 20,
+            background: '#fff', border: '1px solid var(--color-border)',
+            borderRadius: 8, boxShadow: 'var(--sh-md)', padding: 8, width: 200,
+          }}>
+            <input
+              autoFocus
+              type="text"
+              inputMode="decimal"
+              value={numInput}
+              onChange={e => setNumInput(e.target.value.replace(/[^\d.,]/g, '').replace(',', '.'))}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && numInput) {
+                  append({ kind: 'num', value: numInput })
+                }
+              }}
+              placeholder="Например: 1.09"
+              className="input"
+              style={{ marginBottom: 6 }}
+            />
+            <button
+              type="button"
+              className="btn btn-primary btn-sm btn-block"
+              onClick={() => numInput && append({ kind: 'num', value: numInput })}
+              disabled={!numInput}
+            >
+              Добавить
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Превью */}
+      <div style={{
+        marginTop: 10, padding: '10px 12px', borderRadius: 6,
+        background: preview.ok ? 'var(--color-success-soft)' : 'var(--color-danger-soft)',
+        border: `1px solid ${preview.ok ? '#A7F3D0' : '#FECACA'}`,
+        fontSize: 12, lineHeight: 1.5,
+      }}>
+        {preview.ok ? (
+          <>
+            <div style={{ color: '#047857', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <I.Check size={12} strokeWidth={3} /> Превью на примере:
+            </div>
+            <div style={{ marginTop: 6, color: 'var(--color-text-2)' }}>
+              {numericFields
+                .filter(f => preview.samples[f.id] !== undefined)
+                .map(f => (
+                  <div key={f.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '1px 0' }}>
+                    <span style={{ color: 'var(--color-text-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 140 }}>
+                      {f.label}
+                    </span>
+                    <span style={{ fontFamily: 'monospace', color: 'var(--color-text-2)' }}>
+                      = {preview.samples[f.id]}
+                    </span>
+                  </div>
+                ))}
+              <div style={{
+                marginTop: 6, paddingTop: 6, borderTop: '1px solid #A7F3D0',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              }}>
+                <span style={{ color: '#047857', fontWeight: 600 }}>Результат</span>
+                <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#065F46', fontSize: 13 }}>
+                  {formatPreview(preview.result)}
+                </span>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div style={{ color: '#B91C1C', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <I.Alert size={12} /> {preview.error}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ─── RightPanel ───────────────────────────────────────────────────────────────
 
 function RightPanel({ field, allFields, onChange, onClose }: {
@@ -893,26 +1228,12 @@ function RightPanel({ field, allFields, onChange, onClose }: {
         )}
 
         {field.type === 'calculated' && (
-          <div>
-            <label className="field-label">Формула</label>
-            <input className="input" value={field.formula || ''} onChange={e => set('formula', e.target.value)}
-              style={{ fontFamily: 'monospace', fontSize: 13 }} placeholder="f4 / f5 * 1.09" />
-            <div style={{ fontSize: 11, color: 'var(--color-text-3)', marginTop: 6, lineHeight: 1.5 }}>
-              Используйте id полей: <code style={{ background: 'var(--color-surface-2)', padding: '1px 5px', borderRadius: 3 }}>f4</code>.
-              Поддерживаются: + − × ÷ ( )
-            </div>
-            {numericFields.length > 0 && (
-              <div style={{ marginTop: 8, padding: 10, background: 'var(--color-surface-2)', borderRadius: 6, fontSize: 11 }}>
-                <div style={{ color: 'var(--color-text-3)', marginBottom: 4 }}>Числовые поля:</div>
-                {numericFields.map(r => (
-                  <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
-                    <code style={{ color: 'var(--color-accent)', fontFamily: 'monospace' }}>{r.id}</code>
-                    <span style={{ color: 'var(--color-text-2)', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 160 }}>{r.label}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <FormulaBuilder
+            formula={field.formula || ''}
+            mask={field.mask}
+            numericFields={numericFields}
+            onChange={val => set('formula', val)}
+          />
         )}
 
         {field.type === 'file' && (
@@ -989,8 +1310,8 @@ export function ServiceFormPage() {
   const [steps, setSteps] = useState<BuilderStep[]>(DEFAULT_STEPS)
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null)
   const [showPreview, setShowPreview] = useState(false)
-  const [saving, setSaving] = useState<'draft' | 'publish' | null>(null)
   const [initialized, setInitialized] = useState(false)
+  const qc = useQueryClient()
 
   const { data: service, isLoading } = useQuery<Service>({
     queryKey: ['service', id],
@@ -1020,13 +1341,8 @@ export function ServiceFormPage() {
 
   // ── save ───────────────────────────────────────────────────────────────────
 
-  const save = async (kind: 'draft' | 'publish') => {
-    if (!meta.title.trim()) {
-      toast.push('Укажите название услуги', 'error')
-      return
-    }
-    setSaving(kind)
-    try {
+  const saveMutation = useMutation({
+    mutationFn: async (kind: 'draft' | 'publish') => {
       const payload = {
         title:       meta.title,
         category:    meta.category,
@@ -1044,13 +1360,32 @@ export function ServiceFormPage() {
         svcId = res.data.id
         if (kind === 'publish' && svcId) await servicesApi.publish(svcId)
       }
+      return { kind, svcId: svcId! }
+    },
+    onSuccess: async ({ kind, svcId }) => {
+      // Сбрасываем кэш всех представлений, где может фигурировать эта услуга
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ['service', svcId] }),
+        qc.invalidateQueries({ queryKey: ['admin-services'] }),
+        qc.invalidateQueries({ queryKey: ['services'] }),     // matches ['services', dir, org] by prefix
+        qc.invalidateQueries({ queryKey: ['services-all'] }),
+      ])
       toast.push(kind === 'publish' ? 'Услуга опубликована' : 'Черновик сохранён', 'success')
-      navigate(`/admin/services/${svcId}/edit`)
-    } catch {
-      toast.push('Ошибка сохранения', 'error')
-    } finally {
-      setSaving(null)
+      if (!id) navigate(`/admin/services/${svcId}/edit`)
+    },
+    onError: () => toast.push('Ошибка сохранения', 'error'),
+  })
+
+  const saving: 'draft' | 'publish' | null = saveMutation.isPending
+    ? saveMutation.variables ?? null
+    : null
+
+  const save = (kind: 'draft' | 'publish') => {
+    if (!meta.title.trim()) {
+      toast.push('Укажите название услуги', 'error')
+      return
     }
+    saveMutation.mutate(kind)
   }
 
   // ── step/field mutations ───────────────────────────────────────────────────
@@ -1072,6 +1407,30 @@ export function ServiceFormPage() {
   }
 
   const deleteField = (stepIdx: number, fieldIdx: number) => {
+    const field = steps[stepIdx]?.fields[fieldIdx]
+    if (!field) return
+
+    const refs = findFieldRefs(field.id, steps)
+    const refCount = refs.formulas.length + refs.conditions.length
+    if (refCount > 0) {
+      const parts: string[] = []
+      if (refs.formulas.length) {
+        parts.push(`${refs.formulas.length} ${pluralRu(refs.formulas.length, 'формуле', 'формулах', 'формулах')}`)
+      }
+      if (refs.conditions.length) {
+        parts.push(`${refs.conditions.length} ${pluralRu(refs.conditions.length, 'условии', 'условиях', 'условиях')}`)
+      }
+      const detail = [
+        ...refs.formulas.map(f => `  • Формула в «${f.label}»:  ${f.formula}`),
+        ...refs.conditions.map(c => `  • Условие ${c.kind === 'step' ? 'этапа' : 'поля'} «${c.label}»`),
+      ].join('\n')
+      const ok = window.confirm(
+        `Поле «${field.label || field.id}» используется в ${parts.join(' и ')}:\n\n${detail}\n\n` +
+        `После удаления зависимые формулы вернут 0, а условные шаги/поля перестанут показываться.\n\nУдалить?`
+      )
+      if (!ok) return
+    }
+
     setSteps(prev => {
       const next = [...prev]
       next[stepIdx] = { ...next[stepIdx], fields: next[stepIdx].fields.filter((_, i) => i !== fieldIdx) }

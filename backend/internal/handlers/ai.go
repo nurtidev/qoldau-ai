@@ -8,14 +8,18 @@ import (
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/jmoiron/sqlx"
+	"github.com/nurtidev/qolday-ai/backend/internal/models"
 )
 
 type AIHandler struct {
 	apiKey string
+	db     *sqlx.DB
 }
 
-func NewAIHandler(apiKey string) *AIHandler {
-	return &AIHandler{apiKey: apiKey}
+func NewAIHandler(apiKey string, db *sqlx.DB) *AIHandler {
+	return &AIHandler{apiKey: apiKey, db: db}
 }
 
 const systemPrompt = `Ты — конструктор форм для казахстанских государственных услуг.
@@ -257,4 +261,155 @@ func (h *AIHandler) GenerateFormStream(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Recommend: подбирает 2-3 альтернативные услуги под профиль заявителя.
+// Используется (а) при отказе по текущей заявке, (б) перед подачей если есть
+// блокирующие риски, (в) в публичном онбординге.
+// ──────────────────────────────────────────────────────────────────────────────
+
+const recommendSystemPrompt = `Ты — консультант по мерам государственной поддержки бизнеса Казахстана.
+На входе: профиль заявителя (eGov + налоговая история КГД), опционально текущая услуга и причина отказа.
+Тебе передан список доступных услуг с правилами eligibility.
+
+Задача: выбрать 2-3 АЛЬТЕРНАТИВНЫЕ услуги, которые с высокой вероятностью подойдут этому заявителю,
+и кратко объяснить почему (1-2 предложения, конкретно — со ссылкой на цифры из профиля КГД).
+
+Правила:
+- Не повторяй услугу, которая уже не подошла (если передан exclude_service_id).
+- Учитывай: выручку, возраст бизнеса, налоговую задолженность, реестр риска, отрасль (ОКЭД), численность.
+- Если по выручке заявитель — крупный, не предлагай ему программы для МСБ.
+- Если возраст бизнеса < 12 месяцев, не предлагай программы с требованием опыта.
+- Если задолженность или реестр риска — сначала укажи это и предложи безвозмездные/мягкие инструменты.
+- Если ничего не подходит — верни пустой массив recommendations и заполни note.
+
+Верни ТОЛЬКО валидный JSON без markdown и пояснений:
+{
+  "recommendations": [
+    {
+      "service_id": "uuid",
+      "title": "название услуги",
+      "org_name": "Damu",
+      "reason": "Почему именно эта услуга — конкретно, со ссылкой на профиль (1-2 предложения)"
+    }
+  ],
+  "note": "Общий комментарий — что в первую очередь стоит сделать заявителю (опционально, 1 предложение)"
+}`
+
+type recommendRequest struct {
+	KGD              map[string]interface{} `json:"kgd"`
+	EGov             map[string]interface{} `json:"egov"`
+	ExcludeServiceID string                 `json:"exclude_service_id,omitempty"`
+	RejectionReason  string                 `json:"rejection_reason,omitempty"`
+	ScreenerAnswers  map[string]interface{} `json:"screener_answers,omitempty"`
+}
+
+func (h *AIHandler) Recommend(w http.ResponseWriter, r *http.Request) {
+	var req recommendRequest
+	if err := decode(r, &req); err != nil {
+		respondErr(w, http.StatusBadRequest, "invalid request")
+		return
+	}
+
+	// Fetch published services (lean: omit form_schema to save tokens)
+	type leanService struct {
+		ID               string       `db:"id"`
+		Title            string       `db:"title"`
+		Description      *string      `db:"description"`
+		Category         *string      `db:"category"`
+		OrgName          *string      `db:"org_name"`
+		EligibilityRules models.JSONB `db:"eligibility_rules"`
+	}
+	var services []leanService
+	err := h.db.Select(&services,
+		`SELECT id, title, description, category, org_name, eligibility_rules
+		 FROM services WHERE status = 'published' ORDER BY created_at DESC`)
+	if err != nil {
+		respondErr(w, http.StatusInternalServerError, "failed to fetch services")
+		return
+	}
+
+	if req.ExcludeServiceID != "" {
+		filtered := services[:0]
+		for _, s := range services {
+			if s.ID != req.ExcludeServiceID {
+				filtered = append(filtered, s)
+			}
+		}
+		services = filtered
+	}
+
+	if len(services) == 0 {
+		respond(w, http.StatusOK, map[string]interface{}{
+			"recommendations": []interface{}{},
+			"note":            "В каталоге пока нет других услуг",
+		})
+		return
+	}
+
+	userPayload := map[string]interface{}{
+		"profile":           map[string]interface{}{"egov": req.EGov, "kgd": req.KGD},
+		"available_services": services,
+	}
+	if req.ExcludeServiceID != "" {
+		userPayload["exclude_service_id"] = req.ExcludeServiceID
+	}
+	if req.RejectionReason != "" {
+		userPayload["rejection_reason"] = req.RejectionReason
+	}
+	if req.ScreenerAnswers != nil {
+		userPayload["screener_answers"] = req.ScreenerAnswers
+	}
+	userContent, _ := json.Marshal(userPayload)
+
+	payload := claudeRequest{
+		Model:     "claude-sonnet-4-6",
+		MaxTokens: 1024,
+		System:    recommendSystemPrompt,
+		Messages:  []claudeMessage{{Role: "user", Content: string(userContent)}},
+	}
+
+	body, _ := json.Marshal(payload)
+	httpReq, _ := http.NewRequestWithContext(r.Context(), http.MethodPost,
+		"https://api.anthropic.com/v1/messages", bytes.NewReader(body))
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("x-api-key", h.apiKey)
+	httpReq.Header.Set("anthropic-version", "2023-06-01")
+
+	resp, err := http.DefaultClient.Do(httpReq)
+	if err != nil {
+		respondErr(w, http.StatusBadGateway, "claude api unreachable")
+		return
+	}
+	defer resp.Body.Close()
+
+	respBody, _ := io.ReadAll(resp.Body)
+	var claudeResp claudeResponse
+	if err := json.Unmarshal(respBody, &claudeResp); err != nil {
+		respondErr(w, http.StatusInternalServerError, "failed to parse claude response")
+		return
+	}
+	if claudeResp.Error != nil {
+		respondErr(w, http.StatusBadGateway, fmt.Sprintf("claude error: %s", claudeResp.Error.Message))
+		return
+	}
+	if len(claudeResp.Content) == 0 {
+		respondErr(w, http.StatusInternalServerError, "empty response from claude")
+		return
+	}
+
+	rawJSON := strings.TrimSpace(claudeResp.Content[0].Text)
+	rawJSON = strings.TrimPrefix(rawJSON, "```json")
+	rawJSON = strings.TrimPrefix(rawJSON, "```")
+	rawJSON = strings.TrimSuffix(rawJSON, "```")
+	rawJSON = strings.TrimSpace(rawJSON)
+
+	var result map[string]interface{}
+	if err := json.Unmarshal([]byte(rawJSON), &result); err != nil {
+		respondErr(w, http.StatusInternalServerError, "claude returned invalid JSON")
+		return
+	}
+
+	respond(w, http.StatusOK, result)
 }

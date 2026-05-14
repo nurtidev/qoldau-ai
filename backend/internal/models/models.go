@@ -58,15 +58,16 @@ const (
 )
 
 type Service struct {
-	ID          string        `db:"id"          json:"id"`
-	Title       string        `db:"title"       json:"title"`
-	Description *string       `db:"description" json:"description,omitempty"`
-	Category    *string       `db:"category"    json:"category,omitempty"`
-	OrgName     *string       `db:"org_name"    json:"org_name,omitempty"`
-	Status      ServiceStatus `db:"status"      json:"status"`
-	FormSchema  JSONB         `db:"form_schema" json:"form_schema"`
-	CreatedBy   *string       `db:"created_by"  json:"created_by,omitempty"`
-	CreatedAt   time.Time     `db:"created_at"  json:"created_at"`
+	ID               string        `db:"id"                 json:"id"`
+	Title            string        `db:"title"              json:"title"`
+	Description      *string       `db:"description"        json:"description,omitempty"`
+	Category         *string       `db:"category"           json:"category,omitempty"`
+	OrgName          *string       `db:"org_name"           json:"org_name,omitempty"`
+	Status           ServiceStatus `db:"status"             json:"status"`
+	FormSchema       JSONB         `db:"form_schema"        json:"form_schema"`
+	EligibilityRules JSONB         `db:"eligibility_rules"  json:"eligibility_rules"`
+	CreatedBy        *string       `db:"created_by"         json:"created_by,omitempty"`
+	CreatedAt        time.Time     `db:"created_at"         json:"created_at"`
 }
 
 // Application statuses

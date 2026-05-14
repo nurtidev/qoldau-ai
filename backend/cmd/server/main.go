@@ -43,7 +43,7 @@ func main() {
 	appsH := handlers.NewApplicationsHandler(database)
 	docsH := handlers.NewDocumentsHandler(database, cfg.UploadDir)
 	notifsH := handlers.NewNotificationsHandler(database)
-	aiH := handlers.NewAIHandler(cfg.AnthropicAPIKey)
+	aiH := handlers.NewAIHandler(cfg.AnthropicAPIKey, database)
 	mockH := handlers.NewMockHandler()
 	analyticsH := handlers.NewAnalyticsHandler(database)
 
@@ -90,6 +90,7 @@ func main() {
 		// AI
 		r.With(authMw).Post("/ai/generate-form", aiH.GenerateForm)
 		r.With(authMw).Post("/ai/generate-form-stream", aiH.GenerateFormStream)
+		r.With(authMw).Post("/ai/recommend", aiH.Recommend)
 
 		// Applications
 		r.Route("/applications", func(r chi.Router) {
@@ -117,6 +118,7 @@ func main() {
 
 		// Mock integrations
 		r.Get("/mock/egov/{iin}", mockH.EGov)
+		r.Get("/mock/kgd/{bin}", mockH.KGD)
 		r.Post("/mock/eish/submit", mockH.EISHSubmit)
 
 		// Analytics (admin only)

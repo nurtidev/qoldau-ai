@@ -49,6 +49,13 @@ export const servicesApi = {
 export const aiApi = {
   generateForm: (description: string) =>
     api.post('/ai/generate-form', { description }),
+  recommend: (payload: {
+    kgd?: unknown
+    egov?: unknown
+    exclude_service_id?: string
+    rejection_reason?: string
+    screener_answers?: unknown
+  }) => api.post('/ai/recommend', payload),
 }
 
 // Applications
@@ -84,8 +91,31 @@ export const notificationsApi = {
 // Mock integrations
 export const mockApi = {
   egov: (iin: string) => api.get(`/mock/egov/${iin}`),
+  kgd:  (bin: string) => api.get(`/mock/kgd/${bin}`),
   eishSubmit: (application_id: string) =>
     api.post('/mock/eish/submit', { application_id }),
+}
+
+export interface KGDData {
+  bin: string
+  tax_regime: string
+  registration_date: string
+  is_vat_payer: boolean
+  vat_certificate_no: string
+  current_tax_debt: number
+  current_pension_debt: number
+  last_filed_period: string
+  annual_revenue: { year: number; amount: number; currency: string }[]
+  employees_count: number
+  wage_fund_annual: number
+  corporate_income_tax_paid: number
+  social_contributions_paid: number
+  okeds: { code: string; name: string }[]
+  violations: unknown[]
+  in_risk_register: boolean
+  compliance_status: 'compliant' | 'attention' | 'blocked'
+  data_source: string
+  fetched_at: string
 }
 
 // Analytics
