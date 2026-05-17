@@ -97,7 +97,7 @@ func (h *AIHandler) GenerateForm(w http.ResponseWriter, r *http.Request) {
 
 	payload := claudeRequest{
 		Model:     "claude-sonnet-4-6",
-		MaxTokens: 4096,
+		MaxTokens: 8192,
 		System:    systemPrompt,
 		Messages:  []claudeMessage{{Role: "user", Content: req.Description}},
 	}
@@ -177,7 +177,7 @@ func (h *AIHandler) GenerateFormStream(w http.ResponseWriter, r *http.Request) {
 
 	payload := streamPayload{
 		Model:     "claude-sonnet-4-6",
-		MaxTokens: 4096,
+		MaxTokens: 8192,
 		System:    systemPrompt,
 		Messages:  []claudeMessage{{Role: "user", Content: req.Description}},
 		Stream:    true,
