@@ -46,6 +46,7 @@ func main() {
 	aiH := handlers.NewAIHandler(cfg.AnthropicAPIKey, database)
 	mockH := handlers.NewMockHandler()
 	analyticsH := handlers.NewAnalyticsHandler(database)
+	audienceH := handlers.NewAudienceHandler(database)
 
 	authMw := middleware.Auth(cfg.JWTSecret)
 	adminMw := middleware.RequireRole("admin")
@@ -85,7 +86,13 @@ func main() {
 			r.With(authMw, adminAuthorMw).Put("/{id}", servicesH.Update)
 			r.With(authMw, adminMw).Delete("/{id}", servicesH.Delete)
 			r.With(authMw, adminMw).Post("/{id}/publish", servicesH.Publish)
+			// Audience reach calculator + broadcast
+			r.With(authMw, adminAuthorMw).Post("/{id}/audience", audienceH.Match)
+			r.With(authMw, adminMw).Post("/{id}/broadcast", audienceH.Broadcast)
 		})
+
+		// Audience snapshot (regions/sectors enumeration for filter UI)
+		r.With(authMw, adminAuthorMw).Get("/audience/snapshot", audienceH.Snapshot)
 
 		// AI
 		r.With(authMw).Post("/ai/generate-form", aiH.GenerateForm)

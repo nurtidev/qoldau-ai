@@ -122,3 +122,57 @@ export interface KGDData {
 export const analyticsApi = {
   summary: () => api.get('/analytics/summary'),
 }
+
+// ─── Audience (reach calculator + broadcast) ──────────────────────────────────
+
+export interface AudienceFilters {
+  sectors?: string[]
+  regions?: string[]
+  msb_categories?: string[]
+  min_business_age_months?: number | null
+  max_business_age_months?: number | null
+  min_revenue?: number | null
+  max_revenue?: number | null
+  min_owner_age?: number | null
+  max_owner_age?: number | null
+  exclude_tax_debt?: boolean
+  exclude_risk_register?: boolean
+}
+
+export interface AudienceBreakdown { key: string; count: number }
+
+export interface AudienceSampleUser {
+  full_name: string
+  org_name?: string
+  region?: string
+  sector?: string
+  msb_category?: string
+}
+
+export interface AudienceMatch {
+  total: number
+  by_region: AudienceBreakdown[]
+  by_sector: AudienceBreakdown[]
+  by_msb:    AudienceBreakdown[]
+  sample:    AudienceSampleUser[]
+}
+
+export interface AudienceSnapshot {
+  total_audience: number
+  regions:        string[]
+  sectors:        string[]
+  msb_categories: string[]
+}
+
+export const audienceApi = {
+  snapshot: () => api.get<AudienceSnapshot>('/audience/snapshot'),
+  match: (service_id: string, filters: AudienceFilters) =>
+    api.post<AudienceMatch>(`/services/${service_id}/audience`, filters),
+  broadcast: (service_id: string, payload: {
+    filters: AudienceFilters
+    title:   string
+    message: string
+  }) => api.post<{ sent_to: number; service_id: string; service_name: string }>(
+    `/services/${service_id}/broadcast`, payload,
+  ),
+}

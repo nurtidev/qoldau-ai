@@ -6,6 +6,7 @@ import { servicesApi } from '@/api/client'
 import { I } from '@/components/icons'
 import { useToast } from '@/components/Toast'
 import { FormRenderer } from '@/components/FormRenderer'
+import { AudienceDrawer } from '@/components/AudienceDrawer'
 import { parseAiFormSchema } from '@/types/schema'
 import type { FormField, FormStep, FieldType, Service, FormFieldCondition } from '@/types'
 
@@ -1310,6 +1311,7 @@ export function ServiceFormPage() {
   const [steps, setSteps] = useState<BuilderStep[]>(DEFAULT_STEPS)
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null)
   const [showPreview, setShowPreview] = useState(false)
+  const [showAudience, setShowAudience] = useState(false)
   const [initialized, setInitialized] = useState(false)
   const qc = useQueryClient()
 
@@ -1498,6 +1500,9 @@ export function ServiceFormPage() {
           <span style={{ fontSize: 12, padding: '3px 10px', background: '#FEF3C7', color: '#92400E', borderRadius: 999, fontWeight: 500 }}>
             ● Черновик
           </span>
+          <button className="btn btn-secondary btn-sm" onClick={() => setShowAudience(true)} title={id ? 'Калькулятор охвата' : 'Сохраните черновик, чтобы открыть калькулятор'}>
+            <I.Target size={14} /> Аудитория
+          </button>
           <button className="btn btn-secondary btn-sm" onClick={() => setShowPreview(true)}>
             <I.Eye size={14} /> Предпросмотр
           </button>
@@ -1552,6 +1557,7 @@ export function ServiceFormPage() {
       />
 
       {showPreview && <PreviewDrawer steps={steps} title={meta.title} onClose={() => setShowPreview(false)} />}
+      {showAudience && <AudienceDrawer serviceId={id} serviceTitle={meta.title} onClose={() => setShowAudience(false)} />}
     </div>
   )
 }

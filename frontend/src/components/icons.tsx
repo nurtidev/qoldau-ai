@@ -69,4 +69,7 @@ export const I = {
   Star:        (p: IconProps) => <Icon {...p}><path d="m12 3 2.7 6 6.3.6-4.8 4.4 1.5 6.2L12 17l-5.7 3.2L7.8 14 3 9.6 9.3 9Z"/></Icon>,
   GripVertical:(p: IconProps) => <Icon {...p}><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></Icon>,
   Wand:        (p: IconProps) => <Icon {...p}><path d="m15 4-1 2-2 1 2 1 1 2 1-2 2-1-2-1Z"/><path d="M3 20 13 10"/></Icon>,
+  Users:       (p: IconProps) => <Icon {...p}><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14a5 5 0 0 1 5 5"/></Icon>,
+  Send:        (p: IconProps) => <Icon {...p}><path d="M21 3 11 13"/><path d="M21 3 14 21l-3-8-8-3Z"/></Icon>,
+  Target:      (p: IconProps) => <Icon {...p}><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></Icon>,
 }

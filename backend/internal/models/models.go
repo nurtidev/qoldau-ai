@@ -47,6 +47,20 @@ type User struct {
 	OrgName   *string   `db:"org_name"   json:"org_name,omitempty"`
 	Role      UserRole  `db:"role"       json:"role"`
 	CreatedAt time.Time `db:"created_at" json:"created_at"`
+
+	// Audience profile (added by migration 005_audience). Optional for real users —
+	// populated only for synthetic seed data and (future) eGov-prefilled profiles.
+	Sector             *string `db:"sector"               json:"sector,omitempty"`
+	BusinessAgeMonths  *int    `db:"business_age_months"  json:"business_age_months,omitempty"`
+	AnnualRevenue      *int64  `db:"annual_revenue"       json:"annual_revenue,omitempty"`
+	Region             *string `db:"region"               json:"region,omitempty"`
+	OKED               *string `db:"oked"                 json:"oked,omitempty"`
+	Headcount          *int    `db:"headcount"            json:"headcount,omitempty"`
+	MsbCategory        *string `db:"msb_category"         json:"msb_category,omitempty"`
+	HasTaxDebt         *bool   `db:"has_tax_debt"         json:"has_tax_debt,omitempty"`
+	InRiskRegister     *bool   `db:"in_risk_register"     json:"in_risk_register,omitempty"`
+	OwnerAge           *int    `db:"owner_age"            json:"owner_age,omitempty"`
+	IsSynthetic        *bool   `db:"is_synthetic"         json:"is_synthetic,omitempty"`
 }
 
 // Service statuses
