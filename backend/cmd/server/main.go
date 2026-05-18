@@ -9,10 +9,10 @@ import (
 	"github.com/go-chi/chi/v5"
 	chiMiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
-	"github.com/nurtidev/qolday-ai/backend/internal/config"
-	"github.com/nurtidev/qolday-ai/backend/internal/db"
-	"github.com/nurtidev/qolday-ai/backend/internal/handlers"
-	"github.com/nurtidev/qolday-ai/backend/internal/middleware"
+	"github.com/nurtidev/qoldau-ai/backend/internal/config"
+	"github.com/nurtidev/qoldau-ai/backend/internal/db"
+	"github.com/nurtidev/qoldau-ai/backend/internal/handlers"
+	"github.com/nurtidev/qoldau-ai/backend/internal/middleware"
 )
 
 func main() {

@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/nurtidev/qolday-ai/backend/internal/models"
+	"github.com/nurtidev/qoldau-ai/backend/internal/models"
 )
 
 type LeadsHandler struct {

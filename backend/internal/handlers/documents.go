@@ -11,8 +11,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"github.com/nurtidev/qolday-ai/backend/internal/middleware"
-	"github.com/nurtidev/qolday-ai/backend/internal/models"
+	"github.com/nurtidev/qoldau-ai/backend/internal/middleware"
+	"github.com/nurtidev/qoldau-ai/backend/internal/models"
 )
 
 type DocumentsHandler struct {

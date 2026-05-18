@@ -1,4 +1,4 @@
-module github.com/nurtidev/qolday-ai/backend
+module github.com/nurtidev/qoldau-ai/backend
 
 go 1.22
 

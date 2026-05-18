@@ -28,7 +28,7 @@
 ```bash
 # 1. Клонировать репозиторий
 git clone <repo-url>
-cd qolday-ai
+cd qoldau-ai
 
 # 2. Создать .env
 cp .env.example .env
@@ -293,7 +293,7 @@ cd frontend && npx tsc --noEmit
 ### Структура проекта
 
 ```
-qolday-ai/
+qoldau-ai/
 ├── backend/
 │   ├── cmd/server/main.go          # точка входа, chi роутер, DI
 │   ├── internal/
