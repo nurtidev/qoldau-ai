@@ -88,6 +88,13 @@ export const notificationsApi = {
   markRead: (id: string) => api.put(`/notifications/${id}/read`),
 }
 
+// Leads — "Перезвоните мне" widget on the home screener.
+export const leadsApi = {
+  create: (payload: { name: string; phone: string; service_id?: string; message?: string }) =>
+    api.post('/leads', payload),
+  list: () => api.get('/leads'),
+}
+
 // Mock integrations
 export const mockApi = {
   egov: (iin: string) => api.get(`/mock/egov/${iin}`),

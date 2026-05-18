@@ -103,9 +103,16 @@ interface BuilderMeta {
   category: string
   org_name: string
   description: string
+  // Program terms — opt-in. Stored as strings to keep inputs simple; coerced on save.
+  interest_rate:   string
+  max_amount:      string
+  max_term_months: string
 }
 
-const DEFAULT_META: BuilderMeta = { title: '', category: '', org_name: '', description: '' }
+const DEFAULT_META: BuilderMeta = {
+  title: '', category: '', org_name: '', description: '',
+  interest_rate: '', max_amount: '', max_term_months: '',
+}
 
 const DEFAULT_STEPS: BuilderStep[] = [
   {
@@ -173,6 +180,30 @@ function LeftPanel({ meta, setMeta, onSaveDraft, onPublish, saving }: {
       <div>
         <label className="field-label">Описание</label>
         <textarea className="textarea" placeholder="2–3 предложения о программе" value={meta.description} onChange={e => set('description', e.target.value)} style={{ minHeight: 90 }} />
+      </div>
+
+      <div style={{ paddingTop: 6 }}>
+        <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-3)', fontWeight: 600, marginBottom: 8 }}>
+          Условия программы
+        </div>
+        <div style={{ fontSize: 12, color: 'var(--color-text-3)', marginBottom: 10 }}>
+          Показываются на карточке услуги и в калькуляторе подбора. Оставьте пустым, если не применимо (например, гранты или гарантии).
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <div>
+            <label className="field-label" style={{ fontSize: 11 }}>Ставка, %</label>
+            <input className="input" inputMode="decimal" placeholder="6.0" value={meta.interest_rate} onChange={e => set('interest_rate', e.target.value)} />
+          </div>
+          <div>
+            <label className="field-label" style={{ fontSize: 11 }}>Срок, мес.</label>
+            <input className="input" inputMode="numeric" placeholder="60" value={meta.max_term_months} onChange={e => set('max_term_months', e.target.value)} />
+          </div>
+        </div>
+        <div style={{ marginTop: 8 }}>
+          <label className="field-label" style={{ fontSize: 11 }}>Макс. сумма, ₸</label>
+          <input className="input" inputMode="numeric" placeholder="750000000" value={meta.max_amount} onChange={e => set('max_amount', e.target.value)} />
+        </div>
       </div>
 
       <div style={{ padding: '10px 12px', background: 'var(--color-surface-2)', borderRadius: 8, fontSize: 12, color: 'var(--color-text-3)', lineHeight: 1.5 }}>
@@ -1328,10 +1359,13 @@ export function ServiceFormPage() {
   useEffect(() => {
     if (!service || initialized) return
     setMeta({
-      title:       service.title,
-      category:    service.category    || '',
-      org_name:    service.org_name    || '',
-      description: service.description || '',
+      title:           service.title,
+      category:        service.category    || '',
+      org_name:        service.org_name    || '',
+      description:     service.description || '',
+      interest_rate:   service.interest_rate   != null ? String(service.interest_rate)   : '',
+      max_amount:      service.max_amount      != null ? String(service.max_amount)      : '',
+      max_term_months: service.max_term_months != null ? String(service.max_term_months) : '',
     })
     if (service.form_schema?.steps?.length) {
       setSteps(service.form_schema.steps as BuilderStep[])
@@ -1349,13 +1383,22 @@ export function ServiceFormPage() {
 
   const saveMutation = useMutation({
     mutationFn: async (kind: 'draft' | 'publish') => {
+      const num = (s: string) => {
+        const t = s.trim().replace(',', '.')
+        if (t === '') return null
+        const v = Number(t)
+        return Number.isFinite(v) ? v : null
+      }
       const payload = {
-        title:       meta.title,
-        category:    meta.category,
-        org_name:    meta.org_name,
-        description: meta.description,
-        status:      kind === 'publish' ? 'published' : 'draft',
-        form_schema: { steps },
+        title:            meta.title,
+        category:         meta.category,
+        org_name:         meta.org_name,
+        description:      meta.description,
+        status:           kind === 'publish' ? 'published' : 'draft',
+        form_schema:      { steps },
+        interest_rate:    num(meta.interest_rate),
+        max_amount:       num(meta.max_amount),
+        max_term_months:  num(meta.max_term_months),
       }
       let svcId = id
       if (id) {

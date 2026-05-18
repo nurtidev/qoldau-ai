@@ -80,6 +80,9 @@ func (h *ServicesHandler) Create(w http.ResponseWriter, r *http.Request) {
 		OrgName          string       `json:"org_name"`
 		FormSchema       models.JSONB `json:"form_schema"`
 		EligibilityRules models.JSONB `json:"eligibility_rules"`
+		InterestRate     *float64     `json:"interest_rate"`
+		MaxAmount        *int64       `json:"max_amount"`
+		MaxTermMonths    *int         `json:"max_term_months"`
 	}
 	if err := decode(r, &req); err != nil || req.Title == "" {
 		respondErr(w, http.StatusBadRequest, "title required")
@@ -92,10 +95,12 @@ func (h *ServicesHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	var service models.Service
 	err := h.db.QueryRowx(
-		`INSERT INTO services (title, description, category, org_name, form_schema, eligibility_rules, created_by)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+		`INSERT INTO services (title, description, category, org_name, form_schema, eligibility_rules,
+		    interest_rate, max_amount, max_term_months, created_by)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
 		req.Title, nullStr(req.Description), nullStr(req.Category),
-		nullStr(req.OrgName), req.FormSchema, req.EligibilityRules, claims.UserID,
+		nullStr(req.OrgName), req.FormSchema, req.EligibilityRules,
+		req.InterestRate, req.MaxAmount, req.MaxTermMonths, claims.UserID,
 	).StructScan(&service)
 	if err != nil {
 		respondErr(w, http.StatusInternalServerError, "failed to create service")
@@ -113,6 +118,9 @@ func (h *ServicesHandler) Update(w http.ResponseWriter, r *http.Request) {
 		OrgName          string       `json:"org_name"`
 		FormSchema       models.JSONB `json:"form_schema"`
 		EligibilityRules models.JSONB `json:"eligibility_rules"`
+		InterestRate     *float64     `json:"interest_rate"`
+		MaxAmount        *int64       `json:"max_amount"`
+		MaxTermMonths    *int         `json:"max_term_months"`
 	}
 	if err := decode(r, &req); err != nil {
 		respondErr(w, http.StatusBadRequest, "invalid request")
@@ -126,10 +134,12 @@ func (h *ServicesHandler) Update(w http.ResponseWriter, r *http.Request) {
 	var service models.Service
 	err := h.db.QueryRowx(
 		`UPDATE services SET title=$1, description=$2, category=$3, org_name=$4,
-		   form_schema=$5, eligibility_rules=$6
-		 WHERE id=$7 RETURNING *`,
+		   form_schema=$5, eligibility_rules=$6,
+		   interest_rate=$7, max_amount=$8, max_term_months=$9
+		 WHERE id=$10 RETURNING *`,
 		req.Title, nullStr(req.Description), nullStr(req.Category),
-		nullStr(req.OrgName), req.FormSchema, req.EligibilityRules, id,
+		nullStr(req.OrgName), req.FormSchema, req.EligibilityRules,
+		req.InterestRate, req.MaxAmount, req.MaxTermMonths, id,
 	).StructScan(&service)
 	if err != nil {
 		respondErr(w, http.StatusInternalServerError, "failed to update service")

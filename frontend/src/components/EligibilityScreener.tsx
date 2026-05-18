@@ -1,7 +1,41 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useMutation } from '@tanstack/react-query'
 import { I } from '@/components/icons'
+import { leadsApi } from '@/api/client'
+import { useToast } from '@/components/Toast'
 import type { Service } from '@/types'
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function formatAmount(v: number): string {
+  if (v >= 1_000_000_000) {
+    const n = v / 1_000_000_000
+    return `${n % 1 === 0 ? n : n.toFixed(1)} млрд ₸`
+  }
+  if (v >= 1_000_000) return `${Math.round(v / 1_000_000)} млн ₸`
+  if (v >= 1_000)     return `${Math.round(v / 1_000)} тыс ₸`
+  return `${v} ₸`
+}
+
+function formatTerm(months: number): string {
+  if (months % 12 === 0) {
+    const y = months / 12
+    return `${months} мес. (${y} ${y === 1 ? 'год' : y < 5 ? 'года' : 'лет'})`
+  }
+  return `${months} мес.`
+}
+
+// Annuity payment. r = annual rate %, n = months. Falls back to linear for r=0.
+function annuity(principal: number, rateAnnualPercent: number, months: number): number {
+  if (months <= 0) return 0
+  const r = rateAnnualPercent / 100 / 12
+  if (r === 0) return principal / months
+  const pow = Math.pow(1 + r, months)
+  return (principal * r * pow) / (pow - 1)
+}
+
+const TERM_PRESETS = [12, 24, 36, 48, 60, 84] as const
 
 type Goal    = 'credit' | 'grant' | 'subsidy' | 'guarantee'
 type Sector  = 'agro' | 'industry' | 'trade' | 'tech' | 'tourism' | 'other'
@@ -153,6 +187,206 @@ function ScoreChip({ score }: { score: number }) {
   )
 }
 
+function ProgramTermsStrip({ service }: { service: Service }) {
+  const cells: { label: string; value: string }[] = []
+  if (service.interest_rate != null)
+    cells.push({ label: 'ставка',      value: `${service.interest_rate}%` })
+  if (service.max_amount != null)
+    cells.push({ label: 'до',          value: formatAmount(service.max_amount) })
+  if (service.max_term_months != null)
+    cells.push({ label: 'срок до',     value: `${service.max_term_months} мес.` })
+  if (cells.length === 0) return null
+
+  return (
+    <div style={{
+      display: 'grid', gridTemplateColumns: `repeat(${cells.length}, 1fr)`,
+      gap: 8, padding: '10px 0', borderTop: '1px solid var(--color-border)', borderBottom: '1px solid var(--color-border)',
+    }}>
+      {cells.map((c, i) => (
+        <div key={i} style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-primary)', letterSpacing: '-0.01em' }}>{c.value}</div>
+          <div style={{ fontSize: 11, color: 'var(--color-text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: 2 }}>{c.label}</div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function InlineCalculator({ service }: { service: Service }) {
+  const rate     = service.interest_rate
+  const maxAmt   = service.max_amount
+  const maxTerm  = service.max_term_months
+  if (rate == null || maxAmt == null || maxTerm == null) return null
+
+  const defaultAmount = Math.round(maxAmt / 2)
+  const [amount, setAmount] = useState(defaultAmount)
+  const termOptions = TERM_PRESETS.filter(t => t <= maxTerm)
+  const [term, setTerm] = useState(termOptions[Math.min(2, termOptions.length - 1)] ?? maxTerm)
+
+  const monthly  = annuity(amount, rate, term)
+  const total    = monthly * term
+  const overpay  = total - amount
+
+  const clampedAmount = Math.min(Math.max(amount, 0), maxAmt)
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 4 }}>
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
+          <label style={{ fontSize: 12, color: 'var(--color-text-3)', fontWeight: 500 }}>Сумма займа</label>
+          <span style={{ fontSize: 11, color: 'var(--color-text-3)' }}>макс. {formatAmount(maxAmt)}</span>
+        </div>
+        <input
+          type="range"
+          min={0} max={maxAmt} step={Math.max(Math.round(maxAmt / 100), 1000)}
+          value={clampedAmount}
+          onChange={e => setAmount(Number(e.target.value))}
+          style={{ width: '100%', accentColor: 'var(--color-accent)' }}
+        />
+        <div style={{ fontSize: 14, fontWeight: 600, marginTop: 2 }}>{formatAmount(clampedAmount)}</div>
+      </div>
+
+      <div>
+        <label style={{ fontSize: 12, color: 'var(--color-text-3)', fontWeight: 500, display: 'block', marginBottom: 6 }}>Срок</label>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {termOptions.map(t => (
+            <button
+              key={t}
+              onClick={() => setTerm(t)}
+              style={{
+                padding: '6px 10px', fontSize: 12, fontWeight: 600, borderRadius: 6,
+                border: t === term ? '1.5px solid var(--color-accent)' : '1px solid var(--color-border)',
+                background: t === term ? 'var(--color-accent-soft)' : '#fff',
+                color: t === term ? 'var(--color-primary)' : 'var(--color-text-2)',
+                cursor: 'pointer', transition: 'all 120ms',
+              }}
+            >
+              {t} мес
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, padding: '10px 12px', background: 'var(--color-accent-soft)', borderRadius: 8 }}>
+        <div>
+          <div style={{ fontSize: 11, color: 'var(--color-text-3)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Платёж/мес</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-primary)', marginTop: 2 }}>{formatAmount(Math.round(monthly))}</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 11, color: 'var(--color-text-3)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Переплата</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-text-2)', marginTop: 2 }}>{formatAmount(Math.round(overpay))}</div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ResultCard({ service, score }: { service: Service; score: number }) {
+  const hasCalc = service.interest_rate != null && service.max_amount != null && service.max_term_months != null
+  const hasTerms = service.interest_rate != null || service.max_amount != null || service.max_term_months != null
+
+  return (
+    <div
+      className="card"
+      style={{
+        padding: 20, display: 'flex', flexDirection: 'column', gap: 12, height: '100%',
+        border: score >= 70 ? '1.5px solid var(--color-accent)' : '1.5px solid var(--color-border)',
+        transition: 'box-shadow 140ms',
+      }}
+      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = 'var(--sh-md)' }}
+      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = 'var(--sh-xs)' }}
+    >
+      <Link to={`/services/${service.id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span className="badge badge-blue">{service.category ?? 'Общее'}</span>
+          <ScoreChip score={score} />
+        </div>
+        <div style={{ fontSize: 15, fontWeight: 600, lineHeight: 1.35, color: 'var(--color-text)' }}>
+          {service.title}
+        </div>
+        {service.description && (
+          <div style={{
+            fontSize: 13, color: 'var(--color-text-3)', lineHeight: 1.5,
+            display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+          }}>
+            {service.description}
+          </div>
+        )}
+      </Link>
+
+      {hasTerms && <ProgramTermsStrip service={service} />}
+      {hasCalc && <InlineCalculator service={service} />}
+
+      <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8 }}>
+        <span style={{ fontSize: 12, color: 'var(--color-text-3)' }}>{service.org_name ?? '—'}</span>
+        <Link
+          to={`/services/${service.id}`}
+          style={{ fontSize: 13, color: 'var(--color-accent)', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 4 }}
+        >
+          Подать заявку <I.ArrowRight size={13} />
+        </Link>
+      </div>
+    </div>
+  )
+}
+
+function CallMeBack() {
+  const toast = useToast()
+  const [name, setName] = useState('')
+  const [phone, setPhone] = useState('')
+  const [sent, setSent] = useState(false)
+
+  const mut = useMutation({
+    mutationFn: () => leadsApi.create({ name: name.trim(), phone: phone.trim() }),
+    onSuccess: () => {
+      setSent(true)
+      toast.push('Заявка отправлена — мы перезвоним', 'success')
+    },
+    onError: () => toast.push('Не удалось отправить заявку', 'error'),
+  })
+
+  if (sent) {
+    return (
+      <div className="card" style={{ padding: 24, marginTop: 20, background: 'var(--color-success-soft)', borderColor: 'var(--color-success)', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <I.CheckCircle size={24} style={{ color: 'var(--color-success)', flexShrink: 0 }} />
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text)' }}>Заявка принята</div>
+          <div style={{ fontSize: 13, color: 'var(--color-text-3)', marginTop: 2 }}>Менеджер свяжется с вами в рабочее время.</div>
+        </div>
+      </div>
+    )
+  }
+
+  const canSend = name.trim().length >= 2 && phone.trim().length >= 6 && !mut.isPending
+
+  return (
+    <div className="card" style={{ padding: 24, marginTop: 20, display: 'grid', gridTemplateColumns: '1fr auto', gap: 20, alignItems: 'end' }}>
+      <div>
+        <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>Не уверены, какая программа подойдёт?</div>
+        <div style={{ fontSize: 13, color: 'var(--color-text-3)', marginBottom: 14 }}>Оставьте телефон — консультант перезвонит и поможет с подбором и подачей заявки.</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div>
+            <label className="field-label" style={{ fontSize: 12 }}>Ваше имя</label>
+            <input className="input" placeholder="Айдар" value={name} onChange={e => setName(e.target.value)} />
+          </div>
+          <div>
+            <label className="field-label" style={{ fontSize: 12 }}>Телефон</label>
+            <input className="input" type="tel" placeholder="+7 ___ ___ __ __" value={phone} onChange={e => setPhone(e.target.value)} />
+          </div>
+        </div>
+      </div>
+      <button
+        className="btn btn-primary"
+        disabled={!canSend}
+        onClick={() => mut.mutate()}
+        style={{ height: 44, minWidth: 180 }}
+      >
+        {mut.isPending ? 'Отправляем…' : 'Перезвоните мне'}
+      </button>
+    </div>
+  )
+}
+
 function Results({ services, answers, onReset }: { services: Service[]; answers: Answers; onReset: () => void }) {
   const scored = services
     .filter(s => s.status === 'published')
@@ -174,7 +408,7 @@ function Results({ services, answers, onReset }: { services: Service[]; answers:
               : 'Подходящих программ не найдено'}
           </h2>
           <p style={{ fontSize: 14, color: 'var(--color-text-3)', marginTop: 4 }}>
-            По вашим ответам — показываем наилучшие совпадения
+            По вашим ответам — показываем наилучшие совпадения. Рассчитайте платёж прямо в карточке.
           </p>
         </div>
         <button className="btn btn-ghost btn-sm" onClick={onReset}>
@@ -189,45 +423,14 @@ function Results({ services, answers, onReset }: { services: Service[]; answers:
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16, marginBottom: 20 }}>
           {scored.map(({ service, score }) => (
-            <Link key={service.id} to={`/services/${service.id}`} style={{ textDecoration: 'none' }}>
-              <div
-                className="card"
-                style={{
-                  padding: 20, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 12, height: '100%',
-                  border: score >= 70 ? '1.5px solid var(--color-accent)' : '1.5px solid var(--color-border)',
-                  transition: 'box-shadow 140ms',
-                }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = 'var(--sh-md)' }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = 'var(--sh-xs)' }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span className="badge badge-blue">{service.category ?? 'Общее'}</span>
-                  <ScoreChip score={score} />
-                </div>
-                <div style={{ fontSize: 15, fontWeight: 600, lineHeight: 1.35, color: 'var(--color-text)' }}>
-                  {service.title}
-                </div>
-                {service.description && (
-                  <div style={{
-                    fontSize: 13, color: 'var(--color-text-3)', lineHeight: 1.5,
-                    display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
-                  }}>
-                    {service.description}
-                  </div>
-                )}
-                <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 4 }}>
-                  <span style={{ fontSize: 12, color: 'var(--color-text-3)' }}>{service.org_name ?? '—'}</span>
-                  <span style={{ fontSize: 13, color: 'var(--color-accent)', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                    Подробнее <I.ArrowRight size={13} />
-                  </span>
-                </div>
-              </div>
-            </Link>
+            <ResultCard key={service.id} service={service} score={score} />
           ))}
         </div>
       )}
 
-      <div style={{ textAlign: 'center' }}>
+      <CallMeBack />
+
+      <div style={{ textAlign: 'center', marginTop: 24 }}>
         <Link
           to={`/services?q=${encodeURIComponent(goalQuery)}`}
           style={{ fontSize: 14, color: 'var(--color-accent)', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 4 }}

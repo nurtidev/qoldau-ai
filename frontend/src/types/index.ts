@@ -93,6 +93,23 @@ export interface Service {
   eligibility_rules?: EligibilityRuleset
   created_by?: string
   created_at: string
+  /** Annual interest rate, percent. Absent for non-credit programs (grants/guarantees/consulting). */
+  interest_rate?: number
+  /** Maximum financing amount in KZT. */
+  max_amount?: number
+  /** Maximum term, in months. */
+  max_term_months?: number
+}
+
+export interface Lead {
+  id: string
+  name: string
+  phone: string
+  service_id?: string
+  service_title?: string
+  message?: string
+  status: string
+  created_at: string
 }
 
 export interface RecommendationItem {

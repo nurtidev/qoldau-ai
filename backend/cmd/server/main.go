@@ -48,6 +48,7 @@ func main() {
 	analyticsH := handlers.NewAnalyticsHandler(database)
 	audienceH := handlers.NewAudienceHandler(database)
 	funnelH := handlers.NewFunnelHandler(database)
+	leadsH := handlers.NewLeadsHandler(database)
 
 	authMw := middleware.Auth(cfg.JWTSecret)
 	adminMw := middleware.RequireRole("admin")
@@ -136,6 +137,10 @@ func main() {
 
 		// Analytics (admin only)
 		r.With(authMw, adminMw).Get("/analytics/summary", analyticsH.Summary)
+
+		// Leads ("Перезвоните мне" widget) — POST is public, list is admin-only.
+		r.Post("/leads", leadsH.Create)
+		r.With(authMw, adminMw).Get("/leads", leadsH.List)
 	})
 
 	addr := fmt.Sprintf(":%s", cfg.Port)

@@ -82,6 +82,27 @@ type Service struct {
 	EligibilityRules JSONB         `db:"eligibility_rules"  json:"eligibility_rules"`
 	CreatedBy        *string       `db:"created_by"         json:"created_by,omitempty"`
 	CreatedAt        time.Time     `db:"created_at"         json:"created_at"`
+
+	// Program terms (008_program_terms). All optional — non-credit programs (grants,
+	// guarantees, consulting) may leave rate/term NULL while still exposing max_amount.
+	InterestRate   *float64 `db:"interest_rate"    json:"interest_rate,omitempty"`
+	MaxAmount      *int64   `db:"max_amount"       json:"max_amount,omitempty"`
+	MaxTermMonths  *int     `db:"max_term_months"  json:"max_term_months,omitempty"`
+}
+
+type Lead struct {
+	ID        string    `db:"id"          json:"id"`
+	Name      string    `db:"name"        json:"name"`
+	Phone     string    `db:"phone"       json:"phone"`
+	ServiceID *string   `db:"service_id"  json:"service_id,omitempty"`
+	Message   *string   `db:"message"     json:"message,omitempty"`
+	Status    string    `db:"status"      json:"status"`
+	CreatedAt time.Time `db:"created_at"  json:"created_at"`
+}
+
+type LeadWithService struct {
+	Lead
+	ServiceTitle *string `db:"service_title" json:"service_title,omitempty"`
 }
 
 // Application statuses
