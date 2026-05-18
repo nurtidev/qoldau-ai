@@ -1,0 +1,3 @@
+-- 007_cleanup_leasing_dup: rollback is a no-op.
+-- The duplicate 2-step leasing service is not restored — it was a seed
+-- artifact, not user data.
