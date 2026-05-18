@@ -62,12 +62,13 @@ func (h *ApplicationsHandler) List(w http.ResponseWriter, r *http.Request) {
 		err = h.db.Select(&apps,
 			`SELECT a.*, s.title AS service_title
 			 FROM applications a JOIN services s ON a.service_id = s.id
+			 WHERE a.is_synthetic = FALSE
 			 ORDER BY a.created_at DESC`)
 	} else {
 		err = h.db.Select(&apps,
 			`SELECT a.*, s.title AS service_title
 			 FROM applications a JOIN services s ON a.service_id = s.id
-			 WHERE a.user_id = $1
+			 WHERE a.user_id = $1 AND a.is_synthetic = FALSE
 			 ORDER BY a.created_at DESC`,
 			claims.UserID)
 	}

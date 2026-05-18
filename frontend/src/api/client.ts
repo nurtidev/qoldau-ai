@@ -176,3 +176,54 @@ export const audienceApi = {
     `/services/${service_id}/broadcast`, payload,
   ),
 }
+
+// ─── Funnel analytics ─────────────────────────────────────────────────────────
+
+export interface FunnelStage {
+  stage:    string
+  label:    string
+  count:    number
+  drop_pct: number
+}
+
+export interface DrilldownField {
+  field_id:        string
+  field_label:     string
+  abandoned_count: number
+  abandoned_pct:   number
+  stats:           Record<string, number | string>
+  insight:         string
+  audience_fix?: {
+    min_revenue?: number
+    max_revenue?: number
+    note?:        string
+  }
+}
+
+export interface BiggestDrop {
+  stage:           string
+  stage_label:     string
+  abandoned_count: number
+  top_fields:      DrilldownField[] | null
+}
+
+export interface FunnelResponse {
+  service_id:    string
+  service_title: string
+  funnel:        FunnelStage[]
+  biggest_drop?: BiggestDrop
+}
+
+export const funnelApi = {
+  get: (service_id: string) =>
+    api.get<FunnelResponse>(`/services/${service_id}/funnel`),
+  logView: (service_id: string) =>
+    api.post<{ status: string }>(`/services/${service_id}/view`, {}),
+  logEvent: (application_id: string, payload: {
+    step_id:           string
+    step_index:        number
+    event_type:        'entered' | 'completed' | 'abandoned'
+    last_field_id?:    string
+    last_field_value?: string
+  }) => api.post<{ status: string }>(`/applications/${application_id}/event`, payload),
+}

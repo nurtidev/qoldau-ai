@@ -47,6 +47,7 @@ func main() {
 	mockH := handlers.NewMockHandler()
 	analyticsH := handlers.NewAnalyticsHandler(database)
 	audienceH := handlers.NewAudienceHandler(database)
+	funnelH := handlers.NewFunnelHandler(database)
 
 	authMw := middleware.Auth(cfg.JWTSecret)
 	adminMw := middleware.RequireRole("admin")
@@ -89,6 +90,9 @@ func main() {
 			// Audience reach calculator + broadcast
 			r.With(authMw, adminAuthorMw).Post("/{id}/audience", audienceH.Match)
 			r.With(authMw, adminMw).Post("/{id}/broadcast", audienceH.Broadcast)
+			// Funnel analytics: view tracking + aggregated lifecycle funnel
+			r.Post("/{id}/view", funnelH.LogView)
+			r.With(authMw, adminAuthorMw).Get("/{id}/funnel", funnelH.Funnel)
 		})
 
 		// Audience snapshot (regions/sectors enumeration for filter UI)
@@ -106,6 +110,8 @@ func main() {
 			r.Get("/", appsH.List)
 			r.Get("/{id}", appsH.Get)
 			r.With(adminMw).Put("/{id}/status", appsH.UpdateStatus)
+			// Funnel step event
+			r.Post("/{id}/event", funnelH.LogEvent)
 		})
 
 		// Documents

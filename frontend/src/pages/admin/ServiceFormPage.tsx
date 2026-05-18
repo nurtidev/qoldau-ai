@@ -7,7 +7,9 @@ import { I } from '@/components/icons'
 import { useToast } from '@/components/Toast'
 import { FormRenderer } from '@/components/FormRenderer'
 import { AudienceDrawer } from '@/components/AudienceDrawer'
+import { AnalyticsDrawer } from '@/components/AnalyticsDrawer'
 import { parseAiFormSchema } from '@/types/schema'
+import type { AudienceFilters } from '@/api/client'
 import type { FormField, FormStep, FieldType, Service, FormFieldCondition } from '@/types'
 
 // ─── constants ────────────────────────────────────────────────────────────────
@@ -1312,6 +1314,8 @@ export function ServiceFormPage() {
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null)
   const [showPreview, setShowPreview] = useState(false)
   const [showAudience, setShowAudience] = useState(false)
+  const [showAnalytics, setShowAnalytics] = useState(false)
+  const [audiencePreset, setAudiencePreset] = useState<{ filters: AudienceFilters; banner: string } | null>(null)
   const [initialized, setInitialized] = useState(false)
   const qc = useQueryClient()
 
@@ -1500,7 +1504,10 @@ export function ServiceFormPage() {
           <span style={{ fontSize: 12, padding: '3px 10px', background: '#FEF3C7', color: '#92400E', borderRadius: 999, fontWeight: 500 }}>
             ● Черновик
           </span>
-          <button className="btn btn-secondary btn-sm" onClick={() => setShowAudience(true)} title={id ? 'Калькулятор охвата' : 'Сохраните черновик, чтобы открыть калькулятор'}>
+          <button className="btn btn-secondary btn-sm" onClick={() => setShowAnalytics(true)} title={id ? 'Воронка программы' : 'Сохраните черновик, чтобы открыть аналитику'}>
+            <I.Funnel size={14} /> Аналитика
+          </button>
+          <button className="btn btn-secondary btn-sm" onClick={() => { setAudiencePreset(null); setShowAudience(true) }} title={id ? 'Калькулятор охвата' : 'Сохраните черновик, чтобы открыть калькулятор'}>
             <I.Target size={14} /> Аудитория
           </button>
           <button className="btn btn-secondary btn-sm" onClick={() => setShowPreview(true)}>
@@ -1557,7 +1564,30 @@ export function ServiceFormPage() {
       />
 
       {showPreview && <PreviewDrawer steps={steps} title={meta.title} onClose={() => setShowPreview(false)} />}
-      {showAudience && <AudienceDrawer serviceId={id} serviceTitle={meta.title} onClose={() => setShowAudience(false)} />}
+      {showAudience && (
+        <AudienceDrawer
+          serviceId={id}
+          serviceTitle={meta.title}
+          onClose={() => setShowAudience(false)}
+          initialFilters={audiencePreset?.filters}
+          banner={audiencePreset?.banner}
+        />
+      )}
+      {showAnalytics && (
+        <AnalyticsDrawer
+          serviceId={id}
+          serviceTitle={meta.title}
+          onClose={() => setShowAnalytics(false)}
+          onApplyAudienceFix={(filters) => {
+            setAudiencePreset({
+              filters,
+              banner: 'Фильтры подобраны на основе анализа воронки: выручка соответствует медианной потребности тех, кто отвалился на шаге.',
+            })
+            setShowAnalytics(false)
+            setShowAudience(true)
+          }}
+        />
+      )}
     </div>
   )
 }

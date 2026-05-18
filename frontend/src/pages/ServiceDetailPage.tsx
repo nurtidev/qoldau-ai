@@ -1,7 +1,7 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { servicesApi } from '@/api/client'
+import { servicesApi, funnelApi } from '@/api/client'
 import { useAuthStore } from '@/store/auth'
 import { I } from '@/components/icons'
 import type { Service, FormField } from '@/types'
@@ -162,6 +162,13 @@ export function ServiceDetailPage() {
     queryFn: () => servicesApi.get(id!).then(r => r.data),
     enabled: !!id,
   })
+
+  // Funnel analytics: log the card view exactly once per service mount.
+  // Fire-and-forget — failure must not affect page rendering.
+  useEffect(() => {
+    if (!id) return
+    funnelApi.logView(id).catch(() => {})
+  }, [id])
 
   const { data: allServices = [] } = useQuery<Service[]>({
     queryKey: ['services'],

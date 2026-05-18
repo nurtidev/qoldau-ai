@@ -72,4 +72,6 @@ export const I = {
   Users:       (p: IconProps) => <Icon {...p}><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14a5 5 0 0 1 5 5"/></Icon>,
   Send:        (p: IconProps) => <Icon {...p}><path d="M21 3 11 13"/><path d="M21 3 14 21l-3-8-8-3Z"/></Icon>,
   Target:      (p: IconProps) => <Icon {...p}><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></Icon>,
+  Funnel:      (p: IconProps) => <Icon {...p}><path d="M3 5h18l-7 8v7l-4-2v-5Z"/></Icon>,
+  TrendingDown:(p: IconProps) => <Icon {...p}><path d="m3 7 7 7 4-4 7 7"/><path d="M21 17v-4h-4"/></Icon>,
 }

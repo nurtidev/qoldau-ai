@@ -67,10 +67,16 @@ interface Props {
   serviceId:    string | undefined  // undefined for unsaved services
   serviceTitle: string
   onClose:      () => void
+  /** Pre-applied filters — used when the drawer is opened from AnalyticsDrawer's audience_fix CTA. */
+  initialFilters?: AudienceFilters
+  /** Optional banner text shown at the top — explains where the pre-applied filters came from. */
+  banner?: string
 }
 
-export function AudienceDrawer({ serviceId, serviceTitle, onClose }: Props) {
-  const [filters, setFilters] = useState<AudienceFilters>(EMPTY_FILTERS)
+export function AudienceDrawer({ serviceId, serviceTitle, onClose, initialFilters, banner }: Props) {
+  const [filters, setFilters] = useState<AudienceFilters>(initialFilters
+    ? { ...EMPTY_FILTERS, ...initialFilters }
+    : EMPTY_FILTERS)
   const [match, setMatch] = useState<AudienceMatch | null>(null)
   const [showBroadcast, setShowBroadcast] = useState(false)
   const toast = useToast()
@@ -148,6 +154,18 @@ export function AudienceDrawer({ serviceId, serviceTitle, onClose }: Props) {
             fontSize: 13, lineHeight: 1.5,
           }}>
             Сохраните черновик услуги, чтобы рассчитать охват и отправить рассылку.
+          </div>
+        )}
+
+        {banner && serviceId && (
+          <div style={{
+            margin: '12px 24px 0', padding: '12px 14px', borderRadius: 10,
+            background: 'var(--color-accent-soft)', color: 'var(--color-text-2)',
+            fontSize: 13, lineHeight: 1.5,
+            display: 'flex', alignItems: 'flex-start', gap: 10,
+          }}>
+            <I.Funnel size={14} style={{ color: 'var(--color-accent)', flexShrink: 0, marginTop: 2 }} />
+            <span>{banner}</span>
           </div>
         )}
 

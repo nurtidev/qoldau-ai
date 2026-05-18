@@ -96,13 +96,14 @@ const (
 )
 
 type Application struct {
-	ID        string            `db:"id"         json:"id"`
-	ServiceID string            `db:"service_id" json:"service_id"`
-	UserID    string            `db:"user_id"    json:"user_id"`
-	FormData  JSONB             `db:"form_data"  json:"form_data"`
-	Status    ApplicationStatus `db:"status"     json:"status"`
-	CreatedAt time.Time         `db:"created_at" json:"created_at"`
-	UpdatedAt time.Time         `db:"updated_at" json:"updated_at"`
+	ID          string            `db:"id"            json:"id"`
+	ServiceID   string            `db:"service_id"    json:"service_id"`
+	UserID      string            `db:"user_id"       json:"user_id"`
+	FormData    JSONB             `db:"form_data"     json:"form_data"`
+	Status      ApplicationStatus `db:"status"        json:"status"`
+	IsSynthetic bool              `db:"is_synthetic"  json:"is_synthetic"`
+	CreatedAt   time.Time         `db:"created_at"    json:"created_at"`
+	UpdatedAt   time.Time         `db:"updated_at"    json:"updated_at"`
 }
 
 type ApplicationWithService struct {
