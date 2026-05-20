@@ -34,7 +34,7 @@ test('AI form builder: leasing prompt end-to-end', async ({ page }) => {
   await page.waitForURL(/\/admin/, { timeout: 15_000 })
 
   // 2. Go to create-new-service page (AI builder lives here)
-  await page.goto('/admin/services/new')
+  await page.goto('/admin/services/new?e2e=1')
   await expect(page.getByText('AI-конструктор формы')).toBeVisible({ timeout: 10_000 })
 
   // 3. Confirm the default prompt is preloaded (target the AI block by placeholder)

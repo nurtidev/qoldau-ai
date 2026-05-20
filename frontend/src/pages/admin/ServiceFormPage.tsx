@@ -8,6 +8,7 @@ import { useToast } from '@/components/Toast'
 import { FormRenderer } from '@/components/FormRenderer'
 import { AudienceDrawer } from '@/components/AudienceDrawer'
 import { AnalyticsDrawer } from '@/components/AnalyticsDrawer'
+import { BuilderTour } from '@/components/BuilderTour'
 import { parseAiFormSchema } from '@/types/schema'
 import type { AudienceFilters } from '@/api/client'
 import type { FormField, FormStep, FieldType, Service, FormFieldCondition } from '@/types'
@@ -138,7 +139,7 @@ function LeftPanel({ meta, setMeta, onSaveDraft, onPublish, saving }: {
   const set = (k: keyof BuilderMeta, v: string) => setMeta({ ...meta, [k]: v })
 
   return (
-    <aside style={{
+    <aside data-tour-id="meta-panel" style={{
       width: 280, flexShrink: 0, borderRight: '1px solid var(--color-border)',
       background: '#fff', padding: '24px 20px', overflowY: 'auto',
       display: 'flex', flexDirection: 'column', gap: 14,
@@ -214,7 +215,7 @@ function LeftPanel({ meta, setMeta, onSaveDraft, onPublish, saving }: {
       <div style={{ flex: 1 }} />
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 14, borderTop: '1px solid var(--color-border)' }}>
-        <button className="btn btn-primary btn-block" onClick={onPublish} disabled={saving === 'publish'}>
+        <button data-tour-id="publish-btn" className="btn btn-primary btn-block" onClick={onPublish} disabled={saving === 'publish'}>
           {saving === 'publish'
             ? <><Spinner /> Публикация…</>
             : <><I.Check size={15} /> Опубликовать</>}
@@ -567,7 +568,7 @@ function AiBlock({ onApply }: { onApply: (steps: BuilderStep[]) => void }) {
         />
 
         <div style={{ marginTop: 10, display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button onClick={generate} style={{
+          <button data-tour-id="ai-generate-btn" onClick={generate} style={{
             height: 38, padding: '0 18px', borderRadius: 8, border: 'none',
             background: '#fff', color: 'var(--color-primary)',
             fontSize: 14, fontWeight: 600, cursor: 'pointer',
@@ -1448,6 +1449,8 @@ export function ServiceFormPage() {
   const [showAnalytics, setShowAnalytics] = useState(false)
   const [audiencePreset, setAudiencePreset] = useState<{ filters: AudienceFilters; banner: string } | null>(null)
   const [initialized, setInitialized] = useState(false)
+  // Tour trigger: incrementing this restarts the BuilderTour. Used by the "🎓 Тур" button.
+  const [tourTrigger, setTourTrigger] = useState(0)
   const qc = useQueryClient()
 
   const { data: service, isLoading } = useQuery<Service>({
@@ -1656,10 +1659,13 @@ export function ServiceFormPage() {
           <button className="btn btn-secondary btn-sm" onClick={() => setShowPreview(true)}>
             <I.Eye size={14} /> Предпросмотр
           </button>
+          <button className="btn btn-ghost btn-sm" onClick={() => setTourTrigger(n => n + 1)} title="Запустить экскурсию по конструктору">
+            🎓 Тур
+          </button>
         </div>
 
         <div style={{ maxWidth: 800, margin: '0 auto', padding: '24px 28px 60px' }}>
-          <div style={{ marginBottom: 20 }}>
+          <div data-tour-id="canvas-header" style={{ marginBottom: 20 }}>
             <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-3)', fontWeight: 600, marginBottom: 4 }}>Холст формы</div>
             <h2 style={{ fontSize: 22, fontWeight: 700, margin: 0, letterSpacing: '-0.01em' }}>Структура заявки</h2>
             <p style={{ fontSize: 13, color: 'var(--color-text-3)', marginTop: 4, marginBottom: 0 }}>
@@ -1667,7 +1673,7 @@ export function ServiceFormPage() {
             </p>
           </div>
 
-          <AiBlock onApply={newSteps => { setSteps(newSteps); setSelectedFieldId(null) }} />
+          <div data-tour-id="ai-block"><AiBlock onApply={newSteps => { setSteps(newSteps); setSelectedFieldId(null) }} /></div>
 
           {steps.map((step, i) => (
             <StepBlock
@@ -1731,6 +1737,7 @@ export function ServiceFormPage() {
           }}
         />
       )}
+      <BuilderTour forceStart={tourTrigger > 0} onFinish={() => setTourTrigger(0)} />
     </div>
   )
 }

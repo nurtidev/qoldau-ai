@@ -19,7 +19,7 @@ test('Manual builder: create + save draft + publish', async ({ page }) => {
   await page.waitForURL(/\/admin/, { timeout: 15_000 })
 
   // 2. New service page
-  await page.goto('/admin/services/new')
+  await page.goto('/admin/services/new?e2e=1')
   await expect(page.getByText('Структура заявки')).toBeVisible({ timeout: 10_000 })
 
   // 3. Fill meta (LeftPanel)

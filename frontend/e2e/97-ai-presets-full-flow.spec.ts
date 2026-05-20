@@ -25,7 +25,7 @@ async function runPreset(page: Page, preset: { id: string; label: string }) {
   const title   = `E2E · ${preset.label} · ${runId}`
 
   // 1. Open empty admin/services/new
-  await page.goto('/admin/services/new')
+  await page.goto('/admin/services/new?e2e=1')
   await expect(page.getByText('AI-конструктор формы')).toBeVisible({ timeout: 10_000 })
 
   // 2. Click the preset chip and verify the textarea picked up the prompt
