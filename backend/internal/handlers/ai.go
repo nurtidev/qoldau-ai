@@ -62,6 +62,10 @@ const systemPrompt = `Ты — конструктор форм для казах
 - condition на step делает шаг условным
 - prefill_from используй для полей БИН/ИИН и названия организации (egov.iin, egov.org_name)
 - Всегда начинай с шага информации о заявителе/компании
+- НИКОГДА не используй null. Если значение опционально и не нужно — просто опусти ключ.
+  Запрещено: "mask": null, "options": null, "formula": null, "condition": null, "accept": null, "placeholder": null и т.п.
+- mask допускает ТОЛЬКО "currency" или "percent" (для денежных и процентных полей). Для текстовых полей ключ mask опускай.
+- operator в condition допускает ТОЛЬКО: equals, not_equals, greater_than, less_than.
 `
 
 type claudeRequest struct {

@@ -64,6 +64,11 @@ export function parseAiFormSchema(raw: string): FormStep[] {
     throw new Error('AI вернул невалидный JSON')
   }
 
+  // Claude часто кладёт "mask": null / "options": null для полей,
+  // где значение не нужно. zod .optional() пропускает undefined, но не null,
+  // поэтому до валидации рекурсивно вычищаем все null-ключи.
+  json = stripNulls(json)
+
   const result = zFormSchema.safeParse(json)
   if (!result.success) {
     throw new Error(formatZodError(result.error))
@@ -88,6 +93,19 @@ export function parseAiFormSchema(raw: string): FormStep[] {
       condition: f.condition,
     })),
   }))
+}
+
+function stripNulls(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(stripNulls)
+  if (value && typeof value === 'object') {
+    const out: Record<string, unknown> = {}
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      if (v === null) continue
+      out[k] = stripNulls(v)
+    }
+    return out
+  }
+  return value
 }
 
 function formatZodError(err: z.ZodError): string {
