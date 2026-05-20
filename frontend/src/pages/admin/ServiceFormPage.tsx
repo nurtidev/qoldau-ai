@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Parser as FormulaParser } from 'expr-eval'
@@ -272,16 +272,13 @@ function AiBlock({ onApply }: { onApply: (steps: BuilderStep[]) => void }) {
   const [activePreset, setActivePreset] = useState<string>(AI_PROMPT_PRESETS[0].id)
   const [prompt, setPrompt] = useState(AI_PROMPT_PRESETS[0].prompt)
   const [state, setState] = useState<'idle' | 'streaming' | 'revealing' | 'success' | 'error'>('idle')
-  const [streamText, setStreamText] = useState('')
   const [generated, setGenerated] = useState<BuilderStep[] | null>(null)
   const [elapsed, setElapsed] = useState(0)
-  const termRef = useRef<HTMLPreElement>(null)
+  // Прогресс: число прочитанных символов JSON-ответа (для прогресс-бара).
+  // Обновляем не на каждый chunk, а раз в ~250 мс — чтобы не ре-рендерить блок десятки раз.
+  const [progressChars, setProgressChars] = useState(0)
+  const [secondsElapsed, setSecondsElapsed] = useState(0)
   const toast = useToast()
-
-  // auto-scroll terminal while streaming
-  useEffect(() => {
-    if (termRef.current) termRef.current.scrollTop = termRef.current.scrollHeight
-  }, [streamText])
 
   // switch revealing → success after staggered animation
   useEffect(() => {
@@ -291,10 +288,19 @@ function AiBlock({ onApply }: { onApply: (steps: BuilderStep[]) => void }) {
     return () => clearTimeout(timer)
   }, [state, generated])
 
+  // tick the elapsed-seconds counter while streaming
+  useEffect(() => {
+    if (state !== 'streaming') return
+    const t0 = Date.now()
+    setSecondsElapsed(0)
+    const interval = setInterval(() => setSecondsElapsed(Math.floor((Date.now() - t0) / 1000)), 1000)
+    return () => clearInterval(interval)
+  }, [state])
+
   const generate = async () => {
     if (!prompt.trim()) { toast.push('Опишите услугу', 'error'); return }
     setState('streaming')
-    setStreamText('')
+    setProgressChars(0)
     setGenerated(null)
     const t0 = Date.now()
 
@@ -315,6 +321,7 @@ function AiBlock({ onApply }: { onApply: (steps: BuilderStep[]) => void }) {
       let accumulated = ''
       let sseBuffer = ''
       let done = false
+      let lastProgressUpdate = 0
 
       while (!done) {
         const { done: rdDone, value } = await reader.read()
@@ -327,7 +334,15 @@ function AiBlock({ onApply }: { onApply: (steps: BuilderStep[]) => void }) {
           try {
             const evt = JSON.parse(line.slice(6))
             if (evt.error) throw new Error(evt.error)
-            if (evt.t) { accumulated += evt.t; setStreamText(accumulated) }
+            if (evt.t) {
+              accumulated += evt.t
+              // Throttle: обновляем progress не чаще раза в 250 мс
+              const now = Date.now()
+              if (now - lastProgressUpdate > 250) {
+                setProgressChars(accumulated.length)
+                lastProgressUpdate = now
+              }
+            }
             if (evt.done) { done = true }
           } catch (e) {
             if (e instanceof SyntaxError) continue
@@ -347,26 +362,61 @@ function AiBlock({ onApply }: { onApply: (steps: BuilderStep[]) => void }) {
     }
   }
 
-  // ── streaming UI ─────────────────────────────────────────────────────────────
+  // ── streaming UI: calm loader (без терминала) ───────────────────────────────
   if (state === 'streaming') {
+    // Фазы: меняем подпись в зависимости от того, сколько символов уже пришло.
+    // 0–500 → анализ, 500–3000 → шаги, 3000–10000 → поля, дальше → финализация.
+    const phases = [
+      { at: 0,     icon: '🔍', label: 'Анализирую описание услуги' },
+      { at: 600,   icon: '🧱', label: 'Подбираю шаги и структуру' },
+      { at: 3000,  icon: '📋', label: 'Формирую поля и валидацию' },
+      { at: 9000,  icon: '⚙️', label: 'Добавляю формулы и условия' },
+      { at: 14000, icon: '✨', label: 'Финализирую структуру' },
+    ]
+    const currentPhase = phases.slice().reverse().find(p => progressChars >= p.at) || phases[0]
+    // Прогресс относительно ожидаемого размера ~18000 симв (типичный сложный кейс)
+    const pct = Math.min(95, Math.round((progressChars / 18000) * 100))
+
     return (
-      <div style={{ background: 'linear-gradient(135deg,#0F172A 0%,#1E3A8A 100%)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 20, marginBottom: 24, color: '#fff' }}>
+      <div style={{
+        background: 'linear-gradient(135deg,#0F172A 0%,#1E3A8A 100%)',
+        border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12,
+        padding: '28px 24px', marginBottom: 24, color: '#fff',
+      }} data-testid="ai-loader">
         <style>{AI_STREAM_STYLES}</style>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#34D399', display: 'inline-block', animation: 'aiPulse 1.2s infinite' }} />
-          <span style={{ fontSize: 13, fontWeight: 600 }}>Claude генерирует форму…</span>
-          <span style={{ marginLeft: 'auto', fontSize: 11, color: 'rgba(255,255,255,0.45)', fontFamily: 'monospace' }}>{streamText.length} симв.</span>
-        </div>
-        <pre ref={termRef} style={{
-          background: 'rgba(0,0,0,0.45)', borderRadius: 8, padding: '12px 14px', margin: 0,
-          fontSize: 11, fontFamily: 'Monaco,Consolas,monospace', color: '#A5F3FC',
-          maxHeight: 210, overflowY: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all', lineHeight: 1.65,
-        }}>
-          {streamText || ' '}
-          <span style={{ animation: 'aiBlink 1s step-end infinite', opacity: 1 }}>▋</span>
-        </pre>
-        <div style={{ marginTop: 10, fontSize: 12, color: 'rgba(255,255,255,0.4)', textAlign: 'center' }}>
-          Анализирую описание, подбираю поля и условия…
+
+        {/* Centered spinner + label */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
+          <div style={{
+            width: 56, height: 56, borderRadius: '50%',
+            border: '3px solid rgba(255,255,255,0.12)',
+            borderTopColor: '#60A5FA',
+            animation: 'spin 1s linear infinite',
+          }} />
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 15, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <span style={{ fontSize: 18 }}>{currentPhase.icon}</span>
+              {currentPhase.label}…
+            </div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 4 }}>
+              Claude Sonnet 4.6 · {secondsElapsed} сек
+            </div>
+          </div>
+
+          {/* Progress bar */}
+          <div style={{
+            width: '100%', maxWidth: 360, height: 6, marginTop: 6,
+            background: 'rgba(255,255,255,0.08)', borderRadius: 999, overflow: 'hidden',
+          }}>
+            <div style={{
+              width: `${Math.max(8, pct)}%`, height: '100%',
+              background: 'linear-gradient(90deg,#60A5FA,#34D399)',
+              borderRadius: 999, transition: 'width 400ms ease',
+            }} />
+          </div>
+          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>
+            Генерация обычно занимает 30–90 секунд для сложных форм
+          </div>
         </div>
       </div>
     )
