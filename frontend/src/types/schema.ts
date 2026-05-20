@@ -131,3 +131,38 @@ function formatZodError(err: z.ZodError): string {
 
 // Re-export for future use (e.g. validating service.form_schema from API).
 export type { FormSchema }
+
+// ─── service_meta extraction ──────────────────────────────────────────────────
+// AI also returns top-level service_meta with title/category/org/program-terms.
+// All fields are optional — if Claude couldn't infer them, we just don't override.
+
+export interface AiServiceMeta {
+  title?:           string
+  description?:     string
+  category?:        string
+  org_name?:        string
+  interest_rate?:   string
+  max_amount?:      string
+  max_term_months?: string
+}
+
+const zAiServiceMeta = z.object({
+  title:           z.string().optional(),
+  description:     z.string().optional(),
+  category:        z.string().optional(),
+  org_name:        z.string().optional(),
+  interest_rate:   z.string().optional(),
+  max_amount:      z.string().optional(),
+  max_term_months: z.string().optional(),
+})
+
+/** Soft-parse AI service_meta. Returns empty object on any failure. */
+export function parseAiServiceMeta(raw: string): AiServiceMeta {
+  const cleaned = raw.trim().replace(/^```json\n?/, '').replace(/^```\n?/, '').replace(/\n?```$/, '').trim()
+  let json: unknown
+  try { json = JSON.parse(cleaned) } catch { return {} }
+  const stripped = stripNulls(json) as { service_meta?: unknown } | null
+  if (!stripped || typeof stripped !== 'object') return {}
+  const parsed = zAiServiceMeta.safeParse(stripped.service_meta ?? {})
+  return parsed.success ? parsed.data : {}
+}

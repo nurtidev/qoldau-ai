@@ -9,7 +9,7 @@ import { FormRenderer } from '@/components/FormRenderer'
 import { AudienceDrawer } from '@/components/AudienceDrawer'
 import { AnalyticsDrawer } from '@/components/AnalyticsDrawer'
 import { BuilderTour } from '@/components/BuilderTour'
-import { parseAiFormSchema } from '@/types/schema'
+import { parseAiFormSchema, parseAiServiceMeta, type AiServiceMeta } from '@/types/schema'
 import type { AudienceFilters } from '@/api/client'
 import type { FormField, FormStep, FieldType, Service, FormFieldCondition } from '@/types'
 
@@ -269,11 +269,12 @@ const AI_PROMPT_PRESETS: { id: string; label: string; prompt: string }[] = [
   },
 ]
 
-function AiBlock({ onApply }: { onApply: (steps: BuilderStep[]) => void }) {
+function AiBlock({ onApply }: { onApply: (steps: BuilderStep[], meta: AiServiceMeta) => void }) {
   const [activePreset, setActivePreset] = useState<string>(AI_PROMPT_PRESETS[0].id)
   const [prompt, setPrompt] = useState(AI_PROMPT_PRESETS[0].prompt)
   const [state, setState] = useState<'idle' | 'streaming' | 'revealing' | 'success' | 'error'>('idle')
   const [generated, setGenerated] = useState<BuilderStep[] | null>(null)
+  const [generatedMeta, setGeneratedMeta] = useState<AiServiceMeta>({})
   const [elapsed, setElapsed] = useState(0)
   // Прогресс: число прочитанных символов JSON-ответа (для прогресс-бара).
   // Обновляем не на каждый chunk, а раз в ~250 мс — чтобы не ре-рендерить блок десятки раз.
@@ -353,7 +354,9 @@ function AiBlock({ onApply }: { onApply: (steps: BuilderStep[]) => void }) {
       }
 
       const steps = parseSteps(accumulated)
+      const meta  = parseAiServiceMeta(accumulated)
       setGenerated(steps)
+      setGeneratedMeta(meta)
       setElapsed(Date.now() - t0)
       setState('revealing')
     } catch (e) {
@@ -496,15 +499,15 @@ function AiBlock({ onApply }: { onApply: (steps: BuilderStep[]) => void }) {
         {state === 'success' && (
           <div style={{ display: 'flex', gap: 8 }}>
             <button className="btn btn-primary btn-sm" onClick={() => {
-              onApply(generated)
+              onApply(generated, generatedMeta)
               const aiSeconds = Math.max(1, Math.round(elapsed / 1000))
               const saved = Math.max(1, manualMin - Math.ceil(aiSeconds / 60))
               toast.push(`Структура применена за ${aiSeconds} сек · вручную ≈ ${manualMin} мин. Сэкономлено около ${saved} мин.`, 'success')
-              setState('idle'); setGenerated(null)
+              setState('idle'); setGenerated(null); setGeneratedMeta({})
             }}>
               <I.Check size={14} /> Применить к холсту
             </button>
-            <button className="btn btn-secondary btn-sm" onClick={() => { setState('idle'); setGenerated(null) }}>Отменить</button>
+            <button className="btn btn-secondary btn-sm" onClick={() => { setState('idle'); setGenerated(null); setGeneratedMeta({}) }}>Отменить</button>
             <div style={{ flex: 1 }} />
             <button className="btn btn-ghost btn-sm" onClick={generate}><I.Sparkle size={14} /> Пересоздать</button>
           </div>
@@ -1673,7 +1676,21 @@ export function ServiceFormPage() {
             </p>
           </div>
 
-          <div data-tour-id="ai-block"><AiBlock onApply={newSteps => { setSteps(newSteps); setSelectedFieldId(null) }} /></div>
+          <div data-tour-id="ai-block"><AiBlock onApply={(newSteps, aiMeta) => {
+            setSteps(newSteps)
+            setSelectedFieldId(null)
+            // Подмешиваем AI meta поверх текущей: значения пользователя не затираем.
+            setMeta(prev => ({
+              ...prev,
+              title:           prev.title           || aiMeta.title           || '',
+              description:     prev.description     || aiMeta.description     || '',
+              category:        prev.category        || (aiMeta.category && CATEGORIES.includes(aiMeta.category) ? aiMeta.category : ''),
+              org_name:        prev.org_name        || (aiMeta.org_name && ORGS.includes(aiMeta.org_name) ? aiMeta.org_name : ''),
+              interest_rate:   prev.interest_rate   || aiMeta.interest_rate   || '',
+              max_amount:      prev.max_amount      || aiMeta.max_amount      || '',
+              max_term_months: prev.max_term_months || aiMeta.max_term_months || '',
+            }))
+          }} /></div>
 
           {steps.map((step, i) => (
             <StepBlock
