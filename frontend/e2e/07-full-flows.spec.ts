@@ -1,6 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
 
-const MICROCREDIT_ID = '5232e8aa-721e-400e-806a-7e625a9d5205'
 const USER_IIN  = '123456789012'
 const ADMIN_IIN = '000000000000'
 
@@ -9,6 +8,19 @@ async function loginAsUser(page: Page) {
   await page.getByPlaceholder('123456789012').fill(USER_IIN)
   await page.getByRole('button', { name: /войти через egov/i }).click()
   await page.waitForURL(/\/cabinet/, { timeout: 15_000 })
+}
+
+/**
+ * Находит услугу «Микрокредитование для начинающих предпринимателей» через
+ * публичный API и возвращает её ID — это надёжнее, чем хардкод UUID (seed
+ * пересоздаёт id при каждом запуске миграций).
+ */
+async function getMicrocreditId(page: Page): Promise<string> {
+  const res = await page.request.get('/api/services')
+  const services = await res.json()
+  const svc = services.find((s: { title: string }) => s.title.includes('Микрокредитование'))
+  if (!svc) throw new Error('Услуга микрокредитования не найдена')
+  return svc.id
 }
 
 async function loginAsAdmin(page: Page) {
@@ -32,7 +44,7 @@ test.describe('Подача заявки — полный сценарий', () 
   })
 
   test('eGov prefill заполняет ИИН автоматически', async ({ page }) => {
-    await page.goto(`/cabinet/apply/${MICROCREDIT_ID}`)
+    await page.goto(`/cabinet/apply/${await getMicrocreditId(page)}`)
     await waitForForm(page)
 
     // m1 = ИИН, prefill_from=egov.iin — должен быть заполнен автоматически
@@ -41,7 +53,7 @@ test.describe('Подача заявки — полный сценарий', () 
   })
 
   test('Шаг 1: заполнение обязательных полей и переход к шагу 2', async ({ page }) => {
-    await page.goto(`/cabinet/apply/${MICROCREDIT_ID}`)
+    await page.goto(`/cabinet/apply/${await getMicrocreditId(page)}`)
     await waitForForm(page)
 
     // m3: Статус (первый select)
@@ -58,7 +70,7 @@ test.describe('Подача заявки — полный сценарий', () 
   })
 
   test('Шаг 2: заполнение параметров займа и успешная отправка', async ({ page }) => {
-    await page.goto(`/cabinet/apply/${MICROCREDIT_ID}`)
+    await page.goto(`/cabinet/apply/${await getMicrocreditId(page)}`)
     await waitForForm(page)
 
     // --- Шаг 1 ---
@@ -82,13 +94,17 @@ test.describe('Подача заявки — полный сценарий', () 
     // Calculated поле должно обновиться (ежемесячный платёж)
     await expect(page.getByText(/ежемесячный платёж/i)).toBeVisible()
 
+    // Переход на финальный шаг "Проверка" (там же карточка предварительной оценки)
+    await page.getByRole('button', { name: /далее|к проверке/i }).click()
+    await expect(page.getByText('Предварительная оценка заявителя')).toBeVisible({ timeout: 10_000 })
+
     // Отправка
-    await page.getByRole('button', { name: /подать заявку/i }).click()
+    await page.getByRole('button', { name: /^подать заявку$/i }).click()
     await expect(page).toHaveURL(/\/cabinet/, { timeout: 15_000 })
   })
 
   test('Заявка появляется в личном кабинете после подачи', async ({ page }) => {
-    await page.goto(`/cabinet/apply/${MICROCREDIT_ID}`)
+    await page.goto(`/cabinet/apply/${await getMicrocreditId(page)}`)
     await waitForForm(page)
 
     await page.locator('select').first().selectOption('Планирую открыть ИП')
@@ -100,7 +116,12 @@ test.describe('Подача заявки — полный сценарий', () 
     await page.locator('input[type="number"]').first().fill('2000000')
     await page.locator('select').first().selectOption('24 месяца')
     await page.locator('textarea').first().fill('Открытие кофейни в торговом центре')
-    await page.getByRole('button', { name: /подать заявку/i }).click()
+
+    // Переход на финальный шаг "Проверка"
+    await page.getByRole('button', { name: /далее|к проверке/i }).click()
+    await expect(page.getByRole('button', { name: /^подать заявку$/i })).toBeVisible({ timeout: 10_000 })
+
+    await page.getByRole('button', { name: /^подать заявку$/i }).click()
     await page.waitForURL(/\/cabinet/, { timeout: 15_000 })
 
     // В дашборде должна появиться карточка заявки на эту услугу
@@ -108,7 +129,7 @@ test.describe('Подача заявки — полный сценарий', () 
   })
 
   test('Валидация: нельзя перейти к шагу 2 с незаполненными полями', async ({ page }) => {
-    await page.goto(`/cabinet/apply/${MICROCREDIT_ID}`)
+    await page.goto(`/cabinet/apply/${await getMicrocreditId(page)}`)
     await waitForForm(page)
 
     // Не заполняем ничего — кликаем Далее

@@ -55,4 +55,32 @@ test.describe('Детальная страница услуги', () => {
     await expect(page.getByText('Информация о компании')).toBeVisible({ timeout: 10_000 })
     await expect(page.getByText(/10 пол/i)).toBeVisible()
   })
+
+  test('вкладка "Калькулятор" видна на услуге с формулами и пересчитывает результат при вводе', async ({ page }) => {
+    // Услуга субсидирования — у неё всего 2 числовых входа калькулятора (ставка банка, сумма кредита),
+    // остальные зависимости — select с автоматическим дефолтом.
+    await page.goto('/services')
+    await expect(page.locator('a.card').first()).toBeVisible({ timeout: 20_000 })
+    await page.locator('aside').getByText('Субсидии').click()
+    const card = page.locator('a.card').filter({ hasText: 'Субсидирование ставки' })
+    await card.waitFor({ timeout: 10_000 })
+    await card.click()
+
+    const calcTab = page.getByRole('button', { name: 'Калькулятор', exact: true })
+    await expect(calcTab).toBeVisible({ timeout: 10_000 })
+    await calcTab.click()
+
+    await expect(page.getByText('Параметры расчёта')).toBeVisible({ timeout: 10_000 })
+    // Пока не все параметры заполнены — плейсхолдер результата
+    await expect(page.getByText('Заполните все параметры слева, чтобы увидеть расчёт.')).toBeVisible()
+
+    // Числовые инпуты калькулятора: 0 — ставка банка (%), 1 — сумма кредита (₸)
+    const numberInputs = page.locator('.svc-calc-card input[inputmode="numeric"]')
+    await numberInputs.nth(0).fill('19')
+    await numberInputs.nth(1).fill('10000000')
+
+    // Результат пересчитался: плейсхолдер исчез, появилось значение с маской
+    await expect(page.getByText('Заполните все параметры слева, чтобы увидеть расчёт.')).not.toBeVisible()
+    await expect(page.getByText('₸', { exact: false }).first()).toBeVisible()
+  })
 })

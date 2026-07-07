@@ -79,7 +79,7 @@ test.describe('Воронка программы + drilldown', () => {
   test('drawer аналитики открывается из конструктора, виден counter просадки', async ({ page }) => {
     await loginAsAdmin(page)
     const leasingId = await getLeasingId(page)
-    await page.goto(`/admin/services/${leasingId}/edit`)
+    await page.goto(`/admin/services/${leasingId}/edit?e2e=1`)
 
     const analyticsBtn = page.locator('button[title="Воронка программы"]')
     await expect(analyticsBtn).toBeVisible({ timeout: 15_000 })
@@ -104,7 +104,7 @@ test.describe('Воронка программы + drilldown', () => {
   test('клик «Перенастроить аудиторию» закрывает аналитику и открывает калькулятор с баннером', async ({ page }) => {
     await loginAsAdmin(page)
     const leasingId = await getLeasingId(page)
-    await page.goto(`/admin/services/${leasingId}/edit`)
+    await page.goto(`/admin/services/${leasingId}/edit?e2e=1`)
 
     await page.locator('button[title="Воронка программы"]').click()
 

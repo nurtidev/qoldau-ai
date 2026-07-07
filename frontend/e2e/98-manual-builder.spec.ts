@@ -32,7 +32,9 @@ test('Manual builder: create + save draft + publish', async ({ page }) => {
   await page.locator('textarea[placeholder*="2–3 предложения"]').fill('E2E-описание программы поддержки для проверки ручного конструктора.')
 
   // 4. Verify default step is rendered: "Информация о компании" with 3 fields
-  await expect(page.getByText('Информация о компании')).toBeVisible()
+  // (heading, not getByText — the AI-prompt textarea's default preset text also
+  // contains this substring, which trips Playwright's strict-mode matching)
+  await expect(page.getByRole('heading', { name: /Информация о компании/ })).toBeVisible()
   // Page header line "1 этапов · 3 полей"
   await expect(page.getByText(/1 этапов · 3 полей/)).toBeVisible()
 
@@ -58,6 +60,16 @@ test('Manual builder: create + save draft + publish', async ({ page }) => {
   await page.waitForURL(/\/admin\/services\/[0-9a-f-]+\/edit/, { timeout: 10_000 })
   const editUrl = page.url()
   console.log('EDIT_URL=', editUrl)
+
+  // NOTE (app quirk, not a test issue): the ?e2e=1 flag that skips the onboarding
+  // tour lives in the query string, and the client-side navigation from /new to
+  // /:id/edit after "Сохранить черновик" drops it — so BuilderTour can remount and
+  // pop up again here, its overlay intercepting the "Опубликовать" click below.
+  // Dismiss it defensively if it shows up so this critical-path test stays green.
+  const skipTour = page.getByRole('button', { name: 'Пропустить' })
+  if (await skipTour.isVisible({ timeout: 1_000 }).catch(() => false)) {
+    await skipTour.click()
+  }
 
   // 9. Publish
   await page.getByRole('button', { name: /Опубликовать/ }).click()
