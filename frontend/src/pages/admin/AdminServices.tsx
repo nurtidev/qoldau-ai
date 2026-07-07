@@ -3,9 +3,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { servicesApi } from '@/api/client'
 import { I } from '@/components/icons'
 import type { Service } from '@/types'
+import { useIsNarrow } from '@/hooks/useMediaQuery'
 
 export function AdminServices() {
   const qc = useQueryClient()
+  const isNarrow = useIsNarrow()
 
   const { data: services = [], isLoading } = useQuery<Service[]>({
     queryKey: ['admin-services'],
@@ -49,21 +51,27 @@ export function AdminServices() {
           ) : (
             services.map((service, i) => (
               <div key={service.id} style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                display: 'flex', alignItems: isNarrow ? 'flex-start' : 'center', justifyContent: 'space-between',
+                flexWrap: 'wrap', rowGap: 10,
                 padding: '16px 20px',
                 borderTop: i > 0 ? '1px solid var(--color-border)' : 'none',
               }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 14, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--color-text)' }}>
+                <div style={{ flex: isNarrow ? '1 1 100%' : 1, minWidth: 0 }}>
+                  <div style={{
+                    fontSize: 14, fontWeight: 500, color: 'var(--color-text)',
+                    overflow: isNarrow ? 'visible' : 'hidden',
+                    textOverflow: isNarrow ? 'clip' : 'ellipsis',
+                    whiteSpace: isNarrow ? 'normal' : 'nowrap',
+                  }}>
                     {service.title}
                   </div>
-                  <div style={{ display: 'flex', gap: 12, marginTop: 4, fontSize: 12, color: 'var(--color-text-3)' }}>
+                  <div style={{ display: 'flex', gap: 12, marginTop: 4, fontSize: 12, color: 'var(--color-text-3)', flexWrap: 'wrap' }}>
                     <span>{service.category ?? 'Без категории'}</span>
                     {service.org_name && <span>{service.org_name}</span>}
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 16, flexShrink: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: isNarrow ? 0 : 16, flexShrink: 0, flexWrap: 'wrap' }}>
                   <span className={service.status === 'published' ? 'badge badge-green' : 'badge badge-gray'}>
                     {service.status === 'published' ? 'Опубликована' : 'Черновик'}
                   </span>

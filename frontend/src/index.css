@@ -171,6 +171,25 @@ h1, h2, h3, h4, .section-title { font-family: var(--ff-display); }
 /* ===== Layout ===== */
 .container { max-width: 1280px; margin: 0 auto; padding: 0 32px; }
 
+/* Rail/two-column layouts (fixed sidebar + fluid content) collapse to a
+   single stacked column on mobile. DOM order decides stacking order.
+   min-width:0 on the grid items prevents "grid blowout": without it, a
+   grid item's automatic minimum size defaults to its min-content size
+   (e.g. an unwrappable descendant), which can force the 1fr track wider
+   than the container and reintroduce horizontal overflow. */
+@media (max-width: 640px) {
+  .two-col-mobile-stack { grid-template-columns: 1fr !important; }
+  .two-col-mobile-stack > * { min-width: 0; }
+}
+
+/* ===== Mobile (<=640px) ===== */
+@media (max-width: 640px) {
+  .container { padding: 0 16px; }
+  /* Comfortable tap targets on touch widths */
+  .btn { min-height: 40px; }
+  .btn-sm { min-height: 40px; }
+}
+
 /* ===== Page fade ===== */
 .page-fade { animation: pageFade 240ms ease both; }
 @keyframes pageFade {

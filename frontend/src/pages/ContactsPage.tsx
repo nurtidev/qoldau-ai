@@ -18,7 +18,7 @@ export function ContactsPage() {
         <p style={{ fontSize: 15, color: 'var(--color-text-3)', marginTop: 8 }}>Единый колл-центр: <strong>1414</strong> · Пн–Пт, 09:00–18:00</p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16 }}>
         {ORGS.map((o, i) => (
           <div key={i} className="card" style={{ padding: 24, display: 'flex', gap: 20 }}>
             <div style={{ width: 52, height: 52, borderRadius: 10, background: o.color, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 17, fontWeight: 700, flexShrink: 0 }}>{o.tag}</div>

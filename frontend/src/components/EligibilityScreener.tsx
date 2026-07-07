@@ -199,7 +199,7 @@ function ProgramTermsStrip({ service }: { service: Service }) {
 
   return (
     <div style={{
-      display: 'grid', gridTemplateColumns: `repeat(${cells.length}, 1fr)`,
+      display: 'grid', gridTemplateColumns: `repeat(${cells.length}, minmax(0, 1fr))`,
       gap: 8, padding: '10px 0', borderTop: '1px solid var(--color-border)', borderBottom: '1px solid var(--color-border)',
     }}>
       {cells.map((c, i) => (
@@ -360,7 +360,7 @@ function CallMeBack() {
   const canSend = name.trim().length >= 2 && phone.trim().length >= 6 && !mut.isPending
 
   return (
-    <div className="card" style={{ padding: 24, marginTop: 20, display: 'grid', gridTemplateColumns: '1fr auto', gap: 20, alignItems: 'end' }}>
+    <div className="card two-col-mobile-stack" style={{ padding: 24, marginTop: 20, display: 'grid', gridTemplateColumns: '1fr auto', gap: 20, alignItems: 'end' }}>
       <div>
         <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>Не уверены, какая программа подойдёт?</div>
         <div style={{ fontSize: 13, color: 'var(--color-text-3)', marginBottom: 14 }}>Оставьте телефон — консультант перезвонит и поможет с подбором и подачей заявки.</div>
@@ -421,7 +421,7 @@ function Results({ services, answers, onReset }: { services: Service[]; answers:
           <p>Попробуйте изменить параметры подбора</p>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16, marginBottom: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16, marginBottom: 20 }}>
           {scored.map(({ service, score }) => (
             <ResultCard key={service.id} service={service} score={score} />
           ))}
@@ -489,7 +489,7 @@ export function EligibilityScreener({ services }: Props) {
         <p style={{ fontSize: 14, color: 'var(--color-text-3)', marginTop: 4 }}>{current.hint}</p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${current.cols}, 1fr)`, gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${current.cols}, minmax(0, 1fr))`, gap: 12 }}>
         {current.options.map((opt) => {
           const Icon = I[opt.icon as keyof typeof I]
           const isSelected = selectedValue === opt.value

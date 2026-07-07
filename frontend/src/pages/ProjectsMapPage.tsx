@@ -298,7 +298,7 @@ export function ProjectsMapPage() {
 function StatTile({ icon, label, value }: { icon: keyof typeof I; label: string; value: string }) {
   const Icon = I[icon]
   return (
-    <div className="card" style={{ padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 14 }}>
+    <div className="card" style={{ padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 14, minWidth: 0 }}>
       <div style={{
         width: 40, height: 40, borderRadius: 10, background: 'var(--color-primary-tint)',
         color: 'var(--color-primary)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,

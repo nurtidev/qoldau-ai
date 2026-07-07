@@ -189,7 +189,7 @@ export function HomePage() {
             Все категории <I.ArrowRight size={14} />
           </Link>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
           {DIRECTIONS.map((d) => <DirectionCard key={d.id} d={d} />)}
         </div>
       </section>
@@ -229,7 +229,7 @@ export function HomePage() {
           <h2 className="section-title">Наши партнёры</h2>
           <p style={{ fontSize: 14, color: 'var(--color-text-3)', marginTop: 6 }}>Дочерние организации Холдинга «Байтерек» и партнёры портала</p>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
           {ORGS.map((o) => (
             <Link key={o.id} to={`/services?org_name=${encodeURIComponent(o.short)}`}
               className="card"
@@ -256,7 +256,7 @@ export function HomePage() {
             Все новости <I.ArrowRight size={14} />
           </Link>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
           {NEWS.map((n) => (
             <article key={n.id} className="card" style={{ overflow: 'hidden', cursor: 'pointer', transition: 'box-shadow 140ms' }}
               onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = 'var(--sh-md)' }}

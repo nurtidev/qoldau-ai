@@ -357,7 +357,7 @@ export function FormRenderer({
         <span style={{ fontSize: 13, color: 'var(--color-text-3)' }}>
           {isReviewStep
             ? 'Проверка перед отправкой'
-            : `Шаг ${currentStep + 1} из ${visibleSteps.length}`}
+            : `Шаг ${currentStep + 1} из ${reviewStepIndex + 1}`}
         </span>
         {!isReviewStep ? (
           <button type="button" onClick={handleNext} className="btn btn-primary">

@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { servicesApi } from '@/api/client'
 import { I } from '@/components/icons'
+import { useIsNarrow } from '@/hooks/useMediaQuery'
 import type { Service } from '@/types'
 
 // ---- Static filter data (matches design) ----
@@ -268,6 +269,7 @@ const ITEMS_PER_PAGE = 10
 
 export function ServicesPage() {
   const [searchParams] = useSearchParams()
+  const isNarrow = useIsNarrow()
 
   const [search, setSearch]           = useState(searchParams.get('q') ?? '')
   const [page, setPage]               = useState(1)
@@ -350,6 +352,37 @@ export function ServicesPage() {
     setOrgFilter([]); setDirFilter([]); setStageFilter([]); setRegionFilter([]); setSearch(''); setPage(1)
   }
 
+  const filterGroups = (
+    <>
+      <FilterGroup
+        title="Организация"
+        options={orgOptions}
+        selected={orgFilter}
+        onToggle={toggle(setOrgFilter)}
+      />
+      <FilterGroup
+        title="Направление"
+        options={dirOptions}
+        selected={dirFilter}
+        onToggle={toggle(setDirFilter)}
+      />
+      <FilterGroup
+        title="Этап бизнеса"
+        options={STAGE_OPTIONS}
+        selected={stageFilter}
+        onToggle={toggle(setStageFilter)}
+        defaultOpen={false}
+      />
+      <FilterGroup
+        title="Регион"
+        options={REGION_OPTIONS}
+        selected={regionFilter}
+        onToggle={toggle(setRegionFilter)}
+        defaultOpen={false}
+      />
+    </>
+  )
+
   return (
     <div className="page-fade container" style={{ paddingTop: 32, paddingBottom: 56 }}>
 
@@ -385,48 +418,44 @@ export function ServicesPage() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '264px 1fr', gap: 32 }}>
+      <div className="two-col-mobile-stack" style={{ display: 'grid', gridTemplateColumns: '264px 1fr', gap: 32 }}>
 
         {/* Sidebar */}
         <aside>
-          <div className="card" style={{ padding: '4px 20px', position: 'sticky', top: 80 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 0', borderBottom: '1px solid var(--color-border)' }}>
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 600 }}>
-                <I.Sliders size={16} /> Фильтры
+          {isNarrow ? (
+            <details className="card" style={{ padding: '4px 20px', marginBottom: 4 }}>
+              <summary style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '16px 0', cursor: 'pointer', fontSize: 14, fontWeight: 600,
+              }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                  <I.Sliders size={16} /> Фильтры{chips.length > 0 ? ` · ${chips.length}` : ''}
+                </span>
+              </summary>
+              <div style={{ paddingBottom: 8 }}>
+                {chips.length > 0 && (
+                  <button onClick={resetAll} className="btn btn-ghost btn-sm" style={{ marginBottom: 4, padding: '0 8px', fontSize: 12, color: 'var(--color-accent-text)' }}>
+                    Сбросить
+                  </button>
+                )}
+                {filterGroups}
               </div>
-              {chips.length > 0 && (
-                <button onClick={resetAll} className="btn btn-ghost btn-sm" style={{ height: 28, padding: '0 8px', fontSize: 12, color: 'var(--color-accent-text)' }}>
-                  Сбросить
-                </button>
-              )}
+            </details>
+          ) : (
+            <div className="card" style={{ padding: '4px 20px', position: 'sticky', top: 80 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 0', borderBottom: '1px solid var(--color-border)' }}>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 600 }}>
+                  <I.Sliders size={16} /> Фильтры
+                </div>
+                {chips.length > 0 && (
+                  <button onClick={resetAll} className="btn btn-ghost btn-sm" style={{ height: 28, padding: '0 8px', fontSize: 12, color: 'var(--color-accent-text)' }}>
+                    Сбросить
+                  </button>
+                )}
+              </div>
+              {filterGroups}
             </div>
-            <FilterGroup
-              title="Организация"
-              options={orgOptions}
-              selected={orgFilter}
-              onToggle={toggle(setOrgFilter)}
-            />
-            <FilterGroup
-              title="Направление"
-              options={dirOptions}
-              selected={dirFilter}
-              onToggle={toggle(setDirFilter)}
-            />
-            <FilterGroup
-              title="Этап бизнеса"
-              options={STAGE_OPTIONS}
-              selected={stageFilter}
-              onToggle={toggle(setStageFilter)}
-              defaultOpen={false}
-            />
-            <FilterGroup
-              title="Регион"
-              options={REGION_OPTIONS}
-              selected={regionFilter}
-              onToggle={toggle(setRegionFilter)}
-              defaultOpen={false}
-            />
-          </div>
+          )}
         </aside>
 
         {/* Results */}
@@ -488,7 +517,7 @@ export function ServicesPage() {
 
           {/* Content */}
           {isLoading ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
               {[...Array(6)].map((_, i) => (
                 <div key={i} className="skeleton" style={{ height: 220 }} />
               ))}
@@ -512,7 +541,7 @@ export function ServicesPage() {
               </button>
             </div>
           ) : view === 'grid' ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
               {paged.map((s) => <ServiceCard key={s.id} service={s} />)}
             </div>
           ) : (

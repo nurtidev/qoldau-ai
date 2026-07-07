@@ -47,7 +47,7 @@ export function AdminApplications() {
 
   return (
     <div className="page-fade" style={{ padding: '32px 40px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
         <h1 style={{ fontSize: 26, fontWeight: 700, margin: 0 }}>
           Заявки <span style={{ fontSize: 14, color: 'var(--color-text-3)', fontWeight: 500 }}>· {filtered.length}</span>
         </h1>
@@ -58,13 +58,13 @@ export function AdminApplications() {
       </div>
 
       {/* Tab filters */}
-      <div style={{ display: 'flex', gap: 4, background: 'var(--color-surface-2)', padding: 3, borderRadius: 8, marginBottom: 16, width: 'fit-content' }}>
+      <div style={{ display: 'flex', gap: 4, background: 'var(--color-surface-2)', padding: 3, borderRadius: 8, marginBottom: 16, width: 'fit-content', maxWidth: '100%', overflowX: 'auto' }}>
         {FILTERS.map((t) => (
           <button key={t.id} onClick={() => setFilter(t.id)} style={{
             padding: '6px 12px', height: 32, border: 'none', borderRadius: 6,
             background: filter === t.id ? '#fff' : 'transparent',
             color: filter === t.id ? 'var(--color-text)' : 'var(--color-text-3)',
-            fontSize: 13, fontWeight: 500, cursor: 'pointer',
+            fontSize: 13, fontWeight: 500, cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap',
             boxShadow: filter === t.id ? '0 1px 2px rgba(15,23,42,0.08)' : 'none',
           }}>{t.label}</button>
         ))}
@@ -83,7 +83,8 @@ export function AdminApplications() {
       )}
 
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', minWidth: 780, borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: 'var(--color-surface-2)' }}>
               <th style={{ padding: '10px 16px', width: 40 }}>
@@ -186,6 +187,7 @@ export function AdminApplications() {
             })}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* "Request additional data" modal */}

@@ -5,6 +5,7 @@ import { servicesApi, funnelApi } from '@/api/client'
 import { useAuthStore } from '@/store/auth'
 import { I } from '@/components/icons'
 import { ServiceCalculator } from '@/components/ServiceCalculator'
+import { useIsNarrow } from '@/hooks/useMediaQuery'
 import type { Service, FormField } from '@/types'
 
 const PORTAL_FAQ = [
@@ -28,11 +29,14 @@ function TabBar({ tabs, active, onChange }: {
   onChange: (id: string) => void
 }) {
   return (
-    <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--color-border)', marginBottom: 32, flexWrap: 'wrap' }}>
+    <div style={{
+      display: 'flex', gap: 4, borderBottom: '1px solid var(--color-border)', marginBottom: 32,
+      overflowX: 'auto', WebkitOverflowScrolling: 'touch',
+    }}>
       {tabs.map(t => (
         <button key={t.id} onClick={() => onChange(t.id)} style={{
           padding: '14px 16px', background: 'none', border: 'none', cursor: 'pointer',
-          fontSize: 14, fontWeight: 500,
+          fontSize: 14, fontWeight: 500, whiteSpace: 'nowrap', flexShrink: 0,
           color: active === t.id ? 'var(--color-primary)' : 'var(--color-text-3)',
           borderBottom: active === t.id ? '2px solid var(--color-primary)' : '2px solid transparent',
           marginBottom: -1, transition: 'color 120ms',
@@ -158,6 +162,7 @@ function EmptySchemaInfo() {
 export function ServiceDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { user } = useAuthStore()
+  const isNarrow = useIsNarrow()
   const [tab, setTab]               = useState('desc')
   const [bookmarked, setBookmarked] = useState(false)
   const [openFaq, setOpenFaq]       = useState(-1)
@@ -224,7 +229,7 @@ export function ServiceDetailPage() {
         <div className="skeleton" style={{ height: 14, width: 220, marginBottom: 24, borderRadius: 4 }} />
         <div className="skeleton" style={{ height: 38, width: '60%', marginBottom: 16 }} />
         <div className="skeleton" style={{ height: 100, marginBottom: 32 }} />
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 32 }}>
+        <div className="two-col-mobile-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 32 }}>
           <div className="skeleton" style={{ height: 420 }} />
           <div className="skeleton" style={{ height: 300 }} />
         </div>
@@ -269,8 +274,8 @@ export function ServiceDetailPage() {
       </nav>
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 24, marginBottom: 24 }}>
-        <div style={{ flex: 1 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 24, marginBottom: 24, flexWrap: 'wrap' }}>
+        <div style={{ flex: '1 1 260px', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
             {service.org_name && <OrgBadge orgName={service.org_name} />}
             <span className="badge badge-green badge-dot">Действующая программа</span>
@@ -295,13 +300,20 @@ export function ServiceDetailPage() {
       </div>
 
       {/* Key params bar */}
-      <div className="card" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', padding: 0, marginBottom: 32, overflow: 'hidden' }}>
+      <div className="card" style={{
+        display: 'grid',
+        gridTemplateColumns: isNarrow ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
+        padding: 0, marginBottom: 32, overflow: 'hidden',
+      }}>
         {keyParams.map((k, i) => {
           const Ic = I[k.icon]
+          const borderRight = isNarrow ? i % 2 === 0 : i < 3
+          const borderBottom = isNarrow && i < 2
           return (
             <div key={i} style={{
-              padding: '20px 24px',
-              borderRight: i < 3 ? '1px solid var(--color-border)' : 'none',
+              padding: isNarrow ? '16px' : '20px 24px',
+              borderRight: borderRight ? '1px solid var(--color-border)' : 'none',
+              borderBottom: borderBottom ? '1px solid var(--color-border)' : 'none',
               display: 'flex', gap: 12,
             }}>
               <div style={{
@@ -321,7 +333,7 @@ export function ServiceDetailPage() {
       </div>
 
       {/* Two-column layout */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 32 }}>
+      <div className="two-col-mobile-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 32 }}>
         <main>
           <TabBar tabs={tabs} active={tab} onChange={setTab} />
 
@@ -346,7 +358,7 @@ export function ServiceDetailPage() {
               </div>
 
               <h3 style={{ fontSize: 16, fontWeight: 600, marginTop: 0, marginBottom: 16 }}>Ключевые преимущества</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 32 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginBottom: 32 }}>
                 {benefits.map((b, i) => (
                   <div key={i} style={{ display: 'flex', gap: 10, padding: '12px 14px', background: 'var(--color-surface-2)', borderRadius: 8 }}>
                     <I.Check size={18} style={{ color: 'var(--color-success)', flexShrink: 0, marginTop: 1 }} strokeWidth={2.5} />
@@ -499,7 +511,7 @@ export function ServiceDetailPage() {
 
         {/* Sticky sidebar */}
         <aside>
-          <div style={{ position: 'sticky', top: 80, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ position: isNarrow ? 'static' : 'sticky', top: 80, display: 'flex', flexDirection: 'column', gap: 16 }}>
             <ReadinessWidget user={user} fileFields={fileFields} serviceId={service.id} />
 
             {/* Org */}

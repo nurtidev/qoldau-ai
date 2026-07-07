@@ -4,8 +4,8 @@ export function Footer() {
   return (
     <footer style={{ background: '#0F172A', color: '#CBD5E1', marginTop: 80, position: 'relative', overflow: 'hidden' }}>
       <div className="ornament-tile-gold" aria-hidden="true" style={{ opacity: 0.05 }} />
-      <div className="container" style={{ padding: '56px 32px 32px', position: 'relative', zIndex: 1 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr', gap: 48 }}>
+      <div className="container footer-container" style={{ padding: '56px 32px 32px', position: 'relative', zIndex: 1 }}>
+        <div className="footer-cols" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 48 }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
               <div style={{ background: '#fff', borderRadius: 10, padding: 6, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -69,6 +69,13 @@ export function Footer() {
           </div>
         </div>
       </div>
+
+      <style>{`
+        @media (max-width: 640px) {
+          .footer-container { padding-left: 16px !important; padding-right: 16px !important; }
+          .footer-cols { gap: 32px !important; }
+        }
+      `}</style>
     </footer>
   )
 }

@@ -6,6 +6,7 @@ import { useAuthStore } from '@/store/auth'
 import { I } from '@/components/icons'
 import { useToast } from '@/components/Toast'
 import { SlaBadge } from '@/components/SlaBadge'
+import { useIsNarrow } from '@/hooks/useMediaQuery'
 import type { Application, Notification, ApplicationStatus, Document } from '@/types'
 import { APPLICATION_STATUS_LABELS } from '@/types'
 
@@ -154,6 +155,7 @@ export function CabinetDashboard() {
   const { user } = useAuthStore()
   const qc       = useQueryClient()
   const toast    = useToast()
+  const isNarrow = useIsNarrow()
 
   const [searchParams, setSearchParams] = useSearchParams()
   const initialSection = (searchParams.get('section') as Section) || 'apps'
@@ -231,9 +233,9 @@ export function CabinetDashboard() {
         Личный кабинет
       </h1>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 28 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : '260px 1fr', gap: 28, minWidth: 0 }}>
         {/* Sidebar */}
-        <aside className="card" style={{ padding: 20, position: 'sticky', top: 80, alignSelf: 'start' }}>
+        <aside className="card" style={{ padding: 20, position: isNarrow ? 'static' : 'sticky', top: 80, alignSelf: 'start', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, paddingBottom: 16, borderBottom: '1px solid var(--color-border)', marginBottom: 12 }}>
             <div style={{
               width: 44, height: 44, borderRadius: '50%',
@@ -255,52 +257,60 @@ export function CabinetDashboard() {
             </div>
           </div>
 
-          {navItems.map(it => {
-            const Ic = I[it.icon]
-            const isActive = section === it.id
-            return (
-              <button
-                key={it.id}
-                onClick={() => setSection(it.id)}
-                style={{
-                  width: '100%', display: 'flex', alignItems: 'center', gap: 12,
-                  padding: '10px 12px', border: 'none', cursor: 'pointer',
-                  background: isActive ? 'var(--color-accent-soft)' : 'transparent',
-                  color: isActive ? 'var(--color-primary)' : 'var(--color-text-2)',
-                  borderRadius: 6, fontSize: 14, fontWeight: 500, marginBottom: 2,
-                  transition: 'background 120ms',
-                }}
-              >
-                <Ic size={17} />
-                <span style={{ flex: 1, textAlign: 'left' }}>{it.label}</span>
-                {it.count !== undefined && it.count > 0 && (
-                  <span style={{
-                    minWidth: 20, height: 20, padding: '0 6px', borderRadius: 999,
-                    background: isActive ? 'var(--color-primary)' : 'var(--color-surface-2)',
-                    color: isActive ? '#fff' : 'var(--color-text-3)',
-                    fontSize: 11, fontWeight: 600,
-                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                  }}>{it.count}</span>
-                )}
-              </button>
-            )
-          })}
+          <div style={isNarrow ? { display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 2, WebkitOverflowScrolling: 'touch' } : undefined}>
+            {navItems.map(it => {
+              const Ic = I[it.icon]
+              const isActive = section === it.id
+              return (
+                <button
+                  key={it.id}
+                  onClick={() => setSection(it.id)}
+                  style={isNarrow ? {
+                    display: 'inline-flex', alignItems: 'center', gap: 8, flexShrink: 0,
+                    padding: '8px 14px', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap',
+                    background: isActive ? 'var(--color-accent-soft)' : 'var(--color-surface-2)',
+                    color: isActive ? 'var(--color-primary)' : 'var(--color-text-2)',
+                    borderRadius: 999, fontSize: 13, fontWeight: 500,
+                  } : {
+                    width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+                    padding: '10px 12px', border: 'none', cursor: 'pointer',
+                    background: isActive ? 'var(--color-accent-soft)' : 'transparent',
+                    color: isActive ? 'var(--color-primary)' : 'var(--color-text-2)',
+                    borderRadius: 6, fontSize: 14, fontWeight: 500, marginBottom: 2,
+                    transition: 'background 120ms',
+                  }}
+                >
+                  <Ic size={17} />
+                  <span style={isNarrow ? undefined : { flex: 1, textAlign: 'left' }}>{it.label}</span>
+                  {it.count !== undefined && it.count > 0 && (
+                    <span style={{
+                      minWidth: 20, height: 20, padding: '0 6px', borderRadius: 999,
+                      background: isActive ? 'var(--color-primary)' : 'var(--color-surface-2)',
+                      color: isActive ? '#fff' : 'var(--color-text-3)',
+                      fontSize: 11, fontWeight: 600,
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    }}>{it.count}</span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
         </aside>
 
-        <main>
+        <main style={{ minWidth: 0 }}>
           {/* Мои заявки */}
           {section === 'apps' && (
             <div className="page-fade">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
-                <div style={{ display: 'flex', gap: 4, background: 'var(--color-surface-2)', padding: 3, borderRadius: 8 }}>
+                <div style={{ display: 'flex', gap: 4, background: 'var(--color-surface-2)', padding: 3, borderRadius: 8, maxWidth: '100%', overflowX: 'auto' }}>
                   {filterTabs.map(t => (
                     <button key={t.id} onClick={() => setFilter(t.id)} style={{
                       padding: '6px 12px', height: 32, border: 'none', borderRadius: 6,
                       background: filter === t.id ? '#fff' : 'transparent',
                       color: filter === t.id ? 'var(--color-text)' : 'var(--color-text-3)',
-                      fontSize: 13, fontWeight: 500, cursor: 'pointer',
+                      fontSize: 13, fontWeight: 500, cursor: 'pointer', flexShrink: 0,
                       boxShadow: filter === t.id ? '0 1px 2px rgba(15,23,42,0.08)' : 'none',
-                      display: 'inline-flex', alignItems: 'center', gap: 6,
+                      display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap',
                     }}>
                       {t.label}
                       <span style={{ fontSize: 11, color: filter === t.id ? 'var(--color-text-3)' : 'var(--color-text-4)' }}>
@@ -338,7 +348,8 @@ export function CabinetDashboard() {
                 </div>
               ) : (
                 <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', minWidth: 560, borderCollapse: 'collapse' }}>
                     <thead>
                       <tr style={{ background: 'var(--color-surface-2)' }}>
                         {['Номер', 'Услуга', 'Дата', 'Статус', ''].map((h, i) => (
@@ -387,6 +398,7 @@ export function CabinetDashboard() {
                       })}
                     </tbody>
                   </table>
+                  </div>
                 </div>
               )}
             </div>
@@ -463,7 +475,7 @@ export function CabinetDashboard() {
                 <h3 style={{ fontSize: 14, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-3)', margin: 0, marginBottom: 16, fontWeight: 600 }}>
                   Личные данные
                 </h3>
-                <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', rowGap: 14, columnGap: 24, fontSize: 14, marginBottom: 28 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : '180px 1fr', rowGap: 14, columnGap: 24, fontSize: 14, marginBottom: 28 }}>
                   <span style={{ color: 'var(--color-text-3)' }}>ФИО</span>
                   <span>{user?.full_name || '—'}</span>
                   <span style={{ color: 'var(--color-text-3)' }}>ИИН</span>
@@ -478,7 +490,7 @@ export function CabinetDashboard() {
                     <h3 style={{ fontSize: 14, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-3)', margin: 0, marginBottom: 16, fontWeight: 600 }}>
                       Компания
                     </h3>
-                    <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', rowGap: 14, columnGap: 24, fontSize: 14, marginBottom: 24 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : '180px 1fr', rowGap: 14, columnGap: 24, fontSize: 14, marginBottom: 24 }}>
                       <span style={{ color: 'var(--color-text-3)' }}>Наименование</span>
                       <span>{user.org_name}</span>
                       <span style={{ color: 'var(--color-text-3)' }}>БИН</span>

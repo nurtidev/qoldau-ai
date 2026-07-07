@@ -56,7 +56,7 @@ function CreditCalculator() {
   }, [amount, rate, term])
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+    <div className="two-col-mobile-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div>
           <label className="field-label">Сумма кредита, тенге</label>
@@ -143,7 +143,7 @@ function SubsidyCalculator() {
 
   return (
     <div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+      <div className="two-col-mobile-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div>
             <label className="field-label">Сумма кредита, тенге</label>
@@ -276,7 +276,7 @@ export function KnowledgePage() {
       </div>
 
       <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>Шаблоны документов и чек-листы</h2>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 48 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12, marginBottom: 48 }}>
         {TEMPLATES.map((t) => {
           const Icon = I[t.icon]
           return (
@@ -305,7 +305,7 @@ export function KnowledgePage() {
       </div>
 
       <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>Разделы базы знаний</h2>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 48 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12, marginBottom: 48 }}>
         {CATEGORIES.map((cat) => {
           const Icon = I[cat.icon as keyof typeof I]
           return (
