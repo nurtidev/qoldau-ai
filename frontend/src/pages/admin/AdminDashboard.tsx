@@ -7,12 +7,12 @@ import type { AnalyticsSummary } from '@/types'
 const CHART_DAYS = [32, 41, 38, 52, 49, 65, 71, 58, 84, 79]
 const CHART_LABELS = ['01','04','07','10','13','16','19','22','25','28']
 const ORGS = [
-  { short: 'Демеу',        color: '#1E3A8A', pct: 38 },
-  { short: 'KazExport',    color: '#0EA5E9', pct: 24 },
-  { short: 'АгроКапитал', color: '#10B981', pct: 14 },
-  { short: 'Astana Cap.',  color: '#7C3AED', pct: 12 },
-  { short: 'ИнноФонд',    color: '#F59E0B', pct:  8 },
-  { short: 'KazGuarantee',color: '#DC2626', pct:  4 },
+  { short: 'Демеу',        color: 'var(--color-primary)', pct: 38 },
+  { short: 'KazExport',    color: '#C9A21C', pct: 24 },
+  { short: 'АгроКапитал', color: '#0A7A47', pct: 14 },
+  { short: 'Astana Cap.',  color: '#8A6A14', pct: 12 },
+  { short: 'ИнноФонд',    color: '#0F766E', pct:  8 },
+  { short: 'KazGuarantee',color: '#B45309', pct:  4 },
 ]
 
 
@@ -68,7 +68,7 @@ function DashboardContent() {
             {CHART_DAYS.map((v, i) => (
               <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
                 <div style={{ flex: 1, display: 'flex', alignItems: 'flex-end', width: '100%' }}>
-                  <div style={{ width: '100%', height: `${(v / maxV) * 100}%`, background: 'linear-gradient(180deg, var(--color-accent) 0%, #1E3A8A 100%)', borderRadius: '4px 4px 0 0', minHeight: 6 }} title={`${v} заявок`} />
+                  <div style={{ width: '100%', height: `${(v / maxV) * 100}%`, background: 'linear-gradient(180deg, var(--color-accent) 0%, var(--color-primary) 100%)', borderRadius: '4px 4px 0 0', minHeight: 6 }} title={`${v} заявок`} />
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--color-text-3)', fontVariantNumeric: 'tabular-nums' }}>{CHART_LABELS[i]}</div>
               </div>

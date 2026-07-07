@@ -32,7 +32,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           <div key={t.id} className={`toast toast-${t.kind}`}>
             {t.kind === 'success' && <I.CheckCircle size={18} style={{ color: 'var(--color-success)', flexShrink: 0, marginTop: 1 }} />}
             {t.kind === 'error'   && <I.Alert size={18} style={{ color: 'var(--color-danger)', flexShrink: 0, marginTop: 1 }} />}
-            {t.kind === 'info'    && <I.Info size={18} style={{ color: 'var(--color-accent)', flexShrink: 0, marginTop: 1 }} />}
+            {t.kind === 'info'    && <I.Info size={18} style={{ color: 'var(--color-accent-text)', flexShrink: 0, marginTop: 1 }} />}
             <div style={{ flex: 1, color: 'var(--color-text)', fontSize: 14 }}>{t.msg}</div>
           </div>
         ))}

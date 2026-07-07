@@ -42,7 +42,7 @@ export function AdminServices() {
           {services.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--color-text-3)' }}>
               Нет услуг.{' '}
-              <Link to="/admin/services/new" style={{ color: 'var(--color-accent)', fontWeight: 500 }}>
+              <Link to="/admin/services/new" style={{ color: 'var(--color-accent-text)', fontWeight: 500 }}>
                 Создать первую
               </Link>
             </div>

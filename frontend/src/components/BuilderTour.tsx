@@ -136,7 +136,7 @@ export function BuilderTour({ forceStart, onFinish }: Props) {
       }}
       styles={{
         options: {
-          primaryColor: '#3B82F6',
+          primaryColor: 'var(--color-primary-600)',
           textColor: '#0F172A',
           backgroundColor: '#fff',
           arrowColor: '#fff',
@@ -145,7 +145,7 @@ export function BuilderTour({ forceStart, onFinish }: Props) {
         },
         tooltip:           { borderRadius: 12, padding: 20, maxWidth: 420, fontSize: 14 },
         tooltipTitle:      { fontSize: 16, fontWeight: 700, marginBottom: 8 },
-        buttonNext:        { background: '#3B82F6', borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 600 },
+        buttonNext:        { background: 'var(--color-primary-600)', borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 600 },
         buttonBack:        { color: '#64748B', fontSize: 13, marginRight: 8 },
         buttonSkip:        { color: '#94A3B8', fontSize: 13 },
       }}

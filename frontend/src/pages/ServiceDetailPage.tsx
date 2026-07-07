@@ -39,7 +39,7 @@ function TabBar({ active, onChange }: { active: string; onChange: (id: string) =
   )
 }
 
-const ORG_COLORS = ['#1E3A8A', '#0D9488', '#7C3AED', '#0EA5E9', '#D97706', '#059669']
+const ORG_COLORS = ['var(--color-primary)', '#C9A21C', '#0A7A47', '#8A6A14', '#0F766E', '#B45309']
 
 function OrgBadge({ orgName, size = 'md' }: { orgName: string; size?: 'sm' | 'md' | 'lg' }) {
   const words = orgName.split(/\s+/).filter(Boolean)
@@ -63,8 +63,8 @@ function OrgBadge({ orgName, size = 'md' }: { orgName: string; size?: 'sm' | 'md
 
 function fileTypeBadge(accept?: string): { label: string; bg: string; color: string } {
   const first = (accept || '').split(',')[0].replace('.', '').trim().toUpperCase() || 'FILE'
-  const bg    = first === 'PDF' ? '#FEE2E2' : first.includes('XLS') ? '#D1FAE5' : '#DBEAFE'
-  const color = first === 'PDF' ? '#B91C1C' : first.includes('XLS') ? '#047857' : '#1E40AF'
+  const bg    = first === 'PDF' ? '#FEE2E2' : first.includes('XLS') ? '#D1FAE5' : 'var(--color-primary-soft)'
+  const color = first === 'PDF' ? '#B91C1C' : first.includes('XLS') ? '#047857' : 'var(--color-primary-700)'
   return { label: first, bg, color }
 }
 

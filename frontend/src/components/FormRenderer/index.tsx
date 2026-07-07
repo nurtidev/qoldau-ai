@@ -697,7 +697,7 @@ function FieldRenderer({ field, value, error, fromEgov, onChange }: FieldProps) 
           padding: '10px 14px',
           background: 'var(--color-accent-soft)', color: 'var(--color-primary)',
           borderRadius: 'var(--r-input)', fontWeight: 600,
-          border: '1px solid #DBEAFE',
+          border: '1px solid var(--color-primary-soft)',
         }}>
           {display}
         </div>

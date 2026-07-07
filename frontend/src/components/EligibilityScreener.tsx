@@ -321,7 +321,7 @@ function ResultCard({ service, score }: { service: Service; score: number }) {
         <span style={{ fontSize: 12, color: 'var(--color-text-3)' }}>{service.org_name ?? '—'}</span>
         <Link
           to={`/services/${service.id}`}
-          style={{ fontSize: 13, color: 'var(--color-accent)', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 4 }}
+          style={{ fontSize: 13, color: 'var(--color-accent-text)', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 4 }}
         >
           Подать заявку <I.ArrowRight size={13} />
         </Link>
@@ -433,7 +433,7 @@ function Results({ services, answers, onReset }: { services: Service[]; answers:
       <div style={{ textAlign: 'center', marginTop: 24 }}>
         <Link
           to={`/services?q=${encodeURIComponent(goalQuery)}`}
-          style={{ fontSize: 14, color: 'var(--color-accent)', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 4 }}
+          style={{ fontSize: 14, color: 'var(--color-accent-text)', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 4 }}
         >
           Смотреть все программы <I.ArrowRight size={14} />
         </Link>

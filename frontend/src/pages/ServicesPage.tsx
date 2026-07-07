@@ -8,12 +8,12 @@ import type { Service } from '@/types'
 // ---- Static filter data (matches design) ----
 
 const ORGS = [
-  { id: 'Демеу',         short: 'Демеу',        color: '#1E3A8A', tag: 'D'  },
-  { id: 'KazExport',     short: 'KazExport',    color: '#0EA5E9', tag: 'KE' },
-  { id: 'АгроКапитал',  short: 'АгроКапитал',  color: '#10B981', tag: 'AK' },
-  { id: 'Astana Cap.',   short: 'Astana Cap.',  color: '#7C3AED', tag: 'AC' },
-  { id: 'ИнноФонд',     short: 'ИнноФонд',     color: '#F59E0B', tag: 'IF' },
-  { id: 'KazGuarantee',  short: 'KazGuarantee', color: '#DC2626', tag: 'KG' },
+  { id: 'Демеу',         short: 'Демеу',        color: 'var(--color-primary)', tag: 'D'  },
+  { id: 'KazExport',     short: 'KazExport',    color: '#C9A21C', tag: 'KE' },
+  { id: 'АгроКапитал',  short: 'АгроКапитал',  color: '#0A7A47', tag: 'AK' },
+  { id: 'Astana Cap.',   short: 'Astana Cap.',  color: '#8A6A14', tag: 'AC' },
+  { id: 'ИнноФонд',     short: 'ИнноФонд',     color: '#0F766E', tag: 'IF' },
+  { id: 'KazGuarantee',  short: 'KazGuarantee', color: '#B45309', tag: 'KG' },
 ]
 
 const DIRECTION_LABELS = [
@@ -41,7 +41,7 @@ const REGION_OPTIONS = [
 function orgColor(name: string): string {
   const found = ORGS.find((o) => name?.includes(o.short) || name?.includes(o.id))
   if (found) return found.color
-  const colors = ['#1E3A8A', '#0EA5E9', '#10B981', '#7C3AED', '#F59E0B', '#DC2626']
+  const colors = ['var(--color-primary)', '#C9A21C', '#0A7A47', '#8A6A14', '#0F766E', '#B45309']
   let h = 0
   for (let i = 0; i < (name?.length ?? 0); i++) h = (h * 31 + name.charCodeAt(i)) & 0xfffffff
   return colors[h % colors.length]
@@ -252,7 +252,7 @@ function ServiceRow({ service }: { service: Service }) {
           <OrgBadge name={service.org_name} />
         </div>
       )}
-      <span style={{ fontSize: 13, color: 'var(--color-accent)', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+      <span style={{ fontSize: 13, color: 'var(--color-accent-text)', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
         Подробнее <I.ChevronRight size={14} />
       </span>
     </Link>
@@ -395,7 +395,7 @@ export function ServicesPage() {
                 <I.Sliders size={16} /> Фильтры
               </div>
               {chips.length > 0 && (
-                <button onClick={resetAll} className="btn btn-ghost btn-sm" style={{ height: 28, padding: '0 8px', fontSize: 12, color: 'var(--color-accent)' }}>
+                <button onClick={resetAll} className="btn btn-ghost btn-sm" style={{ height: 28, padding: '0 8px', fontSize: 12, color: 'var(--color-accent-text)' }}>
                   Сбросить
                 </button>
               )}
@@ -446,7 +446,7 @@ export function ServicesPage() {
                   {c.label}
                   <button onClick={() => removeChip(c)} style={{
                     width: 18, height: 18, borderRadius: '50%', border: 'none',
-                    background: 'rgba(30,58,138,0.1)', cursor: 'pointer',
+                    background: 'rgba(7,102,61,0.1)', cursor: 'pointer',
                     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                     color: 'var(--color-primary)', padding: 0,
                   }}>

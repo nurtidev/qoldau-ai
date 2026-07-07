@@ -2,12 +2,15 @@ import { Link } from 'react-router-dom'
 
 export function Footer() {
   return (
-    <footer style={{ background: '#0F172A', color: '#CBD5E1', marginTop: 80 }}>
-      <div className="container" style={{ padding: '56px 32px 32px' }}>
+    <footer style={{ background: '#0F172A', color: '#CBD5E1', marginTop: 80, position: 'relative', overflow: 'hidden' }}>
+      <div className="ornament-tile-gold" aria-hidden="true" style={{ opacity: 0.05 }} />
+      <div className="container" style={{ padding: '56px 32px 32px', position: 'relative', zIndex: 1 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr', gap: 48 }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-              <div className="logo-mark" style={{ background: 'var(--color-accent)' }}>Q</div>
+              <div style={{ background: '#fff', borderRadius: 10, padding: 6, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                <img src="/img/baiterek.png" alt="Байтерек" style={{ height: 28, width: 'auto', display: 'block' }} />
+              </div>
               <div style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>Qoldau AI</div>
             </div>
             <p style={{ fontSize: 13, lineHeight: 1.6, color: '#94A3B8', maxWidth: 320, margin: 0 }}>

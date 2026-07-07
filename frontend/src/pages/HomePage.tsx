@@ -16,18 +16,18 @@ const DIRECTIONS = [
 ]
 
 const NEWS = [
-  { id: 1, org: 'Демеу',    color: '#1E3A8A', date: '24 апр. 2026', title: 'Снижена ставка по программе до 9% годовых',      tag: 'Программы' },
-  { id: 2, org: 'KazExport',color: '#0EA5E9', date: '22 апр. 2026', title: 'KazExport открыл представительство в Ташкенте',   tag: 'Новости'   },
-  { id: 3, org: 'ИнноФонд', color: '#F59E0B', date: '18 апр. 2026', title: 'Запущен новый раунд грантов для tech-стартапов',  tag: 'Гранты'    },
+  { id: 1, org: 'Демеу',    color: '#07663D', date: '24 апр. 2026', title: 'Снижена ставка по программе до 9% годовых',      tag: 'Программы' },
+  { id: 2, org: 'KazExport',color: '#C9A21C', date: '22 апр. 2026', title: 'KazExport открыл представительство в Ташкенте',   tag: 'Новости'   },
+  { id: 3, org: 'ИнноФонд', color: '#0F766E', date: '18 апр. 2026', title: 'Запущен новый раунд грантов для tech-стартапов',  tag: 'Гранты'    },
 ]
 
 const ORGS = [
-  { id: 'demeu',   short: 'Демеу',        color: '#1E3A8A', tag: 'D',  count: 12 },
-  { id: 'kazex',   short: 'KazExport',    color: '#0EA5E9', tag: 'KE', count: 8  },
-  { id: 'agrokap', short: 'АгроКапитал', color: '#10B981', tag: 'AK', count: 14 },
-  { id: 'astana',  short: 'Astana Cap.',  color: '#7C3AED', tag: 'AC', count: 7  },
-  { id: 'innofnd', short: 'ИнноФонд',    color: '#F59E0B', tag: 'IF', count: 5  },
-  { id: 'guarant', short: 'KazGuarantee',color: '#DC2626', tag: 'KG', count: 9  },
+  { id: 'demeu',   short: 'Демеу',        color: '#07663D', tag: 'D',  count: 12 },
+  { id: 'kazex',   short: 'KazExport',    color: '#C9A21C', tag: 'KE', count: 8  },
+  { id: 'agrokap', short: 'АгроКапитал', color: '#0A7A47', tag: 'AK', count: 14 },
+  { id: 'astana',  short: 'Astana Cap.',  color: '#8A6A14', tag: 'AC', count: 7  },
+  { id: 'innofnd', short: 'ИнноФонд',    color: '#0F766E', tag: 'IF', count: 5  },
+  { id: 'guarant', short: 'KazGuarantee',color: '#B45309', tag: 'KG', count: 9  },
 ]
 
 function HeroSearch() {
@@ -38,17 +38,18 @@ function HeroSearch() {
 
   return (
     <section style={{
-      background: 'linear-gradient(180deg, #F8FAFC 0%, #EFF4FB 100%)',
+      background: 'linear-gradient(180deg, var(--color-bg) 0%, var(--color-primary-tint) 100%)',
       borderBottom: '1px solid var(--color-border)',
       paddingTop: 64, paddingBottom: 64, position: 'relative', overflow: 'hidden',
     }}>
       <div style={{
         position: 'absolute', inset: 0,
-        backgroundImage: 'radial-gradient(circle, rgba(30,58,138,0.06) 1px, transparent 1px)',
+        backgroundImage: 'radial-gradient(circle, rgba(7,102,61,0.06) 1px, transparent 1px)',
         backgroundSize: '24px 24px',
         maskImage: 'linear-gradient(180deg, transparent, black 20%, black 80%, transparent)',
         pointerEvents: 'none',
       }} />
+      <div className="ornament-tile ornament-fade" aria-hidden="true" />
       <div className="container" style={{ position: 'relative' }}>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 12px', background: '#fff', border: '1px solid var(--color-border)', borderRadius: 999, fontSize: 12, color: 'var(--color-text-2)', marginBottom: 20 }}>
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--color-success)' }} />
@@ -158,7 +159,7 @@ function ServiceTile({ service }: { service: Service }) {
       )}
       <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--color-border)', paddingTop: 12 }}>
         {service.org_name && <span style={{ fontSize: 12, color: 'var(--color-text-3)' }}>{service.org_name}</span>}
-        <span style={{ fontSize: 13, color: 'var(--color-accent)', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
+        <span style={{ fontSize: 13, color: 'var(--color-accent-text)', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
           Подробнее <I.ChevronRight size={14} />
         </span>
       </div>
@@ -184,7 +185,7 @@ export function HomePage() {
             <div className="section-eyebrow" style={{ marginBottom: 6 }}>Направления</div>
             <h2 className="section-title">Выберите направление поддержки</h2>
           </div>
-          <Link to="/services" style={{ fontSize: 14, color: 'var(--color-accent)', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          <Link to="/services" style={{ fontSize: 14, color: 'var(--color-accent-text)', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
             Все категории <I.ArrowRight size={14} />
           </Link>
         </div>
@@ -200,7 +201,7 @@ export function HomePage() {
             <div className="section-eyebrow" style={{ marginBottom: 6 }}>Сейчас актуально</div>
             <h2 className="section-title">Популярные услуги</h2>
           </div>
-          <Link to="/services" style={{ fontSize: 14, color: 'var(--color-accent)', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          <Link to="/services" style={{ fontSize: 14, color: 'var(--color-accent-text)', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
             Смотреть все <I.ArrowRight size={14} />
           </Link>
         </div>
@@ -251,7 +252,7 @@ export function HomePage() {
             <div className="section-eyebrow" style={{ marginBottom: 6 }}>События</div>
             <h2 className="section-title">Новости и анонсы</h2>
           </div>
-          <Link to="/news" style={{ fontSize: 14, color: 'var(--color-accent)', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          <Link to="/news" style={{ fontSize: 14, color: 'var(--color-accent-text)', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
             Все новости <I.ArrowRight size={14} />
           </Link>
         </div>
@@ -280,16 +281,17 @@ export function HomePage() {
       {/* eGov CTA */}
       <section className="container" style={{ paddingTop: 80 }}>
         <div style={{
-          background: 'linear-gradient(135deg, var(--color-primary) 0%, #2547A8 100%)',
+          background: 'linear-gradient(135deg, var(--color-primary) 0%, #0A7A47 100%)',
           borderRadius: 16, padding: '48px 56px', color: '#fff',
           display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', gap: 32,
           position: 'relative', overflow: 'hidden',
         }}>
           <div style={{ position: 'absolute', right: -80, top: -80, width: 320, height: 320, borderRadius: '50%', background: 'rgba(255,255,255,0.06)' }} />
+          <div className="ornament-tile-gold" aria-hidden="true" />
           <div style={{ position: 'relative' }}>
-            <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#A7C5FF', fontWeight: 600, marginBottom: 10 }}>Цифровое удостоверение РК</div>
+            <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#FAF0D8' /* pale gold, AA on green gradient (var(--color-gold) failed 2.8-3.66:1 here) */, fontWeight: 600, marginBottom: 10 }}>Цифровое удостоверение РК</div>
             <h2 style={{ fontSize: 34, fontWeight: 700, letterSpacing: '-0.02em', margin: 0, lineHeight: 1.15 }}>Подавайте заявки за 2 минуты</h2>
-            <p style={{ fontSize: 16, color: '#CBD5E1', marginTop: 12, marginBottom: 0, maxWidth: 480 }}>
+            <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.75)', marginTop: 12, marginBottom: 0, maxWidth: 480 }}>
               Войдите через eGov — данные о вашей компании подгрузятся автоматически из государственных реестров.
             </p>
           </div>

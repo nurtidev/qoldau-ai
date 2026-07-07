@@ -379,7 +379,7 @@ function FilterGroup({ title, count, children }: { title: string; count?: number
         {count != null && count > 0 && (
           <span style={{
             padding: '1px 7px', borderRadius: 999, fontSize: 10,
-            background: 'var(--color-accent-soft)', color: 'var(--color-accent)',
+            background: 'var(--color-accent-soft)', color: 'var(--color-primary)',
           }}>{count}</span>
         )}
       </div>
@@ -396,7 +396,7 @@ function Chip({ label, active, onClick }: { label: string; active: boolean; onCl
         padding: '5px 11px', borderRadius: 999, fontSize: 12, fontWeight: 500,
         cursor: 'pointer', transition: 'all 120ms',
         background: active ? 'var(--color-accent)' : '#fff',
-        color: active ? '#fff' : 'var(--color-text-2)',
+        color: active ? '#1A1206' : 'var(--color-text-2)',
         border: `1px solid ${active ? 'var(--color-accent)' : 'var(--color-border)'}`,
       }}
     >

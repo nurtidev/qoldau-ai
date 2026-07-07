@@ -339,7 +339,7 @@ function StatTile({ label, value, highlight }: { label: string; value: string; h
       background: highlight ? 'var(--color-accent-soft)' : 'var(--color-surface-2)',
     }}>
       <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-3)', fontWeight: 600 }}>{label}</div>
-      <div style={{ fontSize: 14, fontWeight: 600, color: highlight ? 'var(--color-accent)' : 'var(--color-text)' }}>{value}</div>
+      <div style={{ fontSize: 14, fontWeight: 600, color: highlight ? 'var(--color-primary)' : 'var(--color-text)' }}>{value}</div>
     </div>
   )
 }
