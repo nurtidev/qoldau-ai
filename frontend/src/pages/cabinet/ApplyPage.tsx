@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { servicesApi, applicationsApi, documentsApi, mockApi, type KGDData } from '@/api/client'
@@ -9,6 +9,8 @@ import { FormRenderer } from '@/components/FormRenderer'
 import { KGDCheck } from '@/components/KGDCheck'
 import { PreflightPanel } from '@/components/PreflightPanel'
 import { AlternativeRecommendations } from '@/components/AlternativeRecommendations'
+import { PrescoreCard } from '@/components/PrescoreCard'
+import { computePrescore, extractRequestedAmount, toPrescoreSnapshot } from '@/lib/prescore'
 import type { Service } from '@/types'
 
 export function ApplyPage() {
@@ -54,6 +56,16 @@ export function ApplyPage() {
     }).catch(() => {}).finally(() => setEgovChecked(true))
   }, [user, service])
 
+  // Предварительная оценка заявителя (по данным eGov + КГД).
+  const requestedAmount = useMemo(
+    () => extractRequestedAmount(service?.form_schema, currentValues),
+    [service, currentValues],
+  )
+  const prescore = useMemo(
+    () => (kgdData ? computePrescore({ egov: egovData, kgd: kgdData, requestedAmount }) : null),
+    [egovData, kgdData, requestedAmount],
+  )
+
   const handleSubmit = async (formData: Record<string, unknown>) => {
     setSubmitting(true)
     try {
@@ -68,6 +80,13 @@ export function ApplyPage() {
           cleanData[key] = val
         }
       }
+
+      // Снимок предоценки в заявку (под служебным ключом _prescore).
+      const amount = extractRequestedAmount(service?.form_schema, formData)
+      const result = kgdData
+        ? computePrescore({ egov: egovData, kgd: kgdData, requestedAmount: amount })
+        : null
+      if (result) cleanData._prescore = toPrescoreSnapshot(result)
 
       const res = await applicationsApi.create(service_id!, cleanData)
       const appId = res.data.id
@@ -194,6 +213,7 @@ export function ApplyPage() {
               submitBlockedHint={hasBlocking
                 ? 'Есть стоп-факторы программы — устраните их или выберите альтернативу'
                 : undefined}
+              reviewSlot={<PrescoreCard result={prescore} loading={!kgdData} />}
             />
         }
       </div>

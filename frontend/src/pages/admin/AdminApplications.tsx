@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { applicationsApi } from '@/api/client'
 import { useToast } from '@/components/Toast'
 import { I } from '@/components/icons'
+import { PrescoreCard, type PrescoreCardResult } from '@/components/PrescoreCard'
 import type { Application, ApplicationStatus } from '@/types'
 import { APPLICATION_STATUS_LABELS, APPLICATION_STATUS_COLORS } from '@/types'
 
@@ -18,6 +19,8 @@ const FILTERS: { id: string; label: string }[] = [
 export function AdminApplications() {
   const [filter, setFilter] = useState('all')
   const [selected, setSelected] = useState<string[]>([])
+  // Раскрытая строка с предварительной оценкой заявителя.
+  const [expanded, setExpanded] = useState<string | null>(null)
   // Row id awaiting a "request additional data" message, plus the message draft.
   const [docsModal, setDocsModal] = useState<string | null>(null)
   const [docsMessage, setDocsMessage] = useState('')
@@ -98,15 +101,38 @@ export function AdminApplications() {
               <tr><td colSpan={6} style={{ padding: 48, textAlign: 'center', color: 'var(--color-text-3)' }}>Заявок нет</td></tr>
             ) : filtered.map((a) => {
               const checked = selected.includes(a.id)
+              const prescore = a.form_data?._prescore as PrescoreCardResult | undefined
+              const isOpen = expanded === a.id
               return (
-                <tr key={a.id} style={{ borderTop: '1px solid var(--color-border)', background: checked ? 'var(--color-accent-soft)' : 'transparent' }}>
+                <Fragment key={a.id}>
+                <tr style={{ borderTop: '1px solid var(--color-border)', background: checked ? 'var(--color-accent-soft)' : 'transparent' }}>
                   <td style={{ padding: '12px 16px' }}>
                     <input type="checkbox" checked={checked}
                       onChange={() => setSelected((arr) => checked ? arr.filter((x) => x !== a.id) : [...arr, a.id])}
                       style={{ accentColor: 'var(--color-accent)' }} />
                   </td>
                   <td style={{ padding: '12px 16px', fontFamily: 'ui-monospace, monospace', fontSize: 12, color: 'var(--color-text-2)' }}>
-                    {a.id.slice(0, 8).toUpperCase()}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {prescore ? (
+                        <button
+                          type="button"
+                          onClick={() => setExpanded(isOpen ? null : a.id)}
+                          title="Предварительная оценка заявителя"
+                          aria-label="Показать предварительную оценку"
+                          style={{
+                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                            width: 22, height: 22, padding: 0, borderRadius: 6, cursor: 'pointer',
+                            border: '1px solid var(--color-border)', background: 'var(--color-surface)',
+                            color: 'var(--color-text-3)',
+                          }}
+                        >
+                          {isOpen ? <I.ChevronUp size={13} /> : <I.ChevronDown size={13} />}
+                        </button>
+                      ) : (
+                        <span style={{ width: 22, display: 'inline-block' }} />
+                      )}
+                      {a.id.slice(0, 8).toUpperCase()}
+                    </div>
                   </td>
                   <td style={{ padding: '12px 16px', fontSize: 13 }}>
                     <div style={{ fontWeight: 500 }}>{a.service_title ?? '—'}</div>
@@ -132,7 +158,7 @@ export function AdminApplications() {
                           updateStatus.mutate({ id: a.id, status: next })
                         }
                       }}
-                      style={{ fontSize: 12, padding: '4px 8px', border: '1px solid var(--color-border)', borderRadius: 4, background: '#fff', cursor: 'pointer' }}
+                      style={{ fontSize: 12, padding: '4px 8px', border: '1px solid var(--color-border)', borderRadius: 4, background: 'var(--color-surface)', cursor: 'pointer' }}
                     >
                       {(['submitted', 'in_review', 'docs_requested', 'approved', 'rejected'] as ApplicationStatus[]).map((s) => (
                         <option key={s} value={s}>
@@ -142,6 +168,16 @@ export function AdminApplications() {
                     </select>
                   </td>
                 </tr>
+                {isOpen && prescore && (
+                  <tr style={{ background: 'var(--color-surface-2)' }}>
+                    <td colSpan={6} style={{ padding: '12px 16px 18px 46px' }}>
+                      <div style={{ maxWidth: 640 }}>
+                        <PrescoreCard result={prescore} compact />
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
               )
             })}
           </tbody>

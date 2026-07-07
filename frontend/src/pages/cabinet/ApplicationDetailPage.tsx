@@ -7,6 +7,7 @@ import { useAuthStore } from '@/store/auth'
 import { useToast } from '@/components/Toast'
 import { FormRenderer } from '@/components/FormRenderer'
 import { AlternativeRecommendations } from '@/components/AlternativeRecommendations'
+import { PrescoreCard, type PrescoreCardResult } from '@/components/PrescoreCard'
 import type { Application, Document, ApplicationStatus, Service } from '@/types'
 import { APPLICATION_STATUS_LABELS } from '@/types'
 
@@ -137,7 +138,10 @@ export function ApplicationDetailPage() {
     }
   }
 
-  const formEntries = Object.entries(app.form_data).filter(([, v]) => v !== null && v !== '')
+  // Служебные ключи (начинаются с _) не показываем как поля формы.
+  const formEntries = Object.entries(app.form_data)
+    .filter(([k, v]) => !k.startsWith('_') && v !== null && v !== '')
+  const prescore = app.form_data._prescore as PrescoreCardResult | undefined
 
   return (
     <div className="container page-fade" style={{ paddingTop: 28, paddingBottom: 60, maxWidth: 900 }}>
@@ -255,6 +259,9 @@ export function ApplicationDetailPage() {
               autoRun
             />
           )}
+
+          {/* Предварительная оценка заявителя (снимок на момент подачи) */}
+          {prescore && <PrescoreCard result={prescore} compact />}
 
           {/* Form data */}
           {formEntries.length > 0 && (
