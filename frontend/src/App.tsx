@@ -1,8 +1,10 @@
+import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/store/auth'
 import { ToastProvider } from '@/components/Toast'
 import { Header, AdminTopBar, AdminSidebar } from '@/components/Layout/Header'
 import { Footer } from '@/components/Layout/Footer'
+import { useIsBelowLaptop } from '@/hooks/useMediaQuery'
 
 import { HomePage }             from '@/pages/HomePage'
 import { ServicesPage }         from '@/pages/ServicesPage'
@@ -18,6 +20,8 @@ import { LoginPage }            from '@/pages/LoginPage'
 import { KnowledgePage }        from '@/pages/KnowledgePage'
 import { NewsPage }             from '@/pages/NewsPage'
 import { ContactsPage }         from '@/pages/ContactsPage'
+import { ProjectsMapPage }      from '@/pages/ProjectsMapPage'
+import { AnalyticsCatalogPage } from '@/pages/AnalyticsCatalogPage'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { user } = useAuthStore()
@@ -35,6 +39,24 @@ function RequireAdmin({ children }: { children: React.ReactNode }) {
 function Shell() {
   const location = useLocation()
   const isAdmin = location.pathname.startsWith('/admin')
+  const isBelowLaptop = useIsBelowLaptop()
+  const [adminNavOpen, setAdminNavOpen] = useState(false)
+
+  // Закрывать off-canvas сайдбар при смене маршрута
+  useEffect(() => { setAdminNavOpen(false) }, [location.pathname])
+
+  // Esc + блокировка скролла body, пока off-canvas сайдбар открыт
+  useEffect(() => {
+    if (!adminNavOpen) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setAdminNavOpen(false) }
+    document.addEventListener('keydown', onKey)
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prev
+    }
+  }, [adminNavOpen])
 
   const adminRoutes = (
     <>
@@ -48,12 +70,14 @@ function Shell() {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {isAdmin ? <AdminTopBar /> : <Header />}
+      {isAdmin
+        ? <AdminTopBar showMenuButton={isBelowLaptop} onMenuClick={() => setAdminNavOpen(true)} />
+        : <Header />}
 
       {isAdmin ? (
         <div style={{ display: 'flex', flex: 1 }}>
-          <AdminSidebar />
-          <main style={{ flex: 1, background: 'var(--color-bg)', overflow: 'hidden' }}>
+          <AdminSidebar offCanvas={isBelowLaptop} open={adminNavOpen} onClose={() => setAdminNavOpen(false)} />
+          <main style={{ flex: 1, minWidth: 0, background: 'var(--color-bg)', overflow: 'hidden' }}>
             <Routes>{adminRoutes}</Routes>
           </main>
         </div>
@@ -65,6 +89,8 @@ function Shell() {
             <Route path="/services/:id" element={<ServiceDetailPage />} />
             <Route path="/login"      element={<LoginPage />} />
             <Route path="/knowledge"  element={<KnowledgePage />} />
+            <Route path="/projects-map" element={<ProjectsMapPage />} />
+            <Route path="/analytics"  element={<AnalyticsCatalogPage />} />
             <Route path="/news"       element={<NewsPage />} />
             <Route path="/contacts"   element={<ContactsPage />} />
             <Route path="/cabinet"    element={<RequireAuth><CabinetDashboard /></RequireAuth>} />
