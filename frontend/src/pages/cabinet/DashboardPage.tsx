@@ -5,6 +5,7 @@ import { applicationsApi, notificationsApi, documentsApi } from '@/api/client'
 import { useAuthStore } from '@/store/auth'
 import { I } from '@/components/icons'
 import { useToast } from '@/components/Toast'
+import { SlaBadge } from '@/components/SlaBadge'
 import type { Application, Notification, ApplicationStatus, Document } from '@/types'
 import { APPLICATION_STATUS_LABELS } from '@/types'
 
@@ -373,7 +374,10 @@ export function CabinetDashboard() {
                               {new Date(app.created_at).toLocaleDateString('ru-KZ')}
                             </td>
                             <td style={{ padding: '14px 16px' }}>
-                              <span className={meta.cls}>{meta.label}</span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                <span className={meta.cls}>{meta.label}</span>
+                                <SlaBadge app={app} inline />
+                              </div>
                             </td>
                             <td style={{ padding: '14px 16px', textAlign: 'right' }}>
                               <I.ChevronRight size={16} style={{ color: 'var(--color-text-3)' }} />

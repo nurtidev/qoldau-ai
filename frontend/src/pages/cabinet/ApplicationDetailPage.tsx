@@ -8,6 +8,8 @@ import { useToast } from '@/components/Toast'
 import { FormRenderer } from '@/components/FormRenderer'
 import { AlternativeRecommendations } from '@/components/AlternativeRecommendations'
 import { PrescoreCard, type PrescoreCardResult } from '@/components/PrescoreCard'
+import { SlaBadge } from '@/components/SlaBadge'
+import { getSlaInfo } from '@/lib/sla'
 import type { Application, Document, ApplicationStatus, Service } from '@/types'
 import { APPLICATION_STATUS_LABELS } from '@/types'
 
@@ -163,9 +165,12 @@ export function ApplicationDetailPage() {
                   {app.service_title}
                 </h1>
               </div>
-              <span className={STATUS_BADGE[app.status]}>
-                {APPLICATION_STATUS_LABELS[app.status]}
-              </span>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+                <span className={STATUS_BADGE[app.status]}>
+                  {APPLICATION_STATUS_LABELS[app.status]}
+                </span>
+                <SlaBadge app={app} />
+              </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, fontSize: 13, color: 'var(--color-text-2)' }}>
@@ -219,6 +224,20 @@ export function ApplicationDetailPage() {
                       {app.request_message}
                     </p>
                   )}
+                  {(() => {
+                    const sla = getSlaInfo(app)
+                    if (!sla) return null
+                    const overdue = sla.state === 'overdue'
+                    return (
+                      <p style={{
+                        fontSize: 13, fontWeight: 600, margin: '10px 0 0',
+                        color: overdue ? 'var(--color-danger)' : '#92400E',
+                      }}>
+                        {overdue ? 'Срок дозагрузки документов истёк — ' : 'Досдайте документы до '}
+                        {sla.deadline.toLocaleDateString('ru-KZ')}
+                      </p>
+                    )
+                  })()}
                   {!stage2Open && (
                     <button
                       className="btn btn-primary"

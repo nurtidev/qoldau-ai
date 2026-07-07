@@ -4,6 +4,7 @@ import { applicationsApi } from '@/api/client'
 import { useToast } from '@/components/Toast'
 import { I } from '@/components/icons'
 import { PrescoreCard, type PrescoreCardResult } from '@/components/PrescoreCard'
+import { SlaBadge } from '@/components/SlaBadge'
 import type { Application, ApplicationStatus } from '@/types'
 import { APPLICATION_STATUS_LABELS, APPLICATION_STATUS_COLORS } from '@/types'
 
@@ -141,9 +142,12 @@ export function AdminApplications() {
                     {new Date(a.created_at).toLocaleDateString('ru-KZ')}
                   </td>
                   <td style={{ padding: '12px 16px' }}>
-                    <span className={`badge badge-dot ${APPLICATION_STATUS_COLORS[a.status].includes('blue') ? 'badge-blue' : APPLICATION_STATUS_COLORS[a.status].includes('green') ? 'badge-green' : APPLICATION_STATUS_COLORS[a.status].includes('red') ? 'badge-red' : APPLICATION_STATUS_COLORS[a.status].includes('yellow') ? 'badge-amber' : 'badge-gray'}`}>
-                      {APPLICATION_STATUS_LABELS[a.status]}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <span className={`badge badge-dot ${APPLICATION_STATUS_COLORS[a.status].includes('blue') ? 'badge-blue' : APPLICATION_STATUS_COLORS[a.status].includes('green') ? 'badge-green' : APPLICATION_STATUS_COLORS[a.status].includes('red') ? 'badge-red' : APPLICATION_STATUS_COLORS[a.status].includes('yellow') ? 'badge-amber' : 'badge-gray'}`}>
+                        {APPLICATION_STATUS_LABELS[a.status]}
+                      </span>
+                      <SlaBadge app={a} inline />
+                    </div>
                   </td>
                   <td style={{ padding: '12px 16px' }}>
                     <select
