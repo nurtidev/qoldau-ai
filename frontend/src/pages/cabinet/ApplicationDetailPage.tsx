@@ -1,26 +1,60 @@
 import { Link, useParams } from 'react-router-dom'
-import { useQuery, useMutation } from '@tanstack/react-query'
-import { applicationsApi, documentsApi, mockApi } from '@/api/client'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { applicationsApi, documentsApi, mockApi, servicesApi } from '@/api/client'
 import { I } from '@/components/icons'
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { useAuthStore } from '@/store/auth'
+import { useToast } from '@/components/Toast'
+import { FormRenderer } from '@/components/FormRenderer'
 import { AlternativeRecommendations } from '@/components/AlternativeRecommendations'
-import type { Application, Document, ApplicationStatus } from '@/types'
+import type { Application, Document, ApplicationStatus, Service } from '@/types'
 import { APPLICATION_STATUS_LABELS } from '@/types'
 
 const STATUS_BADGE: Record<ApplicationStatus, string> = {
-  draft:     'badge badge-gray',
-  submitted: 'badge badge-blue badge-dot',
-  in_review: 'badge badge-amber badge-dot',
-  approved:  'badge badge-green badge-dot',
-  rejected:  'badge badge-red badge-dot',
+  draft:          'badge badge-gray',
+  submitted:      'badge badge-blue badge-dot',
+  in_review:      'badge badge-amber badge-dot',
+  docs_requested: 'badge badge-amber badge-dot',
+  approved:       'badge badge-green badge-dot',
+  rejected:       'badge badge-red badge-dot',
 }
 
-function statusToStep(status: ApplicationStatus): number {
-  if (status === 'submitted') return 1
-  if (status === 'in_review') return 2
-  if (status === 'approved' || status === 'rejected') return 4
-  return 0
+type TLState = 'done' | 'active' | 'warning' | 'rejected' | 'pending'
+interface TimelineNode { title: string; state: TLState; date?: string }
+
+// Builds a status timeline that grows a "Дозапрос данных" node for two-stage
+// applications (status docs_requested or already resubmitted at stage 2).
+function buildTimeline(app: Application): TimelineNode[] {
+  const created = new Date(app.created_at).toLocaleDateString('ru-KZ')
+  const updated = new Date(app.updated_at).toLocaleDateString('ru-KZ')
+  const st = app.status
+  const twoStage = st === 'docs_requested' || app.stage === 2
+  const final = st === 'approved' || st === 'rejected'
+
+  const nodes: TimelineNode[] = [
+    { title: 'Заявка подана',       state: 'done', date: created },
+    { title: 'Документы проверены', state: st === 'submitted' ? 'pending' : 'done' },
+  ]
+
+  if (twoStage) {
+    nodes.push({
+      title: 'Дозапрос данных',
+      state: st === 'docs_requested' ? 'warning' : 'done',
+      date:  st === 'docs_requested' ? updated : '',
+    })
+  }
+
+  nodes.push({
+    title: 'Рассмотрение комитетом',
+    state: final ? 'done' : st === 'in_review' ? 'active' : 'pending',
+  })
+  nodes.push({
+    title: st === 'rejected' ? 'Отказано' : 'Решение принято',
+    state: final ? (st === 'rejected' ? 'rejected' : 'done') : 'pending',
+    date:  final ? updated : '',
+  })
+
+  return nodes
 }
 
 const FILE_EXT_RE = /\.(\w+)$/
@@ -29,7 +63,7 @@ function fileTypeBg(name: string) {
   const ext = (name.match(FILE_EXT_RE)?.[1] ?? '').toLowerCase()
   if (ext === 'pdf')  return { bg: '#FEE2E2', color: '#B91C1C', label: 'PDF'  }
   if (ext === 'xlsx') return { bg: '#D1FAE5', color: '#047857', label: 'XLSX' }
-  if (ext === 'docx') return { bg: '#DBEAFE', color: '#1E40AF', label: 'DOCX' }
+  if (ext === 'docx') return { bg: 'var(--color-primary-soft)', color: 'var(--color-primary-700)', label: 'DOCX' }
   return { bg: '#F3F4F6', color: '#4B5563', label: ext.toUpperCase() || 'FILE' }
 }
 
@@ -37,6 +71,11 @@ export function ApplicationDetailPage() {
   const { id }    = useParams<{ id: string }>()
   const fileRef   = useRef<HTMLInputElement>(null)
   const { user }  = useAuthStore()
+  const qc        = useQueryClient()
+  const toast     = useToast()
+
+  const [stage2Open, setStage2Open]           = useState(false)
+  const [stage2Submitting, setStage2Submitting] = useState(false)
 
   const { data: app } = useQuery<Application>({
     queryKey: ['application', id],
@@ -44,9 +83,16 @@ export function ApplicationDetailPage() {
     enabled: !!id,
   })
 
+  // Service form_schema — needed to render the stage-2 (follow-up) steps.
+  const { data: service } = useQuery<Service>({
+    queryKey: ['service', app?.service_id],
+    queryFn: () => servicesApi.get(app!.service_id).then(r => r.data),
+    enabled: !!app?.service_id && app?.status === 'docs_requested',
+  })
+
   const { data: docs = [], refetch: refetchDocs } = useQuery<Document[]>({
     queryKey: ['documents', id],
-    queryFn: () => documentsApi.list(id!).then(r => r.data),
+    queryFn: () => documentsApi.list(id!).then(r => r.data ?? []),
     enabled: !!id,
   })
 
@@ -62,14 +108,34 @@ export function ApplicationDetailPage() {
 
   if (!app) return null
 
-  const step = statusToStep(app.status)
+  const timeline = buildTimeline(app)
+  const stage2Steps = service?.form_schema?.steps?.filter(s => s.stage === 2) ?? []
 
-  const timeline = [
-    { n: 1, title: 'Заявка подана',          state: step >= 1 ? 'done' : 'pending',    date: new Date(app.created_at).toLocaleDateString('ru-KZ') },
-    { n: 2, title: 'Документы проверены',    state: step >= 2 ? 'done' : 'pending',    date: '' },
-    { n: 3, title: 'Рассмотрение комитетом', state: step >= 3 ? 'done' : step === 2 ? 'active' : 'pending', date: '' },
-    { n: 4, title: app.status === 'rejected' ? 'Отказано' : 'Решение принято', state: step >= 4 ? (app.status === 'rejected' ? 'rejected' : 'done') : 'pending', date: step >= 4 ? new Date(app.updated_at).toLocaleDateString('ru-KZ') : '' },
-  ]
+  const handleStage2Submit = async (formData: Record<string, unknown>) => {
+    setStage2Submitting(true)
+    try {
+      // Separate File objects — they are uploaded, JSONB keeps the file name.
+      const files: File[] = []
+      const clean: Record<string, unknown> = {}
+      for (const [key, val] of Object.entries(formData)) {
+        if (val instanceof File) { files.push(val); clean[key] = val.name }
+        else clean[key] = val
+      }
+      for (const file of files) await documentsApi.upload(id!, file)
+      await applicationsApi.submitStage2(id!, clean)
+
+      qc.invalidateQueries({ queryKey: ['application', id] })
+      qc.invalidateQueries({ queryKey: ['applications'] })
+      qc.invalidateQueries({ queryKey: ['documents', id] })
+      qc.invalidateQueries({ queryKey: ['documents'] })
+      toast.push('Данные отправлены на рассмотрение', 'success')
+      setStage2Open(false)
+    } catch {
+      toast.push('Ошибка при отправке данных. Попробуйте снова.', 'error')
+    } finally {
+      setStage2Submitting(false)
+    }
+  }
 
   const formEntries = Object.entries(app.form_data).filter(([, v]) => v !== null && v !== '')
 
@@ -131,6 +197,53 @@ export function ApplicationDetailPage() {
               </div>
             )}
           </div>
+
+          {/* Two-stage: admin requested additional data */}
+          {app.status === 'docs_requested' && (
+            <div className="card" style={{
+              padding: 24, border: '1px solid var(--color-warning)',
+              background: 'var(--color-warning-soft)',
+            }}>
+              <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                <I.Alert size={20} style={{ color: 'var(--color-warning)', flexShrink: 0, marginTop: 2 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#92400E' }}>
+                    Требуются дополнительные данные
+                  </h3>
+                  {app.request_message && (
+                    <p style={{ fontSize: 14, color: 'var(--color-text-2)', margin: '8px 0 0', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>
+                      {app.request_message}
+                    </p>
+                  )}
+                  {!stage2Open && (
+                    <button
+                      className="btn btn-primary"
+                      style={{ marginTop: 14 }}
+                      onClick={() => setStage2Open(true)}
+                      disabled={stage2Steps.length === 0}
+                    >
+                      <I.Upload size={15} /> Заполнить данные этапа 2
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {stage2Open && (
+                <div className="card" style={{ padding: 24, marginTop: 16, background: '#fff' }}>
+                  {stage2Steps.length > 0 ? (
+                    <FormRenderer
+                      schema={{ steps: stage2Steps }}
+                      initialData={app.form_data}
+                      onSubmit={handleStage2Submit}
+                      submitting={stage2Submitting}
+                    />
+                  ) : (
+                    <div className="skeleton" style={{ height: 200, borderRadius: 8 }} />
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {app.status === 'rejected' && user && (
             <AlternativeRecommendations
@@ -247,6 +360,7 @@ export function ApplicationDetailPage() {
               {timeline.map((t, i) => {
                 const color = t.state === 'done'     ? 'var(--color-success)'
                             : t.state === 'active'   ? 'var(--color-accent)'
+                            : t.state === 'warning'  ? 'var(--color-warning)'
                             : t.state === 'rejected' ? 'var(--color-danger)'
                             : 'var(--color-border-strong)'
                 return (
@@ -261,8 +375,9 @@ export function ApplicationDetailPage() {
                     }}>
                       {t.state === 'done'     && <I.Check size={13} strokeWidth={3} />}
                       {t.state === 'rejected' && <I.X size={13} strokeWidth={3} />}
+                      {t.state === 'warning'  && <I.Alert size={13} />}
                       {t.state === 'active'   && <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#fff', display: 'block' }} />}
-                      {t.state === 'pending'  && t.n}
+                      {t.state === 'pending'  && (i + 1)}
                     </div>
                     <div style={{ paddingTop: 4 }}>
                       <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text)', lineHeight: 1.3 }}>{t.title}</div>

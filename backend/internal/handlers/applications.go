@@ -3,6 +3,7 @@ package handlers
 import (
 	"database/sql"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -102,7 +103,8 @@ func (h *ApplicationsHandler) Get(w http.ResponseWriter, r *http.Request) {
 func (h *ApplicationsHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	var req struct {
-		Status string `json:"status"`
+		Status  string `json:"status"`
+		Message string `json:"message"`
 	}
 	if err := decode(r, &req); err != nil || req.Status == "" {
 		respondErr(w, http.StatusBadRequest, "status required")
@@ -111,7 +113,7 @@ func (h *ApplicationsHandler) UpdateStatus(w http.ResponseWriter, r *http.Reques
 
 	validStatuses := map[string]bool{
 		"draft": true, "submitted": true, "in_review": true,
-		"approved": true, "rejected": true,
+		"docs_requested": true, "approved": true, "rejected": true,
 	}
 	if !validStatuses[req.Status] {
 		respondErr(w, http.StatusBadRequest, "invalid status")
@@ -119,10 +121,19 @@ func (h *ApplicationsHandler) UpdateStatus(w http.ResponseWriter, r *http.Reques
 	}
 
 	var app models.Application
-	err := h.db.QueryRowx(
-		`UPDATE applications SET status = $1, updated_at = $2 WHERE id = $3 RETURNING *`,
-		req.Status, time.Now(), id,
-	).StructScan(&app)
+	var err error
+	if req.Status == string(models.AppDocsRequested) {
+		// Store the admin's request message alongside the status change.
+		err = h.db.QueryRowx(
+			`UPDATE applications SET status = $1, request_message = $2, updated_at = $3 WHERE id = $4 RETURNING *`,
+			req.Status, req.Message, time.Now(), id,
+		).StructScan(&app)
+	} else {
+		err = h.db.QueryRowx(
+			`UPDATE applications SET status = $1, updated_at = $2 WHERE id = $3 RETURNING *`,
+			req.Status, time.Now(), id,
+		).StructScan(&app)
+	}
 	if err == sql.ErrNoRows {
 		respondErr(w, http.StatusNotFound, "application not found")
 		return
@@ -133,17 +144,88 @@ func (h *ApplicationsHandler) UpdateStatus(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Notify applicant
-	statusMessages := map[string]string{
-		"approved": "Ваша заявка одобрена.",
-		"rejected": "Ваша заявка отклонена.",
-		"in_review": "Ваша заявка взята в рассмотрение.",
-	}
-	if msg, ok := statusMessages[req.Status]; ok {
+	if req.Status == string(models.AppDocsRequested) {
+		msg := "По вашей заявке запрошены дополнительные данные."
+		if m := strings.TrimSpace(req.Message); m != "" {
+			msg = "По вашей заявке запрошены дополнительные данные: " + m
+		}
 		h.db.Exec(
 			`INSERT INTO notifications (user_id, title, message) VALUES ($1, $2, $3)`,
-			app.UserID, "Статус заявки изменён", msg,
+			app.UserID, "Требуются дополнительные данные", msg,
 		)
+	} else {
+		statusMessages := map[string]string{
+			"approved":  "Ваша заявка одобрена.",
+			"rejected":  "Ваша заявка отклонена.",
+			"in_review": "Ваша заявка взята в рассмотрение.",
+		}
+		if msg, ok := statusMessages[req.Status]; ok {
+			h.db.Exec(
+				`INSERT INTO notifications (user_id, title, message) VALUES ($1, $2, $3)`,
+				app.UserID, "Статус заявки изменён", msg,
+			)
+		}
 	}
 
 	respond(w, http.StatusOK, app)
+}
+
+// SubmitStage2 lets the applicant provide the additional data/documents the
+// admin requested (status docs_requested). The new form_data is merged over
+// the existing JSONB, the application advances to stage 2 and returns to
+// in_review.
+func (h *ApplicationsHandler) SubmitStage2(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.ClaimsFromCtx(r.Context())
+	id := chi.URLParam(r, "id")
+
+	var req struct {
+		FormData models.JSONB `json:"form_data"`
+	}
+	if err := decode(r, &req); err != nil {
+		respondErr(w, http.StatusBadRequest, "form_data required")
+		return
+	}
+
+	var app models.Application
+	if err := h.db.Get(&app, `SELECT * FROM applications WHERE id = $1`, id); err != nil {
+		respondErr(w, http.StatusNotFound, "application not found")
+		return
+	}
+	if app.UserID != claims.UserID {
+		respondErr(w, http.StatusForbidden, "forbidden")
+		return
+	}
+	if app.Status != models.AppDocsRequested {
+		respondErr(w, http.StatusBadRequest, "application is not awaiting additional data")
+		return
+	}
+
+	// Merge stage-2 data over the existing form_data (stage-2 keys win).
+	merged := app.FormData
+	if merged == nil {
+		merged = models.JSONB{}
+	}
+	for k, v := range req.FormData {
+		merged[k] = v
+	}
+
+	var updated models.Application
+	err := h.db.QueryRowx(
+		`UPDATE applications
+		 SET form_data = $1, stage = 2, status = 'in_review', updated_at = $2
+		 WHERE id = $3 RETURNING *`,
+		merged, time.Now(), id,
+	).StructScan(&updated)
+	if err != nil {
+		respondErr(w, http.StatusInternalServerError, "failed to submit additional data")
+		return
+	}
+
+	h.db.Exec(
+		`INSERT INTO notifications (user_id, title, message) VALUES ($1, $2, $3)`,
+		app.UserID, "Данные отправлены на рассмотрение",
+		"Дополнительные данные по заявке отправлены на рассмотрение.",
+	)
+
+	respond(w, http.StatusOK, updated)
 }

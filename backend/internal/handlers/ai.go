@@ -41,6 +41,7 @@ const systemPrompt = `Ты — конструктор форм для казах
     {
       "id": "step_1",
       "title": "Название шага",
+      "stage": 1,
       "fields": [
         {
           "id": "field_1",
@@ -79,6 +80,10 @@ const systemPrompt = `Ты — конструктор форм для казах
   Запрещено: "mask": null, "options": null, "formula": null, "condition": null, "accept": null, "placeholder": null и т.п.
 - mask допускает ТОЛЬКО "currency" или "percent" (для денежных и процентных полей). Для текстовых полей ключ mask опускай.
 - operator в condition допускает ТОЛЬКО: equals, not_equals, greater_than, less_than.
+- stage — номер этапа подачи у шага. Шаги первичной подачи — stage 1 (или без поля).
+  Шаги дозаполнения после предварительного одобрения (загрузка документов, расширенные
+  данные) — stage 2. Если услуга предполагает двухэтапную подачу (сначала первичная
+  заявка, затем по запросу администратора — документы) — вынеси документы в шаги со stage 2.
 `
 
 type claudeRequest struct {

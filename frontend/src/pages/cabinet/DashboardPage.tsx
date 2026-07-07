@@ -12,18 +12,20 @@ type Section = 'apps' | 'notifs' | 'profile' | 'docs'
 type AppFilter = 'all' | 'review' | 'docs' | 'approved' | 'rejected'
 
 const STATUS_BADGE: Record<ApplicationStatus, { cls: string; label: string }> = {
-  draft:     { cls: 'badge badge-gray',  label: 'Черновик'         },
-  submitted: { cls: 'badge badge-blue badge-dot',  label: 'Подана'           },
-  in_review: { cls: 'badge badge-amber badge-dot', label: 'На рассмотрении' },
-  approved:  { cls: 'badge badge-green badge-dot', label: 'Одобрена'         },
-  rejected:  { cls: 'badge badge-red badge-dot',  label: 'Отклонена'        },
+  draft:          { cls: 'badge badge-gray',            label: 'Черновик'         },
+  submitted:      { cls: 'badge badge-blue badge-dot',  label: 'Подана'           },
+  in_review:      { cls: 'badge badge-amber badge-dot', label: 'На рассмотрении' },
+  docs_requested: { cls: 'badge badge-amber badge-dot', label: 'Требуются данные' },
+  approved:       { cls: 'badge badge-green badge-dot', label: 'Одобрена'         },
+  rejected:       { cls: 'badge badge-red badge-dot',   label: 'Отклонена'        },
 }
 
 function statusToStep(status: ApplicationStatus): number {
-  if (status === 'submitted')  return 1
-  if (status === 'in_review')  return 2
-  if (status === 'approved')   return 4
-  if (status === 'rejected')   return 4
+  if (status === 'submitted')      return 1
+  if (status === 'in_review')      return 2
+  if (status === 'docs_requested') return 2
+  if (status === 'approved')       return 4
+  if (status === 'rejected')       return 4
   return 0
 }
 
@@ -35,7 +37,7 @@ function docTypeBadge(name: string): { label: string; bg: string; color: string 
   const ext = name.split('.').pop()?.toLowerCase() || ''
   if (ext === 'pdf')  return { label: 'PDF',  bg: '#FEE2E2', color: '#B91C1C' }
   if (ext === 'xlsx' || ext === 'xls') return { label: 'XLSX', bg: '#D1FAE5', color: '#047857' }
-  return { label: ext.toUpperCase() || 'DOC', bg: '#DBEAFE', color: '#1E40AF' }
+  return { label: ext.toUpperCase() || 'DOC', bg: 'var(--color-primary-soft)', color: 'var(--color-primary-700)' }
 }
 
 function ApplicationDetailModal({ app, onClose }: { app: Application; onClose: () => void }) {
@@ -106,22 +108,31 @@ function ApplicationDetailModal({ app, onClose }: { app: Application; onClose: (
 
         {(() => {
           const nextStep: Record<ApplicationStatus, string> = {
-            draft:     'Завершите заполнение и отправьте заявку.',
-            submitted: 'Ожидайте проверки документов — обычно 1–2 рабочих дня.',
-            in_review: 'Заявка на рассмотрении у комитета. Решение принимается в течение 10 рабочих дней.',
-            approved:  'Поздравляем! Ожидайте звонка менеджера для подписания договора.',
-            rejected:  'По этой заявке отказ. Вы можете подать повторно или выбрать другую программу.',
+            draft:          'Завершите заполнение и отправьте заявку.',
+            submitted:      'Ожидайте проверки документов — обычно 1–2 рабочих дня.',
+            in_review:      'Заявка на рассмотрении у комитета. Решение принимается в течение 10 рабочих дней.',
+            docs_requested: 'Администратор запросил дополнительные данные — откройте заявку и заполните этап 2.',
+            approved:       'Поздравляем! Ожидайте звонка менеджера для подписания договора.',
+            rejected:       'По этой заявке отказ. Вы можете подать повторно или выбрать другую программу.',
           }
           const isPositive = app.status === 'approved'
           const isNegative = app.status === 'rejected'
-          const bg = isPositive ? 'var(--color-success-soft)' : isNegative ? '#FEF2F2' : 'var(--color-info-soft)'
-          const color = isPositive ? '#047857' : isNegative ? '#B91C1C' : 'var(--color-info)'
+          const isDocsRequested = app.status === 'docs_requested'
+          const bg = isPositive ? 'var(--color-success-soft)' : isNegative ? '#FEF2F2' : isDocsRequested ? 'var(--color-warning-soft)' : 'var(--color-info-soft)'
+          const color = isPositive ? '#047857' : isNegative ? '#B91C1C' : isDocsRequested ? '#92400E' : 'var(--color-info)'
           return (
             <div style={{ margin: '0 24px 20px', padding: '12px 16px', background: bg, borderRadius: 8, fontSize: 13, color, lineHeight: 1.5 }}>
               <strong>Что делать сейчас:</strong> {nextStep[app.status]}
+              {app.status === 'docs_requested' && (
+                <div style={{ marginTop: 8 }}>
+                  <Link to={`/cabinet/applications/${app.id}`} onClick={onClose} style={{ color: 'var(--color-primary)', fontWeight: 600 }}>
+                    Заполнить данные этапа 2 →
+                  </Link>
+                </div>
+              )}
               {app.status === 'rejected' && (
                 <div style={{ marginTop: 8 }}>
-                  <Link to="/services" onClick={onClose} style={{ color: 'var(--color-accent)', fontWeight: 500 }}>
+                  <Link to="/services" onClick={onClose} style={{ color: 'var(--color-accent-text)', fontWeight: 500 }}>
                     Найти другую программу →
                   </Link>
                 </div>
@@ -186,7 +197,7 @@ export function CabinetDashboard() {
   const filterApp = (a: Application) => {
     if (filter === 'all')      return true
     if (filter === 'review')   return a.status === 'submitted' || a.status === 'in_review'
-    if (filter === 'docs')     return false
+    if (filter === 'docs')     return a.status === 'docs_requested'
     if (filter === 'approved') return a.status === 'approved'
     if (filter === 'rejected') return a.status === 'rejected'
     return true
@@ -196,7 +207,7 @@ export function CabinetDashboard() {
   const filterTabs: { id: AppFilter; label: string; count: number }[] = [
     { id: 'all',      label: 'Все',              count: applications.length },
     { id: 'review',   label: 'На рассмотрении',  count: applications.filter(a => a.status === 'submitted' || a.status === 'in_review').length },
-    { id: 'docs',     label: 'Документы',         count: 0 },
+    { id: 'docs',     label: 'Требуются данные', count: applications.filter(a => a.status === 'docs_requested').length },
     { id: 'approved', label: 'Одобрено',          count: applications.filter(a => a.status === 'approved').length },
     { id: 'rejected', label: 'Отклонено',         count: applications.filter(a => a.status === 'rejected').length },
   ]
@@ -413,7 +424,7 @@ export function CabinetDashboard() {
                         style={{
                           padding: '16px 20px', display: 'flex', gap: 14, alignItems: 'flex-start',
                           borderTop: i > 0 ? '1px solid var(--color-border)' : 'none',
-                          background: n.is_read ? 'transparent' : 'rgba(59,130,246,0.04)',
+                          background: n.is_read ? 'transparent' : 'rgba(7,102,61,0.04)',
                           cursor: n.is_read ? 'default' : 'pointer',
                         }}
                       >

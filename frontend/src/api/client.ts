@@ -64,8 +64,11 @@ export const applicationsApi = {
     api.post('/applications', { service_id, form_data }),
   list: () => api.get('/applications'),
   get: (id: string) => api.get(`/applications/${id}`),
-  updateStatus: (id: string, status: string) =>
-    api.put(`/applications/${id}/status`, { status }),
+  updateStatus: (id: string, status: string, message?: string) =>
+    api.put(`/applications/${id}/status`, { status, message }),
+  // Stage 2: applicant submits the additional data/documents the admin requested.
+  submitStage2: (id: string, form_data: object) =>
+    api.post(`/applications/${id}/stage2`, { form_data }),
 }
 
 // Documents

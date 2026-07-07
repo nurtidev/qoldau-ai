@@ -1,0 +1,3 @@
+-- 009 down: no-op.
+-- PostgreSQL does not support removing a value from an enum type, so the
+-- 'docs_requested' value stays. It is harmless when unused.

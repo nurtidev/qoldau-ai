@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Parser as FormulaParser } from 'expr-eval'
 import { servicesApi } from '@/api/client'
+import { useIsBelowLaptop } from '@/hooks/useMediaQuery'
 import { I } from '@/components/icons'
 import { useToast } from '@/components/Toast'
 import { FormRenderer } from '@/components/FormRenderer'
@@ -97,6 +98,8 @@ interface BuilderStep {
   title: string
   fields: BuilderField[]
   condition?: FormStep['condition']
+  /** 1 (or undefined) = primary submission, 2 = follow-up data (docs_requested). */
+  stage?: number
 }
 
 interface BuilderMeta {
@@ -129,20 +132,23 @@ const DEFAULT_STEPS: BuilderStep[] = [
 
 // ─── LeftPanel ─────────────────────────────────────────────────────────────────
 
-function LeftPanel({ meta, setMeta, onSaveDraft, onPublish, saving }: {
+function LeftPanel({ meta, setMeta, onSaveDraft, onPublish, saving, stacked }: {
   meta: BuilderMeta
   setMeta: (m: BuilderMeta) => void
   onSaveDraft: () => void
   onPublish: () => void
   saving: 'draft' | 'publish' | null
+  stacked?: boolean
 }) {
   const set = (k: keyof BuilderMeta, v: string) => setMeta({ ...meta, [k]: v })
 
   return (
     <aside data-tour-id="meta-panel" style={{
-      width: 280, flexShrink: 0, borderRight: '1px solid var(--color-border)',
-      background: '#fff', padding: '24px 20px', overflowY: 'auto',
-      display: 'flex', flexDirection: 'column', gap: 14,
+      width: stacked ? '100%' : 280, flexShrink: 0,
+      borderRight: stacked ? 'none' : '1px solid var(--color-border)',
+      borderBottom: stacked ? '1px solid var(--color-border)' : 'none',
+      background: '#fff', padding: '24px 20px', overflowY: stacked ? 'visible' : 'auto',
+      display: 'flex', flexDirection: 'column', gap: 14, boxSizing: 'border-box',
     }}>
       <div>
         <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-3)', fontWeight: 600, marginBottom: 4 }}>
@@ -383,7 +389,7 @@ function AiBlock({ onApply }: { onApply: (steps: BuilderStep[], meta: AiServiceM
 
     return (
       <div style={{
-        background: 'linear-gradient(135deg,#0F172A 0%,#1E3A8A 100%)',
+        background: 'linear-gradient(135deg,#0F172A 0%,var(--color-primary) 100%)',
         border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12,
         padding: '28px 24px', marginBottom: 24, color: '#fff',
       }} data-testid="ai-loader">
@@ -394,7 +400,7 @@ function AiBlock({ onApply }: { onApply: (steps: BuilderStep[], meta: AiServiceM
           <div style={{
             width: 56, height: 56, borderRadius: '50%',
             border: '3px solid rgba(255,255,255,0.12)',
-            borderTopColor: '#60A5FA',
+            borderTopColor: 'var(--color-accent)',
             animation: 'spin 1s linear infinite',
           }} />
           <div style={{ textAlign: 'center' }}>
@@ -414,7 +420,7 @@ function AiBlock({ onApply }: { onApply: (steps: BuilderStep[], meta: AiServiceM
           }}>
             <div style={{
               width: `${Math.max(8, pct)}%`, height: '100%',
-              background: 'linear-gradient(90deg,#60A5FA,#34D399)',
+              background: 'linear-gradient(90deg,var(--color-accent),#34D399)',
               borderRadius: 999, transition: 'width 400ms ease',
             }} />
           </div>
@@ -435,8 +441,8 @@ function AiBlock({ onApply }: { onApply: (steps: BuilderStep[], meta: AiServiceM
 
     return (
       <div style={{
-        background: 'linear-gradient(135deg,#EEF2FF 0%,#DBEAFE 100%)',
-        border: '1px solid #C7D2FE', borderRadius: 12, padding: 20, marginBottom: 24,
+        background: 'linear-gradient(135deg,var(--color-primary-tint) 0%,var(--color-primary-soft) 100%)',
+        border: '1px solid var(--color-primary-soft)', borderRadius: 12, padding: 20, marginBottom: 24,
       }}>
         <style>{AI_STREAM_STYLES}</style>
 
@@ -487,7 +493,7 @@ function AiBlock({ onApply }: { onApply: (steps: BuilderStep[], meta: AiServiceM
                       <span style={{ fontSize: 12, color: 'var(--color-text)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.label}</span>
                       <span style={{ fontSize: 10, color: 'var(--color-text-3)', flexShrink: 0, fontFamily: 'monospace' }}>{f.type}</span>
                       {f.required && <span style={{ fontSize: 10, color: 'var(--color-danger)', flexShrink: 0 }}>*</span>}
-                      {f.prefill_from && <span style={{ fontSize: 10, color: 'var(--color-accent)', flexShrink: 0 }}>eGov</span>}
+                      {f.prefill_from && <span style={{ fontSize: 10, color: 'var(--color-primary)', flexShrink: 0 }}>eGov</span>}
                     </div>
                   )
                 })}
@@ -518,7 +524,7 @@ function AiBlock({ onApply }: { onApply: (steps: BuilderStep[], meta: AiServiceM
 
   // ── idle / error UI ──────────────────────────────────────────────────────────
   return (
-    <div style={{ background: 'linear-gradient(135deg,#1E3A8A 0%,#3B82F6 100%)', borderRadius: 12, padding: 20, marginBottom: 24, color: '#fff', position: 'relative', overflow: 'hidden' }}>
+    <div style={{ background: 'linear-gradient(135deg,var(--color-primary) 0%,var(--color-primary-600) 100%)', borderRadius: 12, padding: 20, marginBottom: 24, color: '#fff', position: 'relative', overflow: 'hidden' }}>
       <div style={{ position: 'absolute', top: -30, right: -30, width: 180, height: 180, borderRadius: '50%', background: 'rgba(255,255,255,0.06)' }} />
       <div style={{ position: 'relative' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
@@ -613,14 +619,14 @@ function FieldRow({ field, selected, onSelect, onMove, onDelete, canUp, canDown 
         background: selected ? 'var(--color-accent-soft)' : '#fff',
         border: `1px solid ${selected ? 'var(--color-accent)' : 'var(--color-border)'}`,
         borderRadius: 8, cursor: 'pointer', marginBottom: 8, transition: 'all 120ms',
-        boxShadow: selected ? '0 0 0 3px rgba(59,130,246,0.12)' : 'none',
+        boxShadow: selected ? '0 0 0 3px rgba(201,162,28,0.15)' : 'none',
       }}
     >
       <I.GripVertical size={14} style={{ color: 'var(--color-text-4)', flexShrink: 0 }} />
 
       <div style={{
         width: 30, height: 30, borderRadius: 6, flexShrink: 0,
-        background: isCalc ? 'rgba(59,130,246,0.12)' : 'var(--color-surface-2)',
+        background: isCalc ? 'rgba(201,162,28,0.15)' : 'var(--color-surface-2)',
         color: isCalc ? 'var(--color-accent)' : 'var(--color-text-2)',
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
       }}>
@@ -628,7 +634,7 @@ function FieldRow({ field, selected, onSelect, onMove, onDelete, canUp, canDown 
       </div>
 
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 14, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6, color: isCalc ? 'var(--color-accent)' : 'var(--color-text)' }}>
+        <div style={{ fontSize: 14, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6, color: isCalc ? (selected ? 'var(--color-primary)' : 'var(--color-accent-text)') : 'var(--color-text)' }}>
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {field.label || <em style={{ color: 'var(--color-text-4)' }}>Без названия</em>}
           </span>
@@ -636,8 +642,8 @@ function FieldRow({ field, selected, onSelect, onMove, onDelete, canUp, canDown 
         </div>
         <div style={{ fontSize: 12, color: 'var(--color-text-3)', display: 'flex', gap: 6, marginTop: 2 }}>
           <span>{meta.label}</span>
-          {field.prefill_from && <><span>·</span><span style={{ color: 'var(--color-accent)' }}>eGov: {field.prefill_from.split('.')[1]}</span></>}
-          {field.formula && <><span>·</span><span style={{ fontFamily: 'monospace', color: 'var(--color-accent)', fontSize: 11 }}>= {field.formula}</span></>}
+          {field.prefill_from && <><span>·</span><span style={{ color: selected ? 'var(--color-primary)' : 'var(--color-accent-text)' }}>eGov: {field.prefill_from.split('.')[1]}</span></>}
+          {field.formula && <><span>·</span><span style={{ fontFamily: 'monospace', color: selected ? 'var(--color-primary)' : 'var(--color-accent-text)', fontSize: 11 }}>= {field.formula}</span></>}
           {field.options && <><span>·</span><span>{field.options.length} опций</span></>}
         </div>
       </div>
@@ -676,7 +682,7 @@ function AddFieldMenu({ onPick, onClose }: { onPick: (type: BuilderFieldType) =>
               }}>
                 <div style={{
                   width: 32, height: 32, borderRadius: 6,
-                  background: isCalc ? 'rgba(59,130,246,0.12)' : 'var(--color-surface-2)',
+                  background: isCalc ? 'rgba(201,162,28,0.15)' : 'var(--color-surface-2)',
                   color: isCalc ? 'var(--color-accent)' : 'var(--color-text-2)',
                   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                 }}>
@@ -860,7 +866,24 @@ function StepBlock({ step, idx, total, selectedFieldId, onSelectField, onUpdateS
         </div>
       )}
 
-      <div style={{ background: '#fff', border: '1px solid var(--color-border)', borderRadius: 12, padding: 20, boxShadow: 'var(--sh-xs)' }}>
+      {/* Stage-2 marker — этот этап заполняется после предварительного одобрения */}
+      {step.stage === 2 && (
+        <div style={{ marginBottom: 8 }}>
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            padding: '4px 10px', borderRadius: 999,
+            background: 'var(--color-accent-soft)', color: 'var(--color-primary)',
+            border: '1px solid var(--color-accent)', fontSize: 12, fontWeight: 600,
+          }}>
+            <I.Info size={12} /> Этап 2 · дозаполнение
+          </span>
+        </div>
+      )}
+
+      <div style={{
+        background: '#fff', borderRadius: 12, padding: 20, boxShadow: 'var(--sh-xs)',
+        border: step.stage === 2 ? '1px solid var(--color-accent)' : '1px solid var(--color-border)',
+      }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
           <div style={{
             width: 28, height: 28, borderRadius: '50%', background: 'var(--color-primary)',
@@ -890,6 +913,30 @@ function StepBlock({ step, idx, total, selectedFieldId, onSelectField, onUpdateS
           <span style={{ fontSize: 12, color: 'var(--color-text-3)', padding: '2px 8px', background: 'var(--color-surface-2)', borderRadius: 999, flexShrink: 0 }}>
             {step.fields.length} {step.fields.length === 1 ? 'поле' : 'полей'}
           </span>
+
+          {/* Stage toggle: Этап 1 (первичная подача) / Этап 2 (дозаполнение) */}
+          <div
+            title="Этап 2 заполняется заявителем после предварительного одобрения (дозапрос данных)"
+            style={{ display: 'inline-flex', border: '1px solid var(--color-border)', borderRadius: 999, overflow: 'hidden', flexShrink: 0 }}
+          >
+            {[1, 2].map(s => {
+              const active = (step.stage ?? 1) === s
+              return (
+                <button
+                  key={s}
+                  onClick={() => onUpdateStep({ ...step, stage: s === 2 ? 2 : undefined })}
+                  style={{
+                    padding: '3px 10px', border: 'none', cursor: 'pointer',
+                    fontSize: 11, fontWeight: 600,
+                    background: active ? (s === 2 ? 'var(--color-accent)' : 'var(--color-primary)') : 'transparent',
+                    color: active ? (s === 2 ? '#1A1206' : '#fff') : 'var(--color-text-3)',
+                  }}
+                >
+                  Этап {s}
+                </button>
+              )
+            })}
+          </div>
 
           <div style={{ display: 'flex', gap: 2 }}>
             <button className="btn btn-ghost btn-sm" disabled={idx === 0}          onClick={() => onMoveStep(-1)} style={{ width: 28, padding: 0 }}><I.ChevronUp   size={14} /></button>
@@ -1259,12 +1306,18 @@ function FormulaBuilder({ formula, mask, numericFields, onChange }: {
 
 // ─── RightPanel ───────────────────────────────────────────────────────────────
 
-function RightPanel({ field, allFields, onChange, onClose }: {
+function RightPanel({ field, allFields, onChange, onClose, overlay }: {
   field: BuilderField | null
   allFields: BuilderField[]
   onChange: (f: BuilderField) => void
   onClose: () => void
+  overlay?: boolean
 }) {
+  // На ≤1024 панель настроек поля не должна занимать постоянную колонку (иначе холст
+  // формы схлопывается) — показываем её только когда поле выбрано, как выезжающую
+  // панель поверх холста, с подложкой для закрытия по клику вне панели.
+  if (overlay && !field) return null
+
   if (!field) {
     return (
       <aside style={{ width: 300, flexShrink: 0, borderLeft: '1px solid var(--color-border)', background: '#fff', padding: '40px 20px', overflowY: 'auto' }}>
@@ -1285,8 +1338,13 @@ function RightPanel({ field, allFields, onChange, onClose }: {
   const IconComp = I[meta.iconKey] as (p: { size: number }) => JSX.Element
   const numericFields = allFields.filter(f => ['number', 'currency', 'calculated'].includes(f.type) && f.id !== field.id)
 
-  return (
-    <aside style={{ width: 300, flexShrink: 0, borderLeft: '1px solid var(--color-border)', background: '#fff', overflowY: 'auto' }}>
+  const panel = (
+    <aside style={overlay ? {
+      width: 'min(300px, 92vw)', flexShrink: 0,
+      borderLeft: '1px solid var(--color-border)', background: '#fff', overflowY: 'auto',
+      position: 'fixed', top: 0, right: 0, bottom: 0, zIndex: 90,
+      boxShadow: '-12px 0 32px rgba(0,0,0,0.18)',
+    } : { width: 300, flexShrink: 0, borderLeft: '1px solid var(--color-border)', background: '#fff', overflowY: 'auto' }}>
       <div style={{ padding: '16px 20px 12px', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: 10 }}>
         <div style={{ width: 26, height: 26, borderRadius: 6, background: 'var(--color-accent-soft)', color: 'var(--color-primary)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
           <IconComp size={14} />
@@ -1394,6 +1452,15 @@ function RightPanel({ field, allFields, onChange, onClose }: {
       </div>
     </aside>
   )
+
+  if (!overlay) return panel
+
+  return (
+    <>
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 89, background: 'rgba(15,23,42,0.3)' }} />
+      {panel}
+    </>
+  )
 }
 
 // ─── PreviewDrawer ────────────────────────────────────────────────────────────
@@ -1455,6 +1522,9 @@ export function ServiceFormPage() {
   // Tour trigger: incrementing this restarts the BuilderTour. Used by the "🎓 Тур" button.
   const [tourTrigger, setTourTrigger] = useState(0)
   const qc = useQueryClient()
+  // ≤1024: панели настроек услуги/поля (280px + 300px) вместе с холстом не помещаются
+  // в 3 колонки — стекаем настройки услуги сверху, а панель поля показываем оверлеем.
+  const isBelowLaptop = useIsBelowLaptop()
 
   const { data: service, isLoading } = useQuery<Service>({
     queryKey: ['service', id],
@@ -1629,12 +1699,17 @@ export function ServiceFormPage() {
   }
 
   return (
-    <div className="page-fade" style={{ display: 'flex', height: 'calc(100vh - 64px)', background: 'var(--color-bg)', overflow: 'hidden' }}>
+    <div className="page-fade" style={{
+      display: 'flex', flexDirection: isBelowLaptop ? 'column' : 'row',
+      height: isBelowLaptop ? 'auto' : 'calc(100vh - 64px)',
+      minHeight: isBelowLaptop ? 'calc(100vh - 64px)' : undefined,
+      background: 'var(--color-bg)', overflow: isBelowLaptop ? 'visible' : 'hidden',
+    }}>
 
-      <LeftPanel meta={meta} setMeta={setMeta} onSaveDraft={() => save('draft')} onPublish={() => save('publish')} saving={saving} />
+      <LeftPanel meta={meta} setMeta={setMeta} onSaveDraft={() => save('draft')} onPublish={() => save('publish')} saving={saving} stacked={isBelowLaptop} />
 
       {/* Center canvas */}
-      <main style={{ flex: 1, overflowY: 'auto', minWidth: 0 }}>
+      <main style={{ flex: 1, overflowY: isBelowLaptop ? 'visible' : 'auto', minWidth: 0, width: '100%' }}>
         <div style={{
           display: 'flex', alignItems: 'center', gap: 12, padding: '12px 28px',
           background: '#fff', borderBottom: '1px solid var(--color-border)',
@@ -1727,6 +1802,7 @@ export function ServiceFormPage() {
         allFields={allFields}
         onChange={updateField}
         onClose={() => setSelectedFieldId(null)}
+        overlay={isBelowLaptop}
       />
 
       {showPreview && <PreviewDrawer steps={steps} title={meta.title} onClose={() => setShowPreview(false)} />}

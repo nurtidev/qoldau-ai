@@ -7,16 +7,20 @@ import type { Application, ApplicationStatus } from '@/types'
 import { APPLICATION_STATUS_LABELS, APPLICATION_STATUS_COLORS } from '@/types'
 
 const FILTERS: { id: string; label: string }[] = [
-  { id: 'all',       label: 'Все' },
-  { id: 'submitted', label: 'Подана' },
-  { id: 'in_review', label: 'На рассмотрении' },
-  { id: 'approved',  label: 'Одобрено' },
-  { id: 'rejected',  label: 'Отклонено' },
+  { id: 'all',            label: 'Все' },
+  { id: 'submitted',      label: 'Подана' },
+  { id: 'in_review',      label: 'На рассмотрении' },
+  { id: 'docs_requested', label: 'Требуются данные' },
+  { id: 'approved',       label: 'Одобрено' },
+  { id: 'rejected',       label: 'Отклонено' },
 ]
 
 export function AdminApplications() {
   const [filter, setFilter] = useState('all')
   const [selected, setSelected] = useState<string[]>([])
+  // Row id awaiting a "request additional data" message, plus the message draft.
+  const [docsModal, setDocsModal] = useState<string | null>(null)
+  const [docsMessage, setDocsMessage] = useState('')
   const { push } = useToast()
   const qc = useQueryClient()
 
@@ -26,8 +30,8 @@ export function AdminApplications() {
   })
 
   const updateStatus = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: string }) =>
-      applicationsApi.updateStatus(id, status),
+    mutationFn: ({ id, status, message }: { id: string; status: string; message?: string }) =>
+      applicationsApi.updateStatus(id, status, message),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-applications'] })
       push('Статус обновлён', 'success')
@@ -118,11 +122,22 @@ export function AdminApplications() {
                   <td style={{ padding: '12px 16px' }}>
                     <select
                       value={a.status}
-                      onChange={(e) => updateStatus.mutate({ id: a.id, status: e.target.value })}
+                      onChange={(e) => {
+                        const next = e.target.value
+                        if (next === 'docs_requested') {
+                          // Ask the admin what to request before changing status.
+                          setDocsMessage('')
+                          setDocsModal(a.id)
+                        } else {
+                          updateStatus.mutate({ id: a.id, status: next })
+                        }
+                      }}
                       style={{ fontSize: 12, padding: '4px 8px', border: '1px solid var(--color-border)', borderRadius: 4, background: '#fff', cursor: 'pointer' }}
                     >
-                      {(['submitted', 'in_review', 'approved', 'rejected'] as ApplicationStatus[]).map((s) => (
-                        <option key={s} value={s}>{APPLICATION_STATUS_LABELS[s]}</option>
+                      {(['submitted', 'in_review', 'docs_requested', 'approved', 'rejected'] as ApplicationStatus[]).map((s) => (
+                        <option key={s} value={s}>
+                          {s === 'docs_requested' ? 'Запросить доп. данные' : APPLICATION_STATUS_LABELS[s]}
+                        </option>
                       ))}
                     </select>
                   </td>
@@ -132,6 +147,47 @@ export function AdminApplications() {
           </tbody>
         </table>
       </div>
+
+      {/* "Request additional data" modal */}
+      {docsModal && (
+        <div className="modal-backdrop" onClick={() => setDocsModal(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 460 }}>
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ fontSize: 16, fontWeight: 600 }}>Запросить дополнительные данные</div>
+              <button className="btn btn-ghost btn-sm" onClick={() => setDocsModal(null)} style={{ width: 32, padding: 0 }}>
+                <I.X size={16} />
+              </button>
+            </div>
+            <div style={{ padding: 24 }}>
+              <label className="field-label">Что нужно дозапросить у заявителя?</label>
+              <textarea
+                className="textarea"
+                autoFocus
+                value={docsMessage}
+                onChange={(e) => setDocsMessage(e.target.value)}
+                placeholder="Например: приложите справку об отсутствии налоговой задолженности и финансовую отчётность за последний год."
+                style={{ minHeight: 110 }}
+              />
+              <div style={{ fontSize: 12, color: 'var(--color-text-3)', marginTop: 8, lineHeight: 1.5 }}>
+                Заявитель получит уведомление и сможет заполнить этап 2 в личном кабинете.
+              </div>
+            </div>
+            <div style={{ padding: '16px 24px', borderTop: '1px solid var(--color-border)', display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button className="btn btn-secondary" onClick={() => setDocsModal(null)}>Отмена</button>
+              <button
+                className="btn btn-primary"
+                disabled={!docsMessage.trim() || updateStatus.isPending}
+                onClick={() => {
+                  updateStatus.mutate({ id: docsModal, status: 'docs_requested', message: docsMessage.trim() })
+                  setDocsModal(null)
+                }}
+              >
+                <I.Upload size={14} /> Отправить запрос
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -101,6 +101,11 @@ export function ApplyPage() {
 
   if (!service) return null
 
+  // Two-stage service: render only stage-1 steps here. Stage-2 steps (documents,
+  // extended data) are filled later in the cabinet, after preliminary approval.
+  const hasStage2 = service.form_schema.steps.some(s => (s.stage ?? 1) === 2)
+  const stage1Schema = { steps: service.form_schema.steps.filter(s => (s.stage ?? 1) !== 2) }
+
   return (
     <div className="container page-fade" style={{ paddingTop: 24, paddingBottom: 60, maxWidth: 980 }}>
       <nav style={{ fontSize: 13, color: 'var(--color-text-3)', marginBottom: 16 }}>
@@ -120,6 +125,20 @@ export function ApplyPage() {
           <span>{service.title}</span>
         </div>
       </div>
+
+      {hasStage2 && (
+        <div style={{
+          background: 'var(--color-info-soft)', border: '1px solid var(--color-info)',
+          borderRadius: 10, padding: '14px 18px', display: 'flex', gap: 12, marginBottom: 12,
+        }}>
+          <I.Info size={20} style={{ color: 'var(--color-info)', flexShrink: 0, marginTop: 1 }} />
+          <div style={{ fontSize: 14, color: 'var(--color-text-2)', lineHeight: 1.55 }}>
+            <strong>Услуга оформляется в два этапа.</strong> Сначала — первичная заявка,
+            а после её предварительного одобрения администратор запросит загрузку документов
+            в личном кабинете.
+          </div>
+        </div>
+      )}
 
       {egovLoaded && (
         <div style={{
@@ -164,7 +183,7 @@ export function ApplyPage() {
         {!egovChecked
           ? <div className="skeleton" style={{ height: 480, borderRadius: 8 }} />
           : <FormRenderer
-              schema={service.form_schema}
+              schema={stage1Schema}
               initialData={initialData}
               onSubmit={handleSubmit}
               submitting={submitting}

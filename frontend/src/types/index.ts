@@ -48,6 +48,8 @@ export interface FormStep {
   title: string
   fields: FormField[]
   condition?: FormFieldCondition
+  /** Submission stage. 1 (or absent) = primary submission, 2 = follow-up data requested after preliminary approval. */
+  stage?: number
 }
 
 export interface FormSchema {
@@ -128,6 +130,7 @@ export type ApplicationStatus =
   | 'draft'
   | 'submitted'
   | 'in_review'
+  | 'docs_requested'
   | 'approved'
   | 'rejected'
 
@@ -137,6 +140,10 @@ export interface Application {
   user_id: string
   form_data: Record<string, unknown>
   status: ApplicationStatus
+  /** Submission stage: 1 = primary, 2 = follow-up data submitted. */
+  stage: number
+  /** Admin message describing what additional data was requested (docs_requested). */
+  request_message: string
   service_title?: string
   created_at: string
   updated_at: string
@@ -169,17 +176,19 @@ export interface AnalyticsSummary {
 }
 
 export const APPLICATION_STATUS_LABELS: Record<ApplicationStatus, string> = {
-  draft:     'Черновик',
-  submitted: 'Подана',
-  in_review: 'На рассмотрении',
-  approved:  'Одобрена',
-  rejected:  'Отклонена',
+  draft:          'Черновик',
+  submitted:      'Подана',
+  in_review:      'На рассмотрении',
+  docs_requested: 'Требуются данные',
+  approved:       'Одобрена',
+  rejected:       'Отклонена',
 }
 
 export const APPLICATION_STATUS_COLORS: Record<ApplicationStatus, string> = {
-  draft:     'bg-gray-100 text-gray-700',
-  submitted: 'bg-blue-100 text-blue-700',
-  in_review: 'bg-yellow-100 text-yellow-700',
-  approved:  'bg-green-100 text-green-700',
-  rejected:  'bg-red-100 text-red-700',
+  draft:          'bg-gray-100 text-gray-700',
+  submitted:      'bg-blue-100 text-blue-700',
+  in_review:      'bg-yellow-100 text-yellow-700',
+  docs_requested: 'bg-yellow-100 text-yellow-700',
+  approved:       'bg-green-100 text-green-700',
+  rejected:       'bg-red-100 text-red-700',
 }

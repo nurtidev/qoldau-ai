@@ -111,6 +111,8 @@ func main() {
 			r.Get("/", appsH.List)
 			r.Get("/{id}", appsH.Get)
 			r.With(adminMw).Put("/{id}/status", appsH.UpdateStatus)
+			// Stage 2: applicant provides the additional data/documents requested
+			r.Post("/{id}/stage2", appsH.SubmitStage2)
 			// Funnel step event
 			r.Post("/{id}/event", funnelH.LogEvent)
 		})

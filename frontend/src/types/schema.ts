@@ -33,6 +33,7 @@ const zFormField = z.object({
 const zFormStep = z.object({
   id: z.string().min(1).optional(),
   title: z.string().min(1),
+  stage: z.number().optional(),
   fields: z.array(zFormField).min(1),
   condition: zCondition.optional(),
 })
@@ -77,6 +78,7 @@ export function parseAiFormSchema(raw: string): FormStep[] {
   return result.data.steps.map((s, i) => ({
     id: s.id || `s${i + 1}_ai`,
     title: s.title,
+    stage: s.stage,
     condition: s.condition,
     fields: s.fields.map((f, j): FormField => ({
       id: f.id || `f${i + 1}_${j + 1}_ai`,

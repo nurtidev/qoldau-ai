@@ -109,11 +109,12 @@ type LeadWithService struct {
 type ApplicationStatus string
 
 const (
-	AppDraft    ApplicationStatus = "draft"
-	AppSubmitted ApplicationStatus = "submitted"
-	AppInReview ApplicationStatus = "in_review"
-	AppApproved ApplicationStatus = "approved"
-	AppRejected ApplicationStatus = "rejected"
+	AppDraft         ApplicationStatus = "draft"
+	AppSubmitted     ApplicationStatus = "submitted"
+	AppInReview      ApplicationStatus = "in_review"
+	AppDocsRequested ApplicationStatus = "docs_requested"
+	AppApproved      ApplicationStatus = "approved"
+	AppRejected      ApplicationStatus = "rejected"
 )
 
 type Application struct {
@@ -122,6 +123,8 @@ type Application struct {
 	UserID      string            `db:"user_id"       json:"user_id"`
 	FormData    JSONB             `db:"form_data"     json:"form_data"`
 	Status      ApplicationStatus `db:"status"        json:"status"`
+	Stage       int               `db:"stage"          json:"stage"`
+	RequestMessage string         `db:"request_message" json:"request_message"`
 	IsSynthetic bool              `db:"is_synthetic"  json:"is_synthetic"`
 	CreatedAt   time.Time         `db:"created_at"    json:"created_at"`
 	UpdatedAt   time.Time         `db:"updated_at"    json:"updated_at"`
