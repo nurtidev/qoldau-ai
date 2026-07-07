@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test'
 
-const BASE_URL = process.env.BASE_URL || 'https://frontend-production-7418.up.railway.app'
+const BASE_URL = process.env.BASE_URL || 'https://frontend-production-c557.up.railway.app'
 
 export default defineConfig({
   testDir: './e2e',
