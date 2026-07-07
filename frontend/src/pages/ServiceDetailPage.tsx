@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { servicesApi, funnelApi } from '@/api/client'
 import { useAuthStore } from '@/store/auth'
 import { I } from '@/components/icons'
+import { ServiceCalculator } from '@/components/ServiceCalculator'
 import type { Service, FormField } from '@/types'
 
 const PORTAL_FAQ = [
@@ -12,7 +13,7 @@ const PORTAL_FAQ = [
   { q: 'Нужна ли ЭЦП для подачи заявки?',       a: 'Для входа на портал ЭЦП не требуется — достаточно ИИН/БИН через eGov. Условия конкретной программы уточняйте у организации.' },
 ]
 
-const TABS = [
+const BASE_TABS = [
   { id: 'desc', label: 'Описание' },
   { id: 'cond', label: 'Условия' },
   { id: 'docs', label: 'Документы' },
@@ -21,10 +22,14 @@ const TABS = [
 
 type IconName = keyof typeof I
 
-function TabBar({ active, onChange }: { active: string; onChange: (id: string) => void }) {
+function TabBar({ tabs, active, onChange }: {
+  tabs: { id: string; label: string }[]
+  active: string
+  onChange: (id: string) => void
+}) {
   return (
-    <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--color-border)', marginBottom: 32 }}>
-      {TABS.map(t => (
+    <div style={{ display: 'flex', gap: 4, borderBottom: '1px solid var(--color-border)', marginBottom: 32, flexWrap: 'wrap' }}>
+      {tabs.map(t => (
         <button key={t.id} onClick={() => onChange(t.id)} style={{
           padding: '14px 16px', background: 'none', border: 'none', cursor: 'pointer',
           fontSize: 14, fontWeight: 500,
@@ -181,6 +186,22 @@ export function ServiceDetailPage() {
     [service]
   )
 
+  // Калькулятор — фишка no-code конструктора: если в схеме есть хотя бы одно
+  // calculated-поле, на витрине сам собой появляется интерактивный виджет.
+  const hasCalculator = useMemo(() => allFields.some(f => f.type === 'calculated'), [allFields])
+
+  const tabs = useMemo(() => {
+    if (!hasCalculator) return BASE_TABS
+    const withCalc = [...BASE_TABS]
+    withCalc.splice(2, 0, { id: 'calc', label: 'Калькулятор' })
+    return withCalc
+  }, [hasCalculator])
+
+  // Если переключились на услугу без калькулятора, находясь на его вкладке — вернёмся к описанию.
+  useEffect(() => {
+    if (tab === 'calc' && !hasCalculator) setTab('desc')
+  }, [tab, hasCalculator])
+
   const benefits = useMemo(() => {
     const b: string[] = ['Онлайн-подача заявки']
     if (allFields.some(f => f.prefill_from)) b.push('Автозаполнение данных из eGov')
@@ -302,7 +323,7 @@ export function ServiceDetailPage() {
       {/* Two-column layout */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 32 }}>
         <main>
-          <TabBar active={tab} onChange={setTab} />
+          <TabBar tabs={tabs} active={tab} onChange={setTab} />
 
           {/* Описание */}
           {tab === 'desc' && (
@@ -358,6 +379,19 @@ export function ServiceDetailPage() {
                   ))}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Калькулятор — авто-собран из calculated-полей конструктора */}
+          {tab === 'calc' && hasCalculator && (
+            <div className="page-fade">
+              <h2 style={{ fontSize: 20, fontWeight: 700, marginTop: 0, marginBottom: 8 }}>Калькулятор</h2>
+              <p style={{ fontSize: 13, color: 'var(--color-text-3)', marginTop: 0, marginBottom: 20, lineHeight: 1.5 }}>
+                Расчёт формируется автоматически из конструктора формы.
+              </p>
+              <div style={{ marginBottom: 32 }}>
+                <ServiceCalculator key={service.id} schema={service.form_schema} />
+              </div>
             </div>
           )}
 

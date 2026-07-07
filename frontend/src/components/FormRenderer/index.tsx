@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import { Parser, type Expression } from 'expr-eval'
 import type { FormSchema, FormField, FormStep } from '@/types'
 import { I } from '@/components/icons'
+import { buildCalcPlan, evalNode, formatCurrency, formatCalcValue } from '@/lib/formula'
 
 interface Props {
   schema: FormSchema
@@ -18,47 +18,14 @@ interface Props {
   submitBlocked?: boolean
   /** Текст подсказки при заблокированной отправке. */
   submitBlockedHint?: string
-}
-
-// ── formula evaluation ────────────────────────────────────────────────────────
-
-const formulaParser = new Parser()
-
-interface CalcNode {
-  id: string
-  expr: Expression
-  deps: string[]
-}
-
-function buildCalcPlan(schema: FormSchema): CalcNode[] {
-  const plan: CalcNode[] = []
-  for (const step of schema.steps) {
-    for (const f of step.fields) {
-      if (f.type === 'calculated' && f.formula) {
-        try {
-          const expr = formulaParser.parse(f.formula)
-          plan.push({ id: f.id, expr, deps: expr.variables() })
-        } catch {
-          // Invalid formula — skip; value will stay 0
-        }
-      }
-    }
-  }
-  return plan
-}
-
-function evalNode(node: CalcNode, values: Record<string, unknown>): number {
-  try {
-    const scope: Record<string, number> = {}
-    for (const v of node.deps) scope[v] = parseFloat(String(values[v])) || 0
-    const r = node.expr.evaluate(scope)
-    return Number.isFinite(r) ? Number(r) : 0
-  } catch {
-    return 0
-  }
+  /** Доп. блок на финальном шаге «Проверка» (например, предварительная оценка заявителя). */
+  reviewSlot?: React.ReactNode
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
+// Вычисление формул (buildCalcPlan/evalNode) и formatCurrency вынесены в
+// @/lib/formula — тот же движок переиспользует ServiceCalculator (публичный
+// виджет на странице услуги).
 
 function checkCondition(
   condition: FormStep['condition'],
@@ -73,10 +40,6 @@ function checkCondition(
     case 'less_than':    return Number(val) < Number(condition.value)
     default: return true
   }
-}
-
-function formatCurrency(val: number): string {
-  return new Intl.NumberFormat('ru-KZ').format(Math.round(val))
 }
 
 function formatTime(d: Date): string {
@@ -110,7 +73,7 @@ function autocompleteFor(field: FormField): string | undefined {
 
 export function FormRenderer({
   schema, initialData = {}, onSubmit, submitting, prefilledKeys, draftKey,
-  onValuesChange, submitBlocked, submitBlockedHint,
+  onValuesChange, submitBlocked, submitBlockedHint, reviewSlot,
 }: Props) {
   // Восстановление черновика из localStorage (только при первом монтировании)
   const [values, setValues] = useState<Record<string, unknown>>(() => {
@@ -373,6 +336,7 @@ export function FormRenderer({
           onEdit={jumpToStep}
           filledRequired={filledRequired}
           totalRequired={totalRequired}
+          reviewSlot={reviewSlot}
         />
       )}
 
@@ -545,13 +509,14 @@ function StepProgress({ steps, currentStep, reviewStepIndex, onJump }: {
 
 // ── ReviewStep ────────────────────────────────────────────────────────────────
 
-function ReviewStep({ steps, values, getVisibleFields, onEdit, filledRequired, totalRequired }: {
+function ReviewStep({ steps, values, getVisibleFields, onEdit, filledRequired, totalRequired, reviewSlot }: {
   steps: FormStep[]
   values: Record<string, unknown>
   getVisibleFields: (s: FormStep) => FormField[]
   onEdit: (i: number) => void
   filledRequired: number
   totalRequired: number
+  reviewSlot?: React.ReactNode
 }) {
   const allFilled = filledRequired >= totalRequired
 
@@ -578,6 +543,8 @@ function ReviewStep({ steps, values, getVisibleFields, onEdit, filledRequired, t
             : `Заполнено ${filledRequired} из ${totalRequired} обязательных полей. Вернитесь к этапу с пропусками.`}
         </span>
       </div>
+
+      {reviewSlot && <div style={{ marginBottom: 20 }}>{reviewSlot}</div>}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {steps.map((step, idx) => {
@@ -680,16 +647,9 @@ interface FieldProps {
 
 function FieldRenderer({ field, value, error, fromEgov, onChange }: FieldProps) {
   const strVal = String(value ?? '')
-  const numVal = Number(value ?? 0)
 
   if (field.type === 'calculated') {
-    const mask = field.mask
-    let display = '—'
-    if (value !== undefined && value !== null && value !== '') {
-      if (mask === 'currency')      display = formatCurrency(numVal) + ' ₸'
-      else if (mask === 'percent')  display = numVal.toFixed(2) + '%'
-      else display = numVal % 1 === 0 ? String(Math.round(numVal)) : numVal.toFixed(2)
-    }
+    const display = formatCalcValue(field.mask, value)
     return (
       <div>
         <FieldLabel field={field} fromEgov={false} />
