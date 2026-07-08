@@ -4,6 +4,8 @@ import { test, expect } from '@playwright/test'
 // Goal: capture what actually goes wrong end-to-end (request/response, parse errors, toasts).
 
 test('AI form builder: leasing prompt end-to-end', async ({ page }) => {
+  // Внутренний Promise.race ждёт до 120с — глобальный timeout 30с из конфига убивал тест раньше.
+  test.setTimeout(130_000)
   const logs: string[] = []
   const errors: string[] = []
   const sseEvents: { len: number; tail: string; done: boolean; error?: string } = {

@@ -2,30 +2,18 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet'
 import type { Map as LeafletMap } from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import { useQuery } from '@tanstack/react-query'
 import { I } from '@/components/icons'
 import { useIsNarrow } from '@/hooks/useMediaQuery'
+import { contentApi, type MapProjectItem } from '@/api/client'
 
-// ─── Types & mock data ──────────────────────────────────────────────────────
+// ─── Presentation config ─────────────────────────────────────────────────────
 
-type OrgName = 'Даму' | 'ЭКА KazakhExport' | 'Аграрная кредитная корпорация' | 'КазАгроФинанс' | 'Kazakh Invest' | 'Astana Hub' | 'QazIndustry'
-type Status = 'Реализуется' | 'Завершён' | 'Инвестфаза'
-type Industry = 'АПК' | 'Обрабатывающая промышленность' | 'Транспорт и логистика' | 'Энергетика' | 'ИТ и связь' | 'Строительство' | 'Туризм'
-
-interface Project {
-  id: number
-  name: string
-  org: OrgName
-  region: string
-  city: string
+interface Project extends MapProjectItem {
   coords: [number, number]
-  industry: Industry
-  amount: number // млн тенге
-  period: string
-  status: Status
-  description: string
 }
 
-const ORG_COLORS: Record<OrgName, string> = {
+const ORG_COLORS: Record<string, string> = {
   'Даму': '#085E2C',
   'ЭКА KazakhExport': '#176D62',
   'Аграрная кредитная корпорация': '#1F6B3B',
@@ -34,10 +22,8 @@ const ORG_COLORS: Record<OrgName, string> = {
   'Astana Hub': '#6E4A24',
   'QazIndustry': '#705C33',
 }
-
-const ORGS: OrgName[] = ['Даму', 'ЭКА KazakhExport', 'Аграрная кредитная корпорация', 'КазАгроФинанс', 'Kazakh Invest', 'Astana Hub', 'QazIndustry']
-const INDUSTRIES: Industry[] = ['АПК', 'Обрабатывающая промышленность', 'Транспорт и логистика', 'Энергетика', 'ИТ и связь', 'Строительство', 'Туризм']
-const STATUSES: Status[] = ['Реализуется', 'Завершён', 'Инвестфаза']
+const DEFAULT_ORG_COLOR = '#5E7468'
+const orgColor = (o?: string) => (o && ORG_COLORS[o]) || DEFAULT_ORG_COLOR
 
 // Реальные координаты областных центров/городов РК (с небольшим разбросом на проект)
 const REGION_COORDS: Record<string, [number, number]> = {
@@ -68,42 +54,6 @@ function jitter([lat, lng]: [number, number], seed: number): [number, number] {
   return [lat + dx, lng + dy]
 }
 
-const RAW_PROJECTS: Array<Omit<Project, 'coords'> & { region: string }> = [
-  { id: 1,  name: 'Модернизация молочной фермы на 1200 голов',       org: 'Аграрная кредитная корпорация',   region: 'Акмолинская',    city: 'Кокшетау',    industry: 'АПК',                          amount: 2100, period: '2024–2026', status: 'Реализуется', description: 'Строительство современного молочного комплекса с роботизированным доением.' },
-  { id: 2,  name: 'Приобретение 40 полувагонов',                     org: 'Даму',         region: 'Карагандинская', city: 'Караганда',   industry: 'Транспорт и логистика',        amount: 3200, period: '2025–2027', status: 'Инвестфаза',  description: 'Обновление парка подвижного состава для перевозки угля и металлопродукции.' },
-  { id: 3,  name: 'Тепличный комплекс 12 га',                        org: 'Аграрная кредитная корпорация',   region: 'Туркестанская',  city: 'Туркестан',   industry: 'АПК',                          amount: 5400, period: '2023–2026', status: 'Реализуется', description: 'Круглогодичное выращивание овощей закрытого грунта с системой досветки.' },
-  { id: 4,  name: 'Цех переработки полимеров',                       org: 'QazIndustry',      region: 'Атырауская',     city: 'Атырау',      industry: 'Обрабатывающая промышленность', amount: 1850, period: '2024–2025', status: 'Завершён',    description: 'Выпуск полимерной упаковки и труб для нужд нефтегазового сектора.' },
-  { id: 5,  name: 'Экспорт муки в страны Центральной Азии',          org: 'ЭКА KazakhExport',     region: 'Костанайская',   city: 'Костанай',    industry: 'АПК',                          amount: 780,  period: '2025',      status: 'Реализуется', description: 'Финансирование оборотного капитала мукомольного комбината-экспортёра.' },
-  { id: 6,  name: 'Ветропарк мощностью 100 МВт',                     org: 'Kazakh Invest',region: 'Жамбылская',     city: 'Тараз',       industry: 'Энергетика',                   amount: 8500, period: '2024–2028', status: 'Инвестфаза',  description: 'Строительство ветроэлектростанции с последующей продажей на рынок КОРЭМ.' },
-  { id: 7,  name: 'Гарантия по кредиту на цех металлоконструкций',   org: 'Даму',  region: 'ВКО',            city: 'Усть-Каменогорск', industry: 'Обрабатывающая промышленность', amount: 640, period: '2024–2025', status: 'Реализуется', description: 'Обеспечение доступа к банковскому финансированию для производства ЛСТК.' },
-  { id: 8,  name: 'IT-парк для аутсорс-разработки',                 org: 'Astana Hub',      region: 'Астана',         city: 'Астана',      industry: 'ИТ и связь',                   amount: 2300, period: '2025–2027', status: 'Инвестфаза',  description: 'Создание коворкинг-пространства и хаба для продуктовых IT-команд.' },
-  { id: 9,  name: 'Развитие эко-турбазы на Бурабае',                org: 'Kazakh Invest',region: 'Акмолинская',    city: 'Бурабай',     industry: 'Туризм',                       amount: 460,  period: '2024–2026', status: 'Реализуется', description: 'Строительство глэмпинга и туристических маршрутов вокруг курортной зоны.' },
-  { id: 10, name: 'Приобретение зерноуборочных комбайнов',           org: 'КазАгроФинанс',   region: 'СКО',            city: 'Петропавловск', industry: 'АПК',                        amount: 1340, period: '2025',      status: 'Реализуется', description: 'Лизинг 25 единиц комбайнов для парка сельхозкооператива.' },
-  { id: 11, name: 'Завод по производству рыбных консервов',          org: 'QazIndustry',      region: 'Кызылординская', city: 'Кызылорда',   industry: 'Обрабатывающая промышленность', amount: 990, period: '2023–2025', status: 'Завершён',    description: 'Переработка аральского сазана и судака в консервную продукцию.' },
-  { id: 12, name: 'Логистический хаб на границе с КНР',              org: 'Даму',         region: 'Алматинская',    city: 'Жаркент',     industry: 'Транспорт и логистика',        amount: 6200, period: '2024–2027', status: 'Инвестфаза',  description: 'Терминал перевалки контейнерных грузов на маршруте Западная Европа — Западный Китай.' },
-  { id: 13, name: 'Экспорт хлопкового волокна в Турцию',             org: 'ЭКА KazakhExport',     region: 'Туркестанская',  city: 'Шымкент',     industry: 'АПК',                          amount: 520,  period: '2025',      status: 'Реализуется', description: 'Кредитование текстильного кластера для наращивания экспортных поставок.' },
-  { id: 14, name: 'Солнечная электростанция 60 МВт',                org: 'Kazakh Invest',region: 'Кызылординская', city: 'Кызылорда',   industry: 'Энергетика',                   amount: 4700, period: '2024–2026', status: 'Реализуется', description: 'Строительство фотоэлектрической станции с подключением к региональным сетям.' },
-  { id: 15, name: 'Гарантия по кредиту на швейное производство',      org: 'Даму',  region: 'Жамбылская',     city: 'Тараз',       industry: 'Обрабатывающая промышленность', amount: 210, period: '2024–2025', status: 'Завершён',    description: 'Расширение фабрики по пошиву спецодежды и школьной формы.' },
-  { id: 16, name: 'Приобретение 15 полувагонов-цистерн',             org: 'Даму',         region: 'Мангистауская',  city: 'Актау',       industry: 'Транспорт и логистика',        amount: 2650, period: '2025–2026', status: 'Инвестфаза',  description: 'Обновление парка цистерн для перевозки нефтепродуктов.' },
-  { id: 17, name: 'Агрегационный центр по хранению овощей',           org: 'Аграрная кредитная корпорация',   region: 'Алматинская',    city: 'Талдыкорган', industry: 'АПК',                          amount: 1580, period: '2024–2025', status: 'Реализуется', description: 'Строительство овощехранилища на 20 000 тонн с регулируемой атмосферой.' },
-  { id: 18, name: 'Стартап-акселератор для финтех-компаний',          org: 'Astana Hub',      region: 'Алматы',         city: 'Алматы',      industry: 'ИТ и связь',                   amount: 350,  period: '2025',      status: 'Реализуется', description: 'Грантовая поддержка ранних финтех-проектов и менторская программа.' },
-  { id: 19, name: 'Реконструкция гостиничного комплекса',             org: 'Kazakh Invest',region: 'Алматы',         city: 'Алматы',      industry: 'Туризм',                       amount: 3100, period: '2024–2026', status: 'Реализуется', description: 'Модернизация номерного фонда и конференц-зон отеля 4*.' },
-  { id: 20, name: 'Экспорт подсолнечного масла в страны Персидского залива', org: 'ЭКА KazakhExport', region: 'Костанайская', city: 'Костанай',   industry: 'АПК',                          amount: 1120, period: '2025',      status: 'Реализуется', description: 'Финансирование поставок бутилированного масла на новые рынки сбыта.' },
-  { id: 21, name: 'Цех по производству стройматериалов из ЗШО',       org: 'QazIndustry',      region: 'Павлодарская',   city: 'Павлодар',    industry: 'Строительство',                amount: 890,  period: '2024–2025', status: 'Завершён',    description: 'Переработка золошлаковых отходов ТЭЦ в товарный строительный материал.' },
-  { id: 22, name: 'Гарантия по кредиту на цех упаковки',              org: 'Даму',  region: 'Улытау',         city: 'Жезказган',   industry: 'Обрабатывающая промышленность', amount: 175, period: '2025',      status: 'Инвестфаза',  description: 'Организация производства гофротары для медной промышленности региона.' },
-  { id: 23, name: 'Приобретение 60 контейнеровозов',                  org: 'Даму',         region: 'ЗКО',            city: 'Уральск',     industry: 'Транспорт и логистика',        amount: 4100, period: '2025–2027', status: 'Инвестфаза',  description: 'Расширение парка автотехники для контейнерных перевозок.' },
-  { id: 24, name: 'Тепличный комплекс для выращивания клубники',      org: 'Аграрная кредитная корпорация',   region: 'Жетісу',         city: 'Талдыкорган', industry: 'АПК',                          amount: 970,  period: '2024–2026', status: 'Реализуется', description: 'Круглогодичное производство ягод с использованием капельного орошения.' },
-  { id: 25, name: 'Реставрация историко-туристского маршрута',        org: 'Kazakh Invest',region: 'Туркестанская',  city: 'Туркестан',   industry: 'Туризм',                       amount: 610,  period: '2024–2025', status: 'Завершён',    description: 'Развитие инфраструктуры вокруг мавзолея Ходжи Ахмеда Ясави.' },
-  { id: 26, name: 'Ветеринарная лаборатория и убойный цех',           org: 'Аграрная кредитная корпорация',   region: 'Абай',           city: 'Семей',       industry: 'АПК',                          amount: 730,  period: '2025',      status: 'Реализуется', description: 'Строительство сертифицированного убойного цеха для экспорта мяса.' },
-  { id: 27, name: 'Дата-центр уровня Tier III',                       org: 'Astana Hub',      region: 'Астана',         city: 'Астана',      industry: 'ИТ и связь',                   amount: 3900, period: '2024–2027', status: 'Инвестфаза',  description: 'Строительство коммерческого ЦОД для размещения гос. и корпоративных систем.' },
-  { id: 28, name: 'Гарантия по кредиту на автосервисную сеть',         org: 'Даму',  region: 'Шымкент',        city: 'Шымкент',     industry: 'Строительство',                amount: 145,  period: '2025',      status: 'Реализуется', description: 'Развитие сети сервисных центров для коммерческого автотранспорта.' },
-]
-
-const PROJECTS: Project[] = RAW_PROJECTS.map((p) => ({
-  ...p,
-  coords: jitter(REGION_COORDS[p.region] ?? [48.0, 67.0], p.id),
-}))
-
 const MIN_AMOUNT = 45
 const MAX_AMOUNT = 8500
 
@@ -127,6 +77,23 @@ export function ProjectsMapPage() {
   const isNarrow = useIsNarrow()
   const mapRef = useRef<LeafletMap | null>(null)
 
+  const { data: raw = [], isLoading } = useQuery<MapProjectItem[]>({
+    queryKey: ['map-projects'],
+    queryFn: () => contentApi.mapProjects().then((r) => r.data ?? []),
+  })
+
+  // Проекты с координатами: явные lat/lng либо центр региона с детерминированным
+  // разбросом по sort_order (сохраняет прежнее поведение при пустых lat/lng).
+  const projects = useMemo<Project[]>(
+    () => raw.map((p) => {
+      const base: [number, number] = (p.region ? REGION_COORDS[p.region] : undefined) ?? [48.0, 67.0]
+      const coords: [number, number] =
+        p.lat != null && p.lng != null ? [p.lat, p.lng] : jitter(base, p.sort_order)
+      return { ...p, coords }
+    }),
+    [raw],
+  )
+
   // На узких экранах карта/сайдбар переключаются с 2-колоночной сетки в 1-колоночную —
   // после смены раскладки контейнер карты меняет размеры, и Leaflet должен пересчитать
   // сетку тайлов, иначе останутся серые/обрезанные тайлы.
@@ -137,19 +104,22 @@ export function ProjectsMapPage() {
     return () => cancelAnimationFrame(raf)
   }, [isNarrow])
 
-  const regions = useMemo(() => Array.from(new Set(PROJECTS.map((p) => p.region))).sort(), [])
+  const orgs = useMemo(() => Array.from(new Set(projects.map((p) => p.org).filter(Boolean) as string[])).sort(), [projects])
+  const regions = useMemo(() => Array.from(new Set(projects.map((p) => p.region).filter(Boolean) as string[])).sort(), [projects])
+  const industries = useMemo(() => Array.from(new Set(projects.map((p) => p.industry).filter(Boolean) as string[])).sort(), [projects])
+  const statuses = useMemo(() => Array.from(new Set(projects.map((p) => p.status).filter(Boolean) as string[])).sort(), [projects])
 
   const filtered = useMemo(() => {
-    return PROJECTS.filter((p) =>
+    return projects.filter((p) =>
       (!org || p.org === org) &&
       (!region || p.region === region) &&
       (!industry || p.industry === industry) &&
       (!status || p.status === status)
     )
-  }, [org, region, industry, status])
+  }, [projects, org, region, industry, status])
 
   const stats = useMemo(() => {
-    const totalAmount = filtered.reduce((s, p) => s + p.amount, 0)
+    const totalAmount = filtered.reduce((s, p) => s + (p.amount || 0), 0)
     const regionsCovered = new Set(filtered.map((p) => p.region)).size
     const orgsCovered = new Set(filtered.map((p) => p.org)).size
     return { count: filtered.length, totalAmount, regionsCovered, orgsCovered }
@@ -158,10 +128,11 @@ export function ProjectsMapPage() {
   const regionDistribution = useMemo(() => {
     const map = new Map<string, { count: number; amount: number }>()
     filtered.forEach((p) => {
-      const cur = map.get(p.region) ?? { count: 0, amount: 0 }
+      const key = p.region ?? '—'
+      const cur = map.get(key) ?? { count: 0, amount: 0 }
       cur.count += 1
-      cur.amount += p.amount
-      map.set(p.region, cur)
+      cur.amount += p.amount || 0
+      map.set(key, cur)
     })
     const arr = Array.from(map.entries()).map(([r, v]) => ({ region: r, ...v }))
     arr.sort((a, b) => b.amount - a.amount)
@@ -185,10 +156,10 @@ export function ProjectsMapPage() {
 
       {/* Stat tiles */}
       <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr 1fr' : 'repeat(4, 1fr)', gap: 16, marginBottom: 20 }}>
-        <StatTile icon="Grid" label="Всего проектов" value={stats.count.toString()} />
-        <StatTile icon="Coins" label="Общая сумма финансирования" value={`${formatAmount(stats.totalAmount)} млн ₸`} />
-        <StatTile icon="MapPin" label="Регионов охвачено" value={stats.regionsCovered.toString()} />
-        <StatTile icon="Building" label="Организаций" value={stats.orgsCovered.toString()} />
+        <StatTile icon="Grid" label="Всего проектов" value={isLoading ? '…' : stats.count.toString()} />
+        <StatTile icon="Coins" label="Общая сумма финансирования" value={isLoading ? '…' : `${formatAmount(stats.totalAmount)} млн ₸`} />
+        <StatTile icon="MapPin" label="Регионов охвачено" value={isLoading ? '…' : stats.regionsCovered.toString()} />
+        <StatTile icon="Building" label="Организаций" value={isLoading ? '…' : stats.orgsCovered.toString()} />
       </div>
 
       {/* Filters */}
@@ -196,7 +167,7 @@ export function ProjectsMapPage() {
         <I.Filter size={16} style={{ color: 'var(--color-text-3)', flexShrink: 0 }} />
         <select className="select" value={org} onChange={(e) => setOrg(e.target.value)} style={{ maxWidth: 200 }}>
           <option value="">Все организации</option>
-          {ORGS.map((o) => <option key={o} value={o}>{o}</option>)}
+          {orgs.map((o) => <option key={o} value={o}>{o}</option>)}
         </select>
         <select className="select" value={region} onChange={(e) => setRegion(e.target.value)} style={{ maxWidth: 200 }}>
           <option value="">Все регионы</option>
@@ -204,11 +175,11 @@ export function ProjectsMapPage() {
         </select>
         <select className="select" value={industry} onChange={(e) => setIndustry(e.target.value)} style={{ maxWidth: 220 }}>
           <option value="">Все отрасли</option>
-          {INDUSTRIES.map((i) => <option key={i} value={i}>{i}</option>)}
+          {industries.map((i) => <option key={i} value={i}>{i}</option>)}
         </select>
         <select className="select" value={status} onChange={(e) => setStatus(e.target.value)} style={{ maxWidth: 180 }}>
           <option value="">Все статусы</option>
-          {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+          {statuses.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
         {hasFilters && (
           <button className="btn btn-ghost btn-sm" onClick={() => { setOrg(''); setRegion(''); setIndustry(''); setStatus('') }}>
@@ -216,7 +187,7 @@ export function ProjectsMapPage() {
           </button>
         )}
         <div style={{ marginLeft: 'auto', fontSize: 13, color: 'var(--color-text-3)' }}>
-          Показано {filtered.length} из {PROJECTS.length}
+          Показано {filtered.length} из {projects.length}
         </div>
       </div>
 
@@ -232,10 +203,10 @@ export function ProjectsMapPage() {
               <CircleMarker
                 key={p.id}
                 center={p.coords}
-                radius={radiusFor(p.amount)}
+                radius={radiusFor(p.amount || 0)}
                 pathOptions={{
-                  color: ORG_COLORS[p.org],
-                  fillColor: ORG_COLORS[p.org],
+                  color: orgColor(p.org),
+                  fillColor: orgColor(p.org),
                   fillOpacity: 0.55,
                   weight: 1.5,
                 }}
@@ -256,7 +227,7 @@ export function ProjectsMapPage() {
           </div>
           {regionDistribution.length === 0 ? (
             <div style={{ fontSize: 13, color: 'var(--color-text-3)', padding: '20px 0', textAlign: 'center' }}>
-              Нет проектов по заданным фильтрам
+              {isLoading ? 'Загрузка…' : 'Нет проектов по заданным фильтрам'}
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -283,9 +254,9 @@ export function ProjectsMapPage() {
 
           <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Легенда организаций</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {ORGS.map((o) => (
+            {orgs.map((o) => (
               <div key={o} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: 'var(--color-text-2)' }}>
-                <span style={{ width: 10, height: 10, borderRadius: '50%', background: ORG_COLORS[o], flexShrink: 0 }} />
+                <span style={{ width: 10, height: 10, borderRadius: '50%', background: orgColor(o), flexShrink: 0 }} />
                 {o}
               </div>
             ))}
@@ -314,25 +285,26 @@ function StatTile({ icon, label, value }: { icon: keyof typeof I; label: string;
   )
 }
 
-const STATUS_BADGE: Record<Status, string> = {
+const STATUS_BADGE: Record<string, string> = {
   'Реализуется': 'badge-green',
   'Завершён': 'badge-blue',
   'Инвестфаза': 'badge-amber',
 }
+const statusBadge = (s?: string) => (s && STATUS_BADGE[s]) || 'badge-gray'
 
 function ProjectPopupCard({ project: p }: { project: Project }) {
   return (
     <div style={{ fontFamily: 'var(--ff)', minWidth: 220 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-        <span className="badge" style={{ background: `${ORG_COLORS[p.org]}1A`, color: ORG_COLORS[p.org] }}>{p.org}</span>
-        <span className={`badge ${STATUS_BADGE[p.status]}`}>{p.status}</span>
+        {p.org && <span className="badge" style={{ background: `${orgColor(p.org)}1A`, color: orgColor(p.org) }}>{p.org}</span>}
+        {p.status && <span className={`badge ${statusBadge(p.status)}`}>{p.status}</span>}
       </div>
       <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.35, marginBottom: 6, color: 'var(--color-text)' }}>{p.name}</div>
-      <div style={{ fontSize: 12, color: 'var(--color-text-3)', marginBottom: 8 }}>{p.description}</div>
+      {p.description && <div style={{ fontSize: 12, color: 'var(--color-text-3)', marginBottom: 8 }}>{p.description}</div>}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 3, fontSize: 12, color: 'var(--color-text-2)', marginBottom: 10 }}>
-        <div><strong>Регион:</strong> {p.region}, {p.city}</div>
+        <div><strong>Регион:</strong> {p.region}{p.city ? `, ${p.city}` : ''}</div>
         <div><strong>Отрасль:</strong> {p.industry}</div>
-        <div><strong>Сумма:</strong> {formatAmount(p.amount)} млн ₸</div>
+        <div><strong>Сумма:</strong> {formatAmount(p.amount || 0)} млн ₸</div>
         <div><strong>Период:</strong> {p.period}</div>
       </div>
       <a href="#" className="btn btn-primary btn-sm" style={{ width: '100%' }}>

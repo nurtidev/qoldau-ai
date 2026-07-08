@@ -1,6 +1,6 @@
 import { Link, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { applicationsApi, documentsApi, mockApi, servicesApi } from '@/api/client'
+import { applicationsApi, documentsApi, mockApi, servicesApi, type ECPSignature } from '@/api/client'
 import { I } from '@/components/icons'
 import { useRef, useState } from 'react'
 import { useAuthStore } from '@/store/auth'
@@ -9,6 +9,7 @@ import { FormRenderer } from '@/components/FormRenderer'
 import { AlternativeRecommendations } from '@/components/AlternativeRecommendations'
 import { PrescoreCard, type PrescoreCardResult } from '@/components/PrescoreCard'
 import { SlaBadge } from '@/components/SlaBadge'
+import { ECPSignModal } from '@/components/ECPSignModal'
 import { getSlaInfo } from '@/lib/sla'
 import type { Application, Document, ApplicationStatus, Service } from '@/types'
 import { APPLICATION_STATUS_LABELS } from '@/types'
@@ -79,6 +80,8 @@ export function ApplicationDetailPage() {
 
   const [stage2Open, setStage2Open]           = useState(false)
   const [stage2Submitting, setStage2Submitting] = useState(false)
+  const [signModalOpen, setSignModalOpen]     = useState(false)
+  const [pendingStage2Data, setPendingStage2Data] = useState<Record<string, unknown> | null>(null)
 
   const { data: app } = useQuery<Application>({
     queryKey: ['application', id],
@@ -114,7 +117,24 @@ export function ApplicationDetailPage() {
   const timeline = buildTimeline(app)
   const stage2Steps = service?.form_schema?.steps?.filter(s => s.stage === 2) ?? []
 
-  const handleStage2Submit = async (formData: Record<string, unknown>) => {
+  // FormRenderer вызывает onSubmit после валидации — перед реальной отправкой
+  // этапа 2 требуем подписание ЭЦП, как и на этапе 1 (см. ApplyPage).
+  const handleStage2FormSubmit = (formData: Record<string, unknown>) => {
+    setPendingStage2Data(formData)
+    setSignModalOpen(true)
+  }
+
+  const handleStage2SignCancel = () => {
+    setSignModalOpen(false)
+    setPendingStage2Data(null)
+  }
+
+  const handleStage2Signed = async (signature: ECPSignature) => {
+    setSignModalOpen(false)
+    const formData = pendingStage2Data
+    setPendingStage2Data(null)
+    if (!formData) return
+
     setStage2Submitting(true)
     try {
       // Separate File objects — they are uploaded, JSONB keeps the file name.
@@ -124,6 +144,7 @@ export function ApplicationDetailPage() {
         if (val instanceof File) { files.push(val); clean[key] = val.name }
         else clean[key] = val
       }
+      clean._signature_stage2 = signature
       for (const file of files) await documentsApi.upload(id!, file)
       await applicationsApi.submitStage2(id!, clean)
 
@@ -144,6 +165,9 @@ export function ApplicationDetailPage() {
   const formEntries = Object.entries(app.form_data)
     .filter(([k, v]) => !k.startsWith('_') && v !== null && v !== '')
   const prescore = app.form_data._prescore as PrescoreCardResult | undefined
+  // Снимки подписи ЭЦП (мок NCALayer) — могут отсутствовать у старых заявок.
+  const signature1 = app.form_data._signature as ECPSignature | undefined
+  const signature2 = app.form_data._signature_stage2 as ECPSignature | undefined
 
   return (
     <div className="container page-fade" style={{ paddingTop: 28, paddingBottom: 60, maxWidth: 900 }}>
@@ -257,7 +281,7 @@ export function ApplicationDetailPage() {
                     <FormRenderer
                       schema={{ steps: stage2Steps }}
                       initialData={app.form_data}
-                      onSubmit={handleStage2Submit}
+                      onSubmit={handleStage2FormSubmit}
                       submitting={stage2Submitting}
                     />
                   ) : (
@@ -281,6 +305,14 @@ export function ApplicationDetailPage() {
 
           {/* Предварительная оценка заявителя (снимок на момент подачи) */}
           {prescore && <PrescoreCard result={prescore} compact />}
+
+          {/* Снимки подписи ЭЦП (мок NCALayer/НУЦ РК) */}
+          {(signature1 || signature2) && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {signature1 && <SignatureBadge signature={signature1} label="Этап 1 подписан ЭЦП" />}
+              {signature2 && <SignatureBadge signature={signature2} label="Этап 2 подписан ЭЦП" />}
+            </div>
+          )}
 
           {/* Form data */}
           {formEntries.length > 0 && (
@@ -421,6 +453,38 @@ export function ApplicationDetailPage() {
             </div>
           </div>
         </aside>
+      </div>
+
+      <ECPSignModal
+        open={signModalOpen}
+        iin={user?.iin ?? ''}
+        fullName={user?.full_name}
+        onSigned={handleStage2Signed}
+        onCancel={handleStage2SignCancel}
+      />
+    </div>
+  )
+}
+
+// ── SignatureBadge ────────────────────────────────────────────────────────────
+// Компактный бейдж со снимком подписи ЭЦП (мок NCALayer/НУЦ РК) — form_data
+// может не содержать этих ключей у заявок, поданных до внедрения подписания.
+
+function SignatureBadge({ signature, label }: { signature: ECPSignature; label: string }) {
+  return (
+    <div className="card" style={{
+      padding: '14px 18px', display: 'flex', alignItems: 'flex-start', gap: 12,
+      background: 'var(--color-success-soft)', border: '1px solid #A7F3D0',
+    }}>
+      <I.Shield size={18} style={{ color: 'var(--color-success)', flexShrink: 0, marginTop: 1 }} />
+      <div style={{ fontSize: 13, color: '#065F46', lineHeight: 1.55 }}>
+        <strong>{label}</strong>
+        <div style={{ marginTop: 2 }}>
+          № подписи: <strong>{signature.signature_id}</strong> · Владелец: <strong>{signature.cert_owner}</strong>
+        </div>
+        <div style={{ color: 'var(--color-text-3)', marginTop: 2 }}>
+          {new Date(signature.signed_at).toLocaleString('ru-KZ')} · {signature.algorithm}
+        </div>
       </div>
     </div>
   )

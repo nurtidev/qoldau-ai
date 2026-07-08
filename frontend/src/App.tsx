@@ -17,6 +17,7 @@ import { AdminServices }        from '@/pages/admin/AdminServices'
 import { AdminApplications }    from '@/pages/admin/AdminApplications'
 import { ServiceFormPage }      from '@/pages/admin/ServiceFormPage'
 import { AdminUsers }           from '@/pages/admin/AdminUsers'
+import { AdminContent }         from '@/pages/admin/AdminContent'
 import { AdminSettings }        from '@/pages/admin/AdminSettings'
 import { AdminAnalytics }       from '@/pages/admin/AdminAnalytics'
 import { LoginPage }            from '@/pages/LoginPage'
@@ -76,6 +77,7 @@ function Shell() {
       <Route path="/admin/services"          element={<RequireStaff><AdminServices /></RequireStaff>} />
       <Route path="/admin/services/new"      element={<RequireStaff><ServiceFormPage /></RequireStaff>} />
       <Route path="/admin/services/:id/edit" element={<RequireStaff><ServiceFormPage /></RequireStaff>} />
+      <Route path="/admin/content"           element={<RequireStaff><AdminContent /></RequireStaff>} />
       <Route path="/admin/settings"          element={<RequireStaff><AdminSettings /></RequireStaff>} />
       <Route path="/admin/applications"      element={<RequireAdmin><AdminApplications /></RequireAdmin>} />
       <Route path="/admin/users"             element={<RequireAdmin><AdminUsers /></RequireAdmin>} />

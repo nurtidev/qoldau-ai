@@ -19,20 +19,20 @@ async function loginAsAdmin(page: Page) {
 
 test('AI generate-form работает через UI — стрим стартует и приходит контент', async ({ page }) => {
   await loginAsAdmin(page)
-  await page.goto('/admin/services/new')
+  // ?e2e=1 отключает BuilderTour (joyride-оверлей перехватывает клики)
+  await page.goto('/admin/services/new?e2e=1')
 
   const textarea = page.locator('textarea').first()
   await textarea.fill('Льготный микрокредит для ИП до 10 млн тенге')
 
   await page.getByRole('button', { name: /сгенерировать форму|сгенерировать/i }).first().click()
 
-  // 1. Streaming-индикатор появляется → значит запрос ушёл, Claude отвечает
-  await expect(page.getByText(/claude генерирует форму/i))
-    .toBeVisible({ timeout: 15_000 })
+  // 1. Streaming-лоадер появляется → значит запрос ушёл, Claude отвечает
+  await expect(page.getByTestId('ai-loader')).toBeVisible({ timeout: 15_000 })
 
-  // 2. В терминале появляется первая JSON-структура за ~10 сек → стрим живой
-  // Слово "step" должно появиться в потоке очень рано
-  await expect(page.getByText(/steps|step_1|fields/i).first())
+  // 2. Фаза лоадера сменяется с «Анализирую…» (0 симв.) на следующую —
+  // это происходит только когда из стрима пришло >600 символов → стрим живой
+  await expect(page.getByText(/подбираю шаги|формирую поля|добавляю формулы|финализирую/i).first())
     .toBeVisible({ timeout: 30_000 })
 
   // Полное завершение стрима не дожидаемся — это 30-90 сек и зависит от

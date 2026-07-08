@@ -1,8 +1,13 @@
 package handlers
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"net/http"
+	"strings"
+	"sync/atomic"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -108,5 +113,51 @@ func (h *MockHandler) EISHSubmit(w http.ResponseWriter, r *http.Request) {
 		"status":      "accepted",
 		"external_id": fmt.Sprintf("EISH-2026-%05d", len(req.ApplicationID)),
 		"message":     "Заявка передана в BPM систему",
+	})
+}
+
+// ecpSeq is an in-memory incrementing counter for mock signature IDs — mirrors
+// the len()-based counter used by EISHSubmit, just monotonic across requests.
+var ecpSeq int64
+
+// ECPSign imitates an EDS (ЭЦП) signing round-trip against NCALayer / НУЦ РК,
+// as referenced in the hackathon spec (п. 6.12 «Имитация интеграций» — «проверка
+// ЭЦП»). No real cryptography: it returns a plausible-looking signature envelope
+// so the frontend can demo a sign-before-submit flow.
+func (h *MockHandler) ECPSign(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		IIN      string `json:"iin"`
+		FullName string `json:"full_name"`
+	}
+	if err := decode(r, &req); err != nil || req.IIN == "" {
+		respondErr(w, http.StatusBadRequest, "iin required")
+		return
+	}
+
+	owner := req.FullName
+	if owner == "" {
+		data, ok := egovData[req.IIN]
+		if !ok {
+			data = egovData["default"]
+		}
+		if fn, ok := data["full_name"].(string); ok {
+			owner = fn
+		}
+	}
+
+	n := atomic.AddInt64(&ecpSeq, 1)
+	now := time.Now()
+
+	sum := sha256.Sum256([]byte(fmt.Sprintf("%s|%d|%d", req.IIN, now.UnixNano(), n)))
+	serial := strings.ToUpper(hex.EncodeToString(sum[:16]))
+
+	respond(w, http.StatusOK, map[string]interface{}{
+		"signature_id": fmt.Sprintf("ECP-2026-%06d", n),
+		"cert_serial":  serial,
+		"cert_owner":   owner,
+		"cert_issuer":  "НУЦ РК (GOST)",
+		"algorithm":    "ГОСТ 34.310-2004",
+		"signed_at":    now.Format(time.RFC3339),
+		"valid_until":  now.AddDate(1, 0, 0).Format(time.RFC3339),
 	})
 }

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { servicesApi, applicationsApi, documentsApi, mockApi, type KGDData } from '@/api/client'
+import { servicesApi, applicationsApi, documentsApi, mockApi, type KGDData, type ECPSignature } from '@/api/client'
 import { useAuthStore } from '@/store/auth'
 import { I } from '@/components/icons'
 import { useToast } from '@/components/Toast'
@@ -10,6 +10,8 @@ import { KGDCheck } from '@/components/KGDCheck'
 import { PreflightPanel } from '@/components/PreflightPanel'
 import { AlternativeRecommendations } from '@/components/AlternativeRecommendations'
 import { PrescoreCard } from '@/components/PrescoreCard'
+import { AIReviewCard } from '@/components/AIReviewCard'
+import { ECPSignModal } from '@/components/ECPSignModal'
 import { computePrescore, extractRequestedAmount, toPrescoreSnapshot } from '@/lib/prescore'
 import type { Service } from '@/types'
 
@@ -29,6 +31,8 @@ export function ApplyPage() {
   const [currentValues, setCurrentValues] = useState<Record<string, unknown>>({})
   const [hasBlocking, setHasBlocking]     = useState(false)
   const [showAlternatives, setShowAlternatives] = useState(false)
+  const [signModalOpen, setSignModalOpen] = useState(false)
+  const [pendingFormData, setPendingFormData] = useState<Record<string, unknown> | null>(null)
 
   const { data: service, isLoading } = useQuery<Service>({
     queryKey: ['service', service_id],
@@ -66,7 +70,24 @@ export function ApplyPage() {
     [egovData, kgdData, requestedAmount],
   )
 
-  const handleSubmit = async (formData: Record<string, unknown>) => {
+  // FormRenderer вызывает onSubmit только после прохождения валидации всех шагов —
+  // но перед реальной отправкой заявки требуем подписание ЭЦП (имитация NCALayer/eGov).
+  const handleFormSubmit = (formData: Record<string, unknown>) => {
+    setPendingFormData(formData)
+    setSignModalOpen(true)
+  }
+
+  const handleSignCancel = () => {
+    setSignModalOpen(false)
+    setPendingFormData(null)
+  }
+
+  const handleSigned = async (signature: ECPSignature) => {
+    setSignModalOpen(false)
+    const formData = pendingFormData
+    setPendingFormData(null)
+    if (!formData) return
+
     setSubmitting(true)
     try {
       // Separate File objects — JSON.stringify can't serialize them
@@ -87,6 +108,9 @@ export function ApplyPage() {
         ? computePrescore({ egov: egovData, kgd: kgdData, requestedAmount: amount })
         : null
       if (result) cleanData._prescore = toPrescoreSnapshot(result)
+
+      // Снимок подписи ЭЦП (мок NCALayer/НУЦ РК).
+      cleanData._signature = signature
 
       const res = await applicationsApi.create(service_id!, cleanData)
       const appId = res.data.id
@@ -204,7 +228,7 @@ export function ApplyPage() {
           : <FormRenderer
               schema={stage1Schema}
               initialData={initialData}
-              onSubmit={handleSubmit}
+              onSubmit={handleFormSubmit}
               submitting={submitting}
               prefilledKeys={prefilledKeys}
               draftKey={user ? `qoldau:draft:${service_id}:${user.id}` : undefined}
@@ -213,10 +237,23 @@ export function ApplyPage() {
               submitBlockedHint={hasBlocking
                 ? 'Есть стоп-факторы программы — устраните их или выберите альтернативу'
                 : undefined}
-              reviewSlot={<PrescoreCard result={prescore} loading={!kgdData} />}
+              reviewSlot={
+                <>
+                  <PrescoreCard result={prescore} loading={!kgdData} />
+                  <AIReviewCard serviceId={service.id} formData={currentValues} />
+                </>
+              }
             />
         }
       </div>
+
+      <ECPSignModal
+        open={signModalOpen}
+        iin={user?.iin ?? ''}
+        fullName={user?.full_name}
+        onSigned={handleSigned}
+        onCancel={handleSignCancel}
+      />
     </div>
   )
 }

@@ -50,6 +50,7 @@ func main() {
 	funnelH := handlers.NewFunnelHandler(database)
 	leadsH := handlers.NewLeadsHandler(database)
 	usersH := handlers.NewUsersHandler(database)
+	contentH := handlers.NewContentHandler(database)
 
 	authMw := middleware.Auth(cfg.JWTSecret)
 	adminMw := middleware.RequireRole("admin")
@@ -104,6 +105,10 @@ func main() {
 		r.With(authMw).Post("/ai/generate-form", aiH.GenerateForm)
 		r.With(authMw).Post("/ai/generate-form-stream", aiH.GenerateFormStream)
 		r.With(authMw).Post("/ai/recommend", aiH.Recommend)
+		// Client-path AI (public — juries view cards before login):
+		r.Post("/ai/explain-service", aiH.ExplainService) // SSE stream, plain-language explainer
+		r.Post("/ai/pick-service", aiH.PickService)       // screener → AI match
+		r.With(authMw).Post("/ai/review-application", aiH.ReviewApplication)
 
 		// Applications
 		r.Route("/applications", func(r chi.Router) {
@@ -137,6 +142,7 @@ func main() {
 		r.Get("/mock/egov/{iin}", mockH.EGov)
 		r.Get("/mock/kgd/{bin}", mockH.KGD)
 		r.Post("/mock/eish/submit", mockH.EISHSubmit)
+		r.Post("/mock/ecp/sign", mockH.ECPSign)
 
 		// Users (admin only)
 		r.With(authMw, adminMw).Get("/users", usersH.List)
@@ -149,6 +155,21 @@ func main() {
 		// Leads ("Перезвоните мне" widget) — POST is public, list is admin-only.
 		r.Post("/leads", leadsH.Create)
 		r.With(authMw, adminMw).Get("/leads", leadsH.List)
+
+		// Content catalog (managed from admin): analytics materials + map projects.
+		// GET public; writes require admin/author.
+		r.Route("/materials", func(r chi.Router) {
+			r.Get("/", contentH.ListMaterials)
+			r.With(authMw, adminAuthorMw).Post("/", contentH.CreateMaterial)
+			r.With(authMw, adminAuthorMw).Put("/{id}", contentH.UpdateMaterial)
+			r.With(authMw, adminAuthorMw).Delete("/{id}", contentH.DeleteMaterial)
+		})
+		r.Route("/map-projects", func(r chi.Router) {
+			r.Get("/", contentH.ListProjects)
+			r.With(authMw, adminAuthorMw).Post("/", contentH.CreateProject)
+			r.With(authMw, adminAuthorMw).Put("/{id}", contentH.UpdateProject)
+			r.With(authMw, adminAuthorMw).Delete("/{id}", contentH.DeleteProject)
+		})
 	})
 
 	addr := fmt.Sprintf(":%s", cfg.Port)

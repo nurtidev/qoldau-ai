@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import { I } from '@/components/icons'
-import { leadsApi } from '@/api/client'
+import { leadsApi, aiApi, type PickServiceRec } from '@/api/client'
 import { useToast } from '@/components/Toast'
 import type { Service } from '@/types'
 
@@ -174,8 +174,19 @@ function scoreService(service: Service, answers: Answers): number {
   return Math.min(score, 99)
 }
 
-function ScoreChip({ score }: { score: number }) {
+function ScoreChip({ score, ai }: { score: number; ai?: boolean }) {
   const high = score >= 70
+  if (ai) {
+    return (
+      <div style={{
+        padding: '3px 10px', borderRadius: 999, fontSize: 12, fontWeight: 700,
+        background: 'var(--color-accent-soft)', color: 'var(--color-primary)',
+        display: 'inline-flex', alignItems: 'center', gap: 4,
+      }}>
+        <I.Sparkle size={11} /> AI-подбор · {score}%
+      </div>
+    )
+  }
   return (
     <div style={{
       padding: '3px 10px', borderRadius: 999, fontSize: 12, fontWeight: 700,
@@ -281,7 +292,9 @@ function InlineCalculator({ service }: { service: Service }) {
   )
 }
 
-function ResultCard({ service, score }: { service: Service; score: number }) {
+function ResultCard({ service, score, ai, reason, caution }: {
+  service: Service; score: number; ai?: boolean; reason?: string; caution?: string
+}) {
   const hasCalc = service.interest_rate != null && service.max_amount != null && service.max_term_months != null
   const hasTerms = service.interest_rate != null || service.max_amount != null || service.max_term_months != null
 
@@ -290,7 +303,7 @@ function ResultCard({ service, score }: { service: Service; score: number }) {
       className="card"
       style={{
         padding: 20, display: 'flex', flexDirection: 'column', gap: 12, height: '100%',
-        border: score >= 70 ? '1.5px solid var(--color-accent)' : '1.5px solid var(--color-border)',
+        border: (ai || score >= 70) ? '1.5px solid var(--color-accent)' : '1.5px solid var(--color-border)',
         transition: 'box-shadow 140ms',
       }}
       onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = 'var(--sh-md)' }}
@@ -299,7 +312,7 @@ function ResultCard({ service, score }: { service: Service; score: number }) {
       <Link to={`/services/${service.id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span className="badge badge-blue">{service.category ?? 'Общее'}</span>
-          <ScoreChip score={score} />
+          <ScoreChip score={score} ai={ai} />
         </div>
         <div style={{ fontSize: 15, fontWeight: 600, lineHeight: 1.35, color: 'var(--color-text)' }}>
           {service.title}
@@ -313,6 +326,25 @@ function ResultCard({ service, score }: { service: Service; score: number }) {
           </div>
         )}
       </Link>
+
+      {ai && reason && (
+        <div style={{
+          display: 'flex', gap: 8, padding: '10px 12px', borderRadius: 8,
+          background: 'var(--color-accent-soft)',
+        }}>
+          <I.Sparkle size={14} style={{ color: 'var(--color-primary)', flexShrink: 0, marginTop: 1 }} />
+          <div style={{ fontSize: 12.5, color: 'var(--color-text-2)', lineHeight: 1.5 }}>{reason}</div>
+        </div>
+      )}
+      {ai && caution && (
+        <div style={{
+          display: 'flex', gap: 8, padding: '8px 12px', borderRadius: 8,
+          background: 'var(--color-warning-soft)',
+        }}>
+          <I.Alert size={14} style={{ color: '#92400E', flexShrink: 0, marginTop: 1 }} />
+          <div style={{ fontSize: 12.5, color: '#92400E', lineHeight: 1.5 }}>{caution}</div>
+        </div>
+      )}
 
       {hasTerms && <ProgramTermsStrip service={service} />}
       {hasCalc && <InlineCalculator service={service} />}
@@ -387,6 +419,20 @@ function CallMeBack() {
   )
 }
 
+// Ответы скринера → человекочитаемые пары для AI-подсказки.
+function describeAnswers(answers: Answers): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const q of QUESTIONS) {
+    const val = answers[q.key]
+    if (!val) continue
+    const opt = q.options.find(o => o.value === val)
+    out[q.question] = opt ? opt.label : String(val)
+  }
+  return out
+}
+
+interface DisplayItem { service: Service; score: number; ai?: boolean; reason?: string; caution?: string }
+
 function Results({ services, answers, onReset }: { services: Service[]; answers: Answers; onReset: () => void }) {
   const scored = services
     .filter(s => s.status === 'published')
@@ -394,6 +440,44 @@ function Results({ services, answers, onReset }: { services: Service[]; answers:
     .filter(x => x.score >= 20)
     .sort((a, b) => b.score - a.score)
     .slice(0, 4)
+
+  // AI-подбор: rule-based выдача остаётся мгновенной (fallback), AI лишь дополняет.
+  const [aiRecs, setAiRecs] = useState<PickServiceRec[] | null>(null)
+  const [aiLoading, setAiLoading] = useState(false)
+
+  useEffect(() => {
+    // Не дёргаем AI в e2e-режиме — rule-based выдача рендерится сразу.
+    const skip = new URLSearchParams(window.location.search).get('e2e') === '1'
+    if (skip) return
+
+    const ctrl = new AbortController()
+    const timer = setTimeout(() => ctrl.abort(), 25000)
+    setAiLoading(true)
+    aiApi.pickService(describeAnswers(answers))
+      .then(res => {
+        const recs = (res.data?.recommendations ?? [])
+          .filter(r => services.some(s => s.id === r.service_id && s.status === 'published'))
+        setAiRecs(recs)
+      })
+      .catch(() => { /* тихо остаёмся на rule-based */ })
+      .finally(() => { clearTimeout(timer); setAiLoading(false) })
+
+    return () => { clearTimeout(timer); ctrl.abort() }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const byId = new Map(services.map(s => [s.id, s]))
+
+  // Если AI вернул подбор — показываем его порядок и аннотации; иначе rule-based.
+  const useAi = aiRecs != null && aiRecs.length > 0
+  const display: DisplayItem[] = useAi
+    ? aiRecs!
+        .map((r): DisplayItem | null => {
+          const service = byId.get(r.service_id)
+          return service ? { service, score: r.match, ai: true, reason: r.reason, caution: r.caution } : null
+        })
+        .filter((x): x is DisplayItem => x !== null)
+    : scored
 
   const goalQuery = { credit: 'кредит', grant: 'грант', subsidy: 'субсидия', guarantee: 'гарантия' }[answers.goal!] ?? ''
 
@@ -403,12 +487,14 @@ function Results({ services, answers, onReset }: { services: Service[]; answers:
         <div>
           <div className="section-eyebrow" style={{ marginBottom: 6 }}>Подбор программ</div>
           <h2 className="section-title">
-            {scored.length > 0
-              ? `Найдено ${scored.length} подходящ${scored.length === 1 ? 'ая программа' : scored.length < 5 ? 'ие программы' : 'их программ'}`
+            {display.length > 0
+              ? `Найдено ${display.length} подходящ${display.length === 1 ? 'ая программа' : display.length < 5 ? 'ие программы' : 'их программ'}`
               : 'Подходящих программ не найдено'}
           </h2>
           <p style={{ fontSize: 14, color: 'var(--color-text-3)', marginTop: 4 }}>
-            По вашим ответам — показываем наилучшие совпадения. Рассчитайте платёж прямо в карточке.
+            {useAi
+              ? 'AI отранжировал программы под ваш профиль. Рассчитайте платёж прямо в карточке.'
+              : 'По вашим ответам — показываем наилучшие совпадения. Рассчитайте платёж прямо в карточке.'}
           </p>
         </div>
         <button className="btn btn-ghost btn-sm" onClick={onReset}>
@@ -416,14 +502,30 @@ function Results({ services, answers, onReset }: { services: Service[]; answers:
         </button>
       </div>
 
-      {scored.length === 0 ? (
+      {aiLoading && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16,
+          padding: '10px 14px', borderRadius: 8,
+          background: 'var(--color-accent-soft)', color: 'var(--color-primary)',
+          fontSize: 13, fontWeight: 500,
+        }}>
+          <span style={{
+            width: 14, height: 14, borderRadius: '50%',
+            border: '2px solid var(--color-primary-soft)', borderTopColor: 'var(--color-primary)',
+            animation: 'spin 700ms linear infinite', display: 'inline-block',
+          }} />
+          <I.Sparkle size={14} /> AI анализирует ваш профиль…
+        </div>
+      )}
+
+      {display.length === 0 ? (
         <div className="card" style={{ padding: 32, textAlign: 'center', color: 'var(--color-text-3)' }}>
           <p>Попробуйте изменить параметры подбора</p>
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16, marginBottom: 20 }}>
-          {scored.map(({ service, score }) => (
-            <ResultCard key={service.id} service={service} score={score} />
+          {display.map(({ service, score, ai, reason, caution }) => (
+            <ResultCard key={service.id} service={service} score={score} ai={ai} reason={reason} caution={caution} />
           ))}
         </div>
       )}

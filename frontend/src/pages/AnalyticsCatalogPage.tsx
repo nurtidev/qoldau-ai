@@ -1,70 +1,53 @@
 import { useMemo, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { I } from '@/components/icons'
+import { contentApi, type AnalyticsMaterial } from '@/api/client'
 
-// ─── Types & mock data ──────────────────────────────────────────────────────
+// ─── Presentation config ─────────────────────────────────────────────────────
 
-type MaterialType = 'Интерактивный отчёт' | 'Финансовая отчётность' | 'Исследование' | 'Дашборд' | 'Годовой отчёт'
-type Format = 'web' | 'pdf' | 'embed'
-
-interface Material {
-  id: number
-  title: string
-  org: string
-  type: MaterialType
-  period: string
-  source: string
-  updated: string
-  format: Format
-  url: string
-}
-
-const TYPES: MaterialType[] = ['Интерактивный отчёт', 'Финансовая отчётность', 'Исследование', 'Дашборд', 'Годовой отчёт']
-
-const TYPE_COLORS: Record<MaterialType, string> = {
+const TYPE_COLORS: Record<string, string> = {
   'Интерактивный отчёт': '#0F766E',
   'Финансовая отчётность': '#07663D',
   'Исследование': '#8A6A14',
   'Дашборд': '#6D28D9',
   'Годовой отчёт': '#334155',
 }
+const DEFAULT_TYPE_COLOR = '#334155'
+const typeColor = (t?: string) => (t && TYPE_COLORS[t]) || DEFAULT_TYPE_COLOR
 
-const FORMAT_LABEL: Record<Format, string> = { web: 'Web', pdf: 'PDF', embed: 'Embed' }
-
-const MATERIALS: Material[] = [
-  { id: 1,  title: 'Обзор МСБ Казахстана за 2025',                          org: 'Холдинг «Байтерек»', type: 'Исследование',           period: '2025',       source: 'Аналитический центр Байтерек', updated: '12.03.2026', format: 'pdf',   url: '#' },
-  { id: 2,  title: 'Финансовая отчётность АО «Даму» за 2025',               org: 'Даму',               type: 'Финансовая отчётность',   period: '2025',       source: 'damu.kz',                      updated: '28.02.2026', format: 'pdf',   url: '#' },
-  { id: 3,  title: 'Интерактивный отчёт: воронка мер поддержки МСБ',        org: 'Холдинг «Байтерек»', type: 'Интерактивный отчёт',     period: '2025',       source: 'Qoldau Analytics',              updated: '05.04.2026', format: 'web',   url: '#' },
-  { id: 4,  title: 'Исследование экспортного потенциала АПК',              org: 'ЭКА KazakhExport',   type: 'Исследование',           period: '2025',       source: 'kazakhexport.kz',              updated: '18.01.2026', format: 'pdf',   url: '#' },
-  { id: 5,  title: 'Годовой отчёт «Өрлеу — льготное кредитование МСБ» за 2025', org: 'Даму',           type: 'Годовой отчёт',           period: '2025',       source: 'damu.kz',                      updated: '20.02.2026', format: 'pdf',   url: '#' },
-  { id: 6,  title: 'Дашборд гарантирования кредитов МСБ (Даму)',            org: 'Даму',               type: 'Дашборд',                 period: 'Q1 2026',    source: 'damu.kz',                      updated: '02.04.2026', format: 'embed', url: '#' },
-  { id: 7,  title: 'Финансовая отчётность «Кең дала 2» за 2025',            org: 'Аграрная кредитная корпорация', type: 'Финансовая отчётность', period: '2025', source: 'agrocredit.kz',              updated: '15.03.2026', format: 'pdf',   url: '#' },
-  { id: 8,  title: 'Интерактивный отчёт Seed Money — грант для стартапов',  org: 'Astana Hub',         type: 'Интерактивный отчёт',     period: 'Q1 2026',    source: 'astanahub.com',                updated: '10.04.2026', format: 'web',   url: '#' },
-  { id: 9,  title: 'Исследование потока прямых иностранных инвестиций',    org: 'Kazakh Invest',      type: 'Исследование',           period: '2025',       source: 'invest.gov.kz',                updated: '22.01.2026', format: 'pdf',   url: '#' },
-  { id: 10, title: 'Дашборд по проектам льготного лизинга сельхозтехники',  org: 'КазАгроФинанс',      type: 'Дашборд',                 period: 'Q1 2026',    source: 'kaf.kz',                       updated: '30.03.2026', format: 'embed', url: '#' },
-  { id: 11, title: 'Годовой отчёт Холдинга «Байтерек» за 2025',             org: 'Холдинг «Байтерек»', type: 'Годовой отчёт',           period: '2025',       source: 'baiterek.gov.kz',              updated: '25.02.2026', format: 'pdf',   url: '#' },
-  { id: 12, title: 'Интерактивный отчёт: динамика ставок финансирования МСБ', org: 'Холдинг «Байтерек»', type: 'Интерактивный отчёт', period: '2025–2026',  source: 'Qoldau Analytics',              updated: '06.04.2026', format: 'web',   url: '#' },
-  { id: 13, title: 'Исследование цифровизации дочерних организаций',       org: 'QazIndustry',        type: 'Исследование',           period: '2025',       source: 'qazindustry.gov.kz',           updated: '14.02.2026', format: 'pdf',   url: '#' },
-  { id: 14, title: 'Дашборд экспортных сделок ЭКА KazakhExport',            org: 'ЭКА KazakhExport',   type: 'Дашборд',                 period: 'Q1 2026',    source: 'kazakhexport.kz',              updated: '01.04.2026', format: 'embed', url: '#' },
-]
+const FORMAT_LABEL: Record<string, string> = { web: 'Web', pdf: 'PDF', embed: 'Embed' }
+const formatLabel = (f: string) => FORMAT_LABEL[f] ?? f
 
 // ─── Page ───────────────────────────────────────────────────────────────────
 
 export function AnalyticsCatalogPage() {
-  const [activeType, setActiveType] = useState<MaterialType | ''>('')
+  const [activeType, setActiveType] = useState('')
   const [org, setOrg] = useState('')
   const [query, setQuery] = useState('')
-  const [preview, setPreview] = useState<Material | null>(null)
+  const [preview, setPreview] = useState<AnalyticsMaterial | null>(null)
 
-  const orgs = useMemo(() => Array.from(new Set(MATERIALS.map((m) => m.org))).sort(), [])
+  const { data: materials = [], isLoading } = useQuery<AnalyticsMaterial[]>({
+    queryKey: ['materials'],
+    queryFn: () => contentApi.materials().then((r) => r.data ?? []),
+  })
+
+  const types = useMemo(
+    () => Array.from(new Set(materials.map((m) => m.material_type).filter(Boolean) as string[])),
+    [materials],
+  )
+  const orgs = useMemo(
+    () => Array.from(new Set(materials.map((m) => m.org).filter(Boolean) as string[])).sort(),
+    [materials],
+  )
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return MATERIALS.filter((m) =>
-      (!activeType || m.type === activeType) &&
+    return materials.filter((m) =>
+      (!activeType || m.material_type === activeType) &&
       (!org || m.org === org) &&
       (!q || m.title.toLowerCase().includes(q))
     )
-  }, [activeType, org, query])
+  }, [materials, activeType, org, query])
 
   return (
     <div className="page-fade container" style={{ paddingTop: 40, paddingBottom: 80 }}>
@@ -92,8 +75,8 @@ export function AnalyticsCatalogPage() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 24 }}>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <Chip active={activeType === ''} onClick={() => setActiveType('')}>Все типы</Chip>
-          {TYPES.map((t) => (
-            <Chip key={t} active={activeType === t} color={TYPE_COLORS[t]} onClick={() => setActiveType(t)}>{t}</Chip>
+          {types.map((t) => (
+            <Chip key={t} active={activeType === t} color={typeColor(t)} onClick={() => setActiveType(t)}>{t}</Chip>
           ))}
         </div>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
@@ -112,42 +95,58 @@ export function AnalyticsCatalogPage() {
             {orgs.map((o) => <option key={o} value={o}>{o}</option>)}
           </select>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', fontSize: 13, color: 'var(--color-text-3)' }}>
-            Показано {filtered.length} из {MATERIALS.length}
+            Показано {filtered.length} из {materials.length}
           </div>
         </div>
       </div>
 
       {/* Cards grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 18 }}>
-        {filtered.map((m) => (
-          <div key={m.id} className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <span className="badge" style={{ background: `${TYPE_COLORS[m.type]}1A`, color: TYPE_COLORS[m.type] }}>{m.type}</span>
-              <span className="badge badge-gray">{FORMAT_LABEL[m.format]}</span>
+        {isLoading ? (
+          Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div className="skeleton" style={{ height: 20, width: 120 }} />
+              <div className="skeleton" style={{ height: 40 }} />
+              <div className="skeleton" style={{ height: 14, width: '80%' }} />
+              <div className="skeleton" style={{ height: 14, width: '60%' }} />
+              <div className="skeleton" style={{ height: 34, marginTop: 6 }} />
             </div>
-            <div style={{ fontSize: 15.5, fontWeight: 600, lineHeight: 1.4, minHeight: 44 }}>{m.title}</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12.5, color: 'var(--color-text-3)' }}>
-              <div><strong style={{ color: 'var(--color-text-2)' }}>{m.org}</strong> · актуально на {m.period}</div>
-              <div>Источник: {m.source}</div>
-              <div>Обновлено: {m.updated}</div>
-            </div>
-            <div style={{ marginTop: 'auto', display: 'flex', gap: 8, paddingTop: 6 }}>
-              {m.format === 'embed' ? (
-                <button className="btn btn-secondary btn-sm" style={{ flex: 1 }} onClick={() => setPreview(m)}>
-                  <I.Eye size={14} /> Предпросмотр
-                </button>
-              ) : (
-                <a href={m.url} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm" style={{ flex: 1 }}>
-                  <I.ExternalLink size={14} /> Открыть
-                </a>
-              )}
-            </div>
-          </div>
-        ))}
-        {filtered.length === 0 && (
-          <div className="card" style={{ gridColumn: '1 / -1', padding: 40, textAlign: 'center', color: 'var(--color-text-3)', fontSize: 14 }}>
-            Материалы не найдены. Попробуйте изменить фильтры.
-          </div>
+          ))
+        ) : (
+          <>
+            {filtered.map((m) => (
+              <div key={m.id} className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  {m.material_type && (
+                    <span className="badge" style={{ background: `${typeColor(m.material_type)}1A`, color: typeColor(m.material_type) }}>{m.material_type}</span>
+                  )}
+                  <span className="badge badge-gray">{formatLabel(m.format)}</span>
+                </div>
+                <div style={{ fontSize: 15.5, fontWeight: 600, lineHeight: 1.4, minHeight: 44 }}>{m.title}</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12.5, color: 'var(--color-text-3)' }}>
+                  <div><strong style={{ color: 'var(--color-text-2)' }}>{m.org}</strong>{m.period ? ` · актуально на ${m.period}` : ''}</div>
+                  {m.source && <div>Источник: {m.source}</div>}
+                  {m.updated_date && <div>Обновлено: {m.updated_date}</div>}
+                </div>
+                <div style={{ marginTop: 'auto', display: 'flex', gap: 8, paddingTop: 6 }}>
+                  {m.format === 'embed' ? (
+                    <button className="btn btn-secondary btn-sm" style={{ flex: 1 }} onClick={() => setPreview(m)}>
+                      <I.Eye size={14} /> Предпросмотр
+                    </button>
+                  ) : (
+                    <a href={m.url || '#'} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm" style={{ flex: 1 }}>
+                      <I.ExternalLink size={14} /> Открыть
+                    </a>
+                  )}
+                </div>
+              </div>
+            ))}
+            {filtered.length === 0 && (
+              <div className="card" style={{ gridColumn: '1 / -1', padding: 40, textAlign: 'center', color: 'var(--color-text-3)', fontSize: 14 }}>
+                Материалы не найдены. Попробуйте изменить фильтры.
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -176,15 +175,17 @@ function Chip({ active, color, onClick, children }: { active: boolean; color?: s
   )
 }
 
-function PreviewModal({ material, onClose }: { material: Material; onClose: () => void }) {
+function PreviewModal({ material, onClose }: { material: AnalyticsMaterial; onClose: () => void }) {
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 640 }}>
         <div style={{ padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--color-border)', gap: 12 }}>
           <div>
-            <span className="badge" style={{ background: `${TYPE_COLORS[material.type]}1A`, color: TYPE_COLORS[material.type], marginBottom: 8 }}>{material.type}</span>
+            {material.material_type && (
+              <span className="badge" style={{ background: `${typeColor(material.material_type)}1A`, color: typeColor(material.material_type), marginBottom: 8 }}>{material.material_type}</span>
+            )}
             <div style={{ fontSize: 17, fontWeight: 700, lineHeight: 1.35 }}>{material.title}</div>
-            <div style={{ fontSize: 12.5, color: 'var(--color-text-3)', marginTop: 4 }}>{material.org} · {material.source}</div>
+            <div style={{ fontSize: 12.5, color: 'var(--color-text-3)', marginTop: 4 }}>{material.org}{material.source ? ` · ${material.source}` : ''}</div>
           </div>
           <button onClick={onClose} className="btn btn-ghost btn-sm" style={{ width: 32, padding: 0, flexShrink: 0 }}>
             <I.X size={16} />
@@ -214,7 +215,7 @@ function PreviewModal({ material, onClose }: { material: Material; onClose: () =
           </div>
 
           <a
-            href={material.url}
+            href={material.url || '#'}
             target="_blank"
             rel="noreferrer"
             className="btn btn-primary btn-block"

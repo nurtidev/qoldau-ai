@@ -8,6 +8,7 @@ import { ServiceCalculator } from '@/components/ServiceCalculator'
 import { useIsNarrow } from '@/hooks/useMediaQuery'
 import { categoryColor } from '@/lib/categoryColor'
 import { CategoryArt } from '@/components/CategoryArt'
+import { ServiceExplainer } from '@/components/ServiceExplainer'
 import type { Service, FormField } from '@/types'
 
 const PORTAL_FAQ = [
@@ -398,6 +399,7 @@ export function ServiceDetailPage() {
           {/* Условия */}
           {tab === 'cond' && (
             <div className="page-fade">
+              <ServiceExplainer key={service.id} serviceId={service.id} />
               <h2 style={{ fontSize: 20, fontWeight: 700, marginTop: 0, marginBottom: 16 }}>Критерии участия</h2>
               {requirements.length === 0 ? (
                 <EmptySchemaInfo />

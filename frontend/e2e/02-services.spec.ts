@@ -24,7 +24,7 @@ test.describe('Каталог услуг', () => {
     await search.fill('лизинг')
     // должны остаться только услуги с "лизинг"
     await expect(page.getByText(/лизинг/i).first()).toBeVisible()
-    await expect(page.getByText('Грант для инновационных стартапов')).not.toBeVisible()
+    await expect(page.getByText('Seed Money — грант для стартапов (Astana Hub)')).not.toBeVisible()
   })
 
   test('поиск без результатов показывает заглушку', async ({ page }) => {
@@ -37,7 +37,7 @@ test.describe('Каталог услуг', () => {
     await expect(page.locator('a.card').first()).toBeVisible({ timeout: 20_000 })
     // Кликаем именно на label внутри сайдбара (aside)
     await page.locator('aside').getByText('Гранты').click()
-    await expect(page.getByText('Грант для инновационных стартапов')).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText('Seed Money — грант для стартапов (Astana Hub)')).toBeVisible({ timeout: 10_000 })
   })
 
   test('кнопка сброса фильтров появляется при активном фильтре', async ({ page }) => {

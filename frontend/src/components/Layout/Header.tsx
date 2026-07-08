@@ -541,6 +541,7 @@ const ADMIN_NAV = [
   { id: 'dash',     label: 'Дашборд',      icon: 'Grid',      to: '/admin',              adminOnly: false },
   { id: 'apps',     label: 'Заявки',       icon: 'Document',  to: '/admin/applications', adminOnly: true },
   { id: 'services', label: 'Услуги',       icon: 'Briefcase', to: '/admin/services',     adminOnly: false },
+  { id: 'content',  label: 'Контент',      icon: 'Sparkle',   to: '/admin/content',      adminOnly: false },
   { id: 'users',    label: 'Пользователи', icon: 'User',      to: '/admin/users',        adminOnly: true },
   { id: 'analytics',label: 'Аналитика',    icon: 'Hash',      to: '/admin/analytics',    adminOnly: true },
   { id: 'settings', label: 'Настройки',    icon: 'Sliders',   to: '/admin/settings',     adminOnly: false },
@@ -559,6 +560,7 @@ export function AdminSidebar({ offCanvas = false, open = false, onClose }: {
 
   const active = location.pathname.startsWith('/admin/applications') ? 'apps'
     : location.pathname.startsWith('/admin/services') ? 'services'
+    : location.pathname.startsWith('/admin/content') ? 'content'
     : location.pathname.startsWith('/admin/users') ? 'users'
     : location.pathname.startsWith('/admin/analytics') ? 'analytics'
     : location.pathname.startsWith('/admin/settings') ? 'settings'

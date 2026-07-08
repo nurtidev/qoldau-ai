@@ -36,6 +36,19 @@ async function waitForForm(page: Page) {
   await expect(page.locator('select').first()).toBeVisible({ timeout: 12_000 })
 }
 
+/**
+ * Проходит модалку подписания ЭЦП (мок NCALayer, см. ECPSignModal), которая
+ * теперь открывается вместо мгновенной отправки по клику «Подать заявку».
+ * Страница должна быть открыта с ?e2e=1, чтобы стадии анимации были короткими.
+ */
+async function signECP(page: Page) {
+  await expect(page.getByText('Подписание ЭЦП')).toBeVisible({ timeout: 5_000 })
+  await page.getByPlaceholder('Введите пароль').fill('e2e-test-pass')
+  await page.getByRole('button', { name: /^подписать$/i }).click()
+  // Дожидаемся анимации стадий + успешного mock-ответа и автозакрытия модалки
+  await expect(page.getByText('Подписание ЭЦП')).not.toBeVisible({ timeout: 15_000 })
+}
+
 // ─── Пользователь: полная подача заявки ──────────────────────────────────────
 
 test.describe('Подача заявки — полный сценарий', () => {
@@ -70,7 +83,7 @@ test.describe('Подача заявки — полный сценарий', () 
   })
 
   test('Шаг 2: заполнение параметров займа и успешная отправка', async ({ page }) => {
-    await page.goto(`/cabinet/apply/${await getMicrocreditId(page)}`)
+    await page.goto(`/cabinet/apply/${await getMicrocreditId(page)}?e2e=1`)
     await waitForForm(page)
 
     // --- Шаг 1 ---
@@ -98,13 +111,14 @@ test.describe('Подача заявки — полный сценарий', () 
     await page.getByRole('button', { name: /далее|к проверке/i }).click()
     await expect(page.getByText('Предварительная оценка заявителя')).toBeVisible({ timeout: 10_000 })
 
-    // Отправка
+    // Отправка — открывается модалка подписания ЭЦП вместо мгновенной отправки
     await page.getByRole('button', { name: /^подать заявку$/i }).click()
+    await signECP(page)
     await expect(page).toHaveURL(/\/cabinet/, { timeout: 15_000 })
   })
 
   test('Заявка появляется в личном кабинете после подачи', async ({ page }) => {
-    await page.goto(`/cabinet/apply/${await getMicrocreditId(page)}`)
+    await page.goto(`/cabinet/apply/${await getMicrocreditId(page)}?e2e=1`)
     await waitForForm(page)
 
     await page.locator('select').first().selectOption('Планирую открыть ИП')
@@ -122,6 +136,7 @@ test.describe('Подача заявки — полный сценарий', () 
     await expect(page.getByRole('button', { name: /^подать заявку$/i })).toBeVisible({ timeout: 10_000 })
 
     await page.getByRole('button', { name: /^подать заявку$/i }).click()
+    await signECP(page)
     await page.waitForURL(/\/cabinet/, { timeout: 15_000 })
 
     // В дашборде должна появиться карточка заявки на эту услугу

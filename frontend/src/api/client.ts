@@ -46,6 +46,26 @@ export const servicesApi = {
 }
 
 // AI
+export interface PickServiceRec {
+  service_id: string
+  match: number
+  reason: string
+  caution?: string
+}
+
+export interface ReviewIssue {
+  field_id: string
+  label: string
+  severity: 'error' | 'warning'
+  message: string
+}
+
+export interface ReviewResult {
+  verdict: 'ok' | 'issues'
+  summary: string
+  issues: ReviewIssue[]
+}
+
 export const aiApi = {
   generateForm: (description: string) =>
     api.post('/ai/generate-form', { description }),
@@ -56,6 +76,56 @@ export const aiApi = {
     rejection_reason?: string
     screener_answers?: unknown
   }) => api.post('/ai/recommend', payload),
+
+  // AI-подбор услуги по ответам скринера на главной (публичный).
+  pickService: (answers: Record<string, unknown>) =>
+    api.post<{ recommendations: PickServiceRec[] }>('/ai/pick-service', { answers }),
+
+  // AI-проверка заявки перед отправкой (auth).
+  reviewApplication: (service_id: string, form_data: Record<string, unknown>) =>
+    api.post<ReviewResult>('/ai/review-application', { service_id, form_data }),
+
+  // Объяснение условий услуги простым языком — SSE-стрим (публичный).
+  // onChunk вызывается на каждый пришедший фрагмент текста. Промис резолвится
+  // по завершении стрима и реджектится при ошибке (в т.ч. abort по signal).
+  explainServiceStream: async (
+    service_id: string,
+    onChunk: (text: string) => void,
+    signal?: AbortSignal,
+  ): Promise<void> => {
+    const res = await fetch('/api/ai/explain-service', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ service_id }),
+      signal,
+    })
+    if (!res.ok || !res.body) throw new Error('stream failed')
+
+    const reader = res.body.getReader()
+    const dec = new TextDecoder()
+    let sseBuffer = ''
+    let done = false
+
+    while (!done) {
+      const { done: rdDone, value } = await reader.read()
+      if (rdDone) break
+      sseBuffer += dec.decode(value, { stream: true })
+      const lines = sseBuffer.split('\n')
+      sseBuffer = lines.pop() ?? ''
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue
+        try {
+          const evt = JSON.parse(line.slice(6))
+          if (evt.error) throw new Error(evt.error)
+          if (evt.t) onChunk(evt.t as string)
+          if (evt.done) done = true
+        } catch (e) {
+          if (e instanceof SyntaxError) continue
+          throw e
+        }
+      }
+    }
+  },
 }
 
 // Applications
@@ -98,12 +168,102 @@ export const leadsApi = {
   list: () => api.get('/leads'),
 }
 
+// ─── Content catalog (analytics materials + map projects, managed from admin) ─
+
+export interface AnalyticsMaterial {
+  id: string
+  title: string
+  description?: string
+  org?: string
+  material_type?: string
+  period?: string
+  source?: string
+  url?: string
+  format: string // 'web' | 'pdf' | 'embed'
+  updated_date?: string
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
+export interface MapProjectItem {
+  id: string
+  name: string
+  org?: string
+  region?: string
+  city?: string
+  industry?: string
+  status?: string
+  amount: number // млн ₸
+  period?: string
+  description?: string
+  lat?: number | null
+  lng?: number | null
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
+export type MaterialInput = {
+  title: string
+  description?: string
+  org?: string
+  material_type?: string
+  period?: string
+  source?: string
+  url?: string
+  format: string
+  updated_date?: string
+  sort_order?: number
+}
+
+export type MapProjectInput = {
+  name: string
+  org?: string
+  region?: string
+  city?: string
+  industry?: string
+  status?: string
+  amount?: number
+  period?: string
+  description?: string
+  lat?: number | null
+  lng?: number | null
+  sort_order?: number
+}
+
+export const contentApi = {
+  materials: () => api.get<AnalyticsMaterial[]>('/materials'),
+  createMaterial: (data: MaterialInput) => api.post('/materials', data),
+  updateMaterial: (id: string, data: MaterialInput) => api.put(`/materials/${id}`, data),
+  deleteMaterial: (id: string) => api.delete(`/materials/${id}`),
+
+  mapProjects: () => api.get<MapProjectItem[]>('/map-projects'),
+  createProject: (data: MapProjectInput) => api.post('/map-projects', data),
+  updateProject: (id: string, data: MapProjectInput) => api.put(`/map-projects/${id}`, data),
+  deleteProject: (id: string) => api.delete(`/map-projects/${id}`),
+}
+
 // Mock integrations
 export const mockApi = {
   egov: (iin: string) => api.get(`/mock/egov/${iin}`),
   kgd:  (bin: string) => api.get(`/mock/kgd/${bin}`),
   eishSubmit: (application_id: string) =>
     api.post('/mock/eish/submit', { application_id }),
+  // Имитация подписания ЭЦП (NCALayer / НУЦ РК) — см. ECPSignModal.
+  ecpSign: (payload: { iin: string; full_name?: string }) =>
+    api.post<ECPSignature>('/mock/ecp/sign', payload),
+}
+
+// Ответ mock-сервиса подписания ЭЦП (POST /api/mock/ecp/sign).
+export interface ECPSignature {
+  signature_id: string
+  cert_serial: string
+  cert_owner: string
+  cert_issuer: string
+  algorithm: string
+  signed_at: string
+  valid_until: string
 }
 
 export interface KGDData {

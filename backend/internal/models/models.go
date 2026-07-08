@@ -152,3 +152,41 @@ type Notification struct {
 	IsRead    bool      `db:"is_read"    json:"is_read"`
 	CreatedAt time.Time `db:"created_at" json:"created_at"`
 }
+
+// AnalyticsMaterial — аналитический материал дочерней организации,
+// отображается в публичном каталоге /analytics (миграция 014).
+type AnalyticsMaterial struct {
+	ID           string    `db:"id"            json:"id"`
+	Title        string    `db:"title"         json:"title"`
+	Description  *string   `db:"description"   json:"description,omitempty"`
+	Org          *string   `db:"org"           json:"org,omitempty"`
+	MaterialType *string   `db:"material_type" json:"material_type,omitempty"`
+	Period       *string   `db:"period"        json:"period,omitempty"`
+	Source       *string   `db:"source"        json:"source,omitempty"`
+	URL          *string   `db:"url"           json:"url,omitempty"`
+	Format       string    `db:"format"        json:"format"`
+	UpdatedDate  *string   `db:"updated_date"  json:"updated_date,omitempty"`
+	SortOrder    int       `db:"sort_order"    json:"sort_order"`
+	CreatedAt    time.Time `db:"created_at"    json:"created_at"`
+	UpdatedAt    time.Time `db:"updated_at"    json:"updated_at"`
+}
+
+// MapProject — проект на публичной карте /projects-map (миграция 014).
+// Lat/Lng nullable: если пусто, фронт берёт координаты центра региона.
+type MapProject struct {
+	ID          string    `db:"id"          json:"id"`
+	Name        string    `db:"name"        json:"name"`
+	Org         *string   `db:"org"         json:"org,omitempty"`
+	Region      *string   `db:"region"      json:"region,omitempty"`
+	City        *string   `db:"city"        json:"city,omitempty"`
+	Industry    *string   `db:"industry"    json:"industry,omitempty"`
+	Status      *string   `db:"status"      json:"status,omitempty"`
+	Amount      float64   `db:"amount"      json:"amount"`
+	Period      *string   `db:"period"      json:"period,omitempty"`
+	Description *string   `db:"description" json:"description,omitempty"`
+	Lat         *float64  `db:"lat"         json:"lat,omitempty"`
+	Lng         *float64  `db:"lng"         json:"lng,omitempty"`
+	SortOrder   int       `db:"sort_order"  json:"sort_order"`
+	CreatedAt   time.Time `db:"created_at"  json:"created_at"`
+	UpdatedAt   time.Time `db:"updated_at"  json:"updated_at"`
+}
