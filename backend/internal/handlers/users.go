@@ -143,3 +143,48 @@ func (h *UsersHandler) SetRole(w http.ResponseWriter, r *http.Request) {
 
 	respond(w, http.StatusOK, user)
 }
+
+// Delete removes a user and their dependent rows (admin-only). Used to purge
+// test/spam accounts. An admin may not delete themselves. Applications are
+// deleted first (FK RESTRICT); application_events/documents cascade from them.
+// Notifications are removed explicitly.
+func (h *UsersHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	claims := middleware.ClaimsFromCtx(r.Context())
+	id := chi.URLParam(r, "id")
+
+	if claims != nil && id == claims.UserID {
+		respondErr(w, http.StatusBadRequest, "cannot delete your own account")
+		return
+	}
+
+	tx, err := h.db.Beginx()
+	if err != nil {
+		respondErr(w, http.StatusInternalServerError, "failed to start transaction")
+		return
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.Exec(`DELETE FROM notifications WHERE user_id = $1`, id); err != nil {
+		respondErr(w, http.StatusInternalServerError, "failed to delete notifications")
+		return
+	}
+	if _, err := tx.Exec(`DELETE FROM applications WHERE user_id = $1`, id); err != nil {
+		respondErr(w, http.StatusInternalServerError, "failed to delete applications")
+		return
+	}
+	res, err := tx.Exec(`DELETE FROM users WHERE id = $1`, id)
+	if err != nil {
+		respondErr(w, http.StatusInternalServerError, "failed to delete user")
+		return
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		respondErr(w, http.StatusNotFound, "user not found")
+		return
+	}
+	if err := tx.Commit(); err != nil {
+		respondErr(w, http.StatusInternalServerError, "failed to commit")
+		return
+	}
+
+	respond(w, http.StatusOK, map[string]interface{}{"deleted": id})
+}

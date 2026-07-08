@@ -80,6 +80,20 @@ export function AdminUsers() {
     },
   })
 
+  const deleteMut = useMutation({
+    mutationFn: (id: string) => usersApi.remove(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-users'] })
+      push('Пользователь удалён', 'success')
+    },
+    onError: (err: unknown) => {
+      const msg =
+        (err as { response?: { data?: { error?: string } } })?.response?.data?.error ||
+        'Не удалось удалить пользователя'
+      push(msg, 'error')
+    },
+  })
+
   const submitSearch = (e: React.FormEvent) => {
     e.preventDefault()
     setPage(0)
@@ -150,22 +164,42 @@ export function AdminUsers() {
                       {new Date(u.created_at).toLocaleDateString('ru-KZ')}
                     </td>
                     <td style={{ padding: '12px 16px' }}>
-                      <select
-                        value={u.role}
-                        disabled={isSelf || setRoleMut.isPending}
-                        onChange={(e) => setRoleMut.mutate({ id: u.id, nextRole: e.target.value as 'user' | 'author' | 'admin' })}
-                        title={isSelf ? 'Нельзя менять собственную роль' : undefined}
-                        style={{
-                          fontSize: 12, padding: '4px 8px', border: '1px solid var(--color-border)',
-                          borderRadius: 4, background: 'var(--color-surface)',
-                          cursor: isSelf ? 'not-allowed' : 'pointer',
-                          opacity: isSelf ? 0.5 : 1,
-                        }}
-                      >
-                        {ROLE_OPTIONS.map((o) => (
-                          <option key={o.value} value={o.value}>{o.label}</option>
-                        ))}
-                      </select>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <select
+                          value={u.role}
+                          disabled={isSelf || setRoleMut.isPending}
+                          onChange={(e) => setRoleMut.mutate({ id: u.id, nextRole: e.target.value as 'user' | 'author' | 'admin' })}
+                          title={isSelf ? 'Нельзя менять собственную роль' : undefined}
+                          style={{
+                            fontSize: 12, padding: '4px 8px', border: '1px solid var(--color-border)',
+                            borderRadius: 4, background: 'var(--color-surface)',
+                            cursor: isSelf ? 'not-allowed' : 'pointer',
+                            opacity: isSelf ? 0.5 : 1,
+                          }}
+                        >
+                          {ROLE_OPTIONS.map((o) => (
+                            <option key={o.value} value={o.value}>{o.label}</option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          disabled={isSelf || deleteMut.isPending}
+                          onClick={() => {
+                            if (window.confirm(`Удалить пользователя «${u.full_name}» (ИИН ${u.iin}) и все его заявки? Действие необратимо.`))
+                              deleteMut.mutate(u.id)
+                          }}
+                          title={isSelf ? 'Нельзя удалить свой аккаунт' : 'Удалить пользователя'}
+                          style={{
+                            display: 'inline-flex', alignItems: 'center', padding: 5,
+                            border: '1px solid var(--color-border)', borderRadius: 4,
+                            background: 'var(--color-surface)',
+                            color: isSelf ? 'var(--color-text-4)' : 'var(--color-danger)',
+                            cursor: isSelf ? 'not-allowed' : 'pointer', opacity: isSelf ? 0.5 : 1,
+                          }}
+                        >
+                          <I.Trash size={14} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 )

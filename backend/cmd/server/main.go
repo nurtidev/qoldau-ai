@@ -141,6 +141,7 @@ func main() {
 		// Users (admin only)
 		r.With(authMw, adminMw).Get("/users", usersH.List)
 		r.With(authMw, adminMw).Put("/users/{id}/role", usersH.SetRole)
+		r.With(authMw, adminMw).Delete("/users/{id}", usersH.Delete)
 
 		// Analytics (admin only)
 		r.With(authMw, adminMw).Get("/analytics/summary", analyticsH.Summary)

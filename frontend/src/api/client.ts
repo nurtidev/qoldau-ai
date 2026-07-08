@@ -154,6 +154,7 @@ export const usersApi = {
     api.get<UsersListResponse>('/users', { params }),
   setRole: (id: string, role: 'user' | 'author' | 'admin') =>
     api.put(`/users/${id}/role`, { role }),
+  remove: (id: string) => api.delete(`/users/${id}`),
 }
 
 // ─── Audience (reach calculator + broadcast) ──────────────────────────────────
