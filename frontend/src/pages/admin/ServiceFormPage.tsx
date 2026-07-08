@@ -1830,7 +1830,7 @@ export function ServiceFormPage() {
           }}
         />
       )}
-      <BuilderTour forceStart={tourTrigger > 0} onFinish={() => setTourTrigger(0)} />
+      <BuilderTour autoStart={!id} forceStart={tourTrigger > 0} onFinish={() => setTourTrigger(0)} />
     </div>
   )
 }

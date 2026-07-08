@@ -86,23 +86,28 @@ const STEPS: Step[] = [
 ]
 
 interface Props {
+  /** Auto-start once on mount. Pass false on the edit route (draft already saved)
+      so the tour doesn't re-appear over "Опубликовать" after the /new → /:id/edit
+      navigation. */
+  autoStart?: boolean
   /** External control: when truthy, restart the tour from the first step. */
   forceStart?: boolean
   /** Notify parent when tour finishes/skips, so it can reset forceStart. */
   onFinish?: () => void
 }
 
-export function BuilderTour({ forceStart, onFinish }: Props) {
+export function BuilderTour({ autoStart = true, forceStart, onFinish }: Props) {
   const [run, setRun] = useState(false)
 
-  // Auto-start on mount (skip via ?e2e=1 for Playwright tests)
+  // Auto-start on mount for a brand-new service (skip via ?e2e=1 for Playwright tests)
   useEffect(() => {
+    if (!autoStart) return
     const skip = new URLSearchParams(window.location.search).get('e2e') === '1'
     if (skip) return
     // Tiny delay so the page has time to render anchor elements
     const t = setTimeout(() => setRun(true), 400)
     return () => clearTimeout(t)
-  }, [])
+  }, [autoStart])
 
   // Manual restart from parent
   useEffect(() => {
