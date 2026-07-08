@@ -110,8 +110,9 @@ export function ECPSignModal({ open, iin, fullName, onSigned, onCancel }: Props)
     <div
       onClick={phase === 'signing' ? undefined : handleCancel}
       style={{
-        position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(15,23,42,0.4)',
+        position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(16,58,38,0.45)',
         display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+        animation: 'pageFade 160ms var(--ease-out) both',
       }}
     >
       <div
@@ -122,6 +123,7 @@ export function ECPSignModal({ open, iin, fullName, onSigned, onCancel }: Props)
         style={{
           width: 440, maxWidth: '100%', background: '#fff', borderRadius: 14,
           boxShadow: 'var(--sh-lg)', padding: 28,
+          animation: 'modalPop 240ms var(--ease-out) both',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>

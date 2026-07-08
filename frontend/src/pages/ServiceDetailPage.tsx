@@ -108,7 +108,7 @@ function ReadinessWidget({ user, fileFields, serviceId }: {
     <div className="card card-elevated" style={{ padding: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
         <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text)' }}>Готовность к подаче</div>
-        <div style={{ fontSize: 22, fontWeight: 700, color: isHigh ? 'var(--color-success)' : 'var(--color-accent)' }}>
+        <div style={{ fontSize: 22, fontWeight: 700, color: isHigh ? 'var(--color-success)' : 'var(--color-accent-text)' }}>
           {pct}%
         </div>
       </div>

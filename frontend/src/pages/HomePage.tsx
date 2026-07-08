@@ -79,7 +79,7 @@ function HeroSearch() {
               border: `1px solid ${focused ? 'var(--color-accent)' : 'var(--color-border-strong)'}`,
               borderRadius: 10,
               boxShadow: focused ? 'var(--sh-focus)' : 'var(--sh-sm)',
-              transition: 'all 120ms ease',
+              transition: 'border-color 120ms var(--ease-out), box-shadow 120ms var(--ease-out)',
               padding: 6, paddingLeft: 16,
             }}>
               <I.Search size={20} style={{ color: 'var(--color-text-3)', flexShrink: 0 }} />

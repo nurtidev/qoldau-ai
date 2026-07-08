@@ -49,6 +49,12 @@
   --sh-lg: 0 12px 48px rgba(16,58,38,0.12), 0 0 0 0.5px rgba(16,58,38,0.08);
   --sh-focus: 0 0 0 3px rgba(7,102,61,0.22);
 
+  /* Motion easing — strong custom curves (built-in ease* are too weak for
+     intentional UI motion). --ease-out for entrances/press feedback,
+     --ease-drawer for sliding panels (iOS-like). */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+
   --ff: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --ff-display: 'Inter', system-ui, sans-serif;
 }
@@ -81,12 +87,15 @@ h1, h2, h3, h4, .section-title { font-family: var(--ff-display); }
   font-weight: 500;
   font-size: 14px;
   border: 1px solid transparent;
-  transition: background 120ms ease, border-color 120ms ease, color 120ms ease, box-shadow 120ms ease;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease,
+    box-shadow 120ms ease, transform 140ms var(--ease-out);
   white-space: nowrap;
   user-select: none;
 }
 .btn:focus-visible { outline: none; box-shadow: var(--sh-focus); }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+/* Press feedback — the UI confirms it heard the tap. Scales children too. */
+.btn:active:not(:disabled) { transform: scale(0.97); }
 
 .btn-primary { background: var(--color-primary); color: #fff; }
 .btn-primary:hover:not(:disabled) { background: var(--color-primary-700); }
@@ -197,10 +206,17 @@ h1, h2, h3, h4, .section-title { font-family: var(--ff-display); }
 }
 
 /* ===== Page fade ===== */
-.page-fade { animation: pageFade 240ms ease both; }
+.page-fade { animation: pageFade 240ms var(--ease-out) both; }
 @keyframes pageFade {
   from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Origin-aware popover entrance (dropdowns/menus scale in from their trigger,
+   not from center). Set transform-origin on the element to match the trigger. */
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.97); }
+  to   { opacity: 1; transform: scale(1); }
 }
 
 /* ===== Skeleton ===== */
@@ -236,7 +252,7 @@ h1, h2, h3, h4, .section-title { font-family: var(--ff-display); }
   border-radius: 10px;
   min-width: 280px;
   max-width: 380px;
-  animation: toastIn 200ms ease both;
+  animation: toastIn 200ms var(--ease-out) both;
 }
 .toast.toast-success { border-left-color: var(--color-success); }
 .toast.toast-error   { border-left-color: var(--color-danger); }
@@ -254,7 +270,7 @@ h1, h2, h3, h4, .section-title { font-family: var(--ff-display); }
   align-items: flex-start;
   justify-content: center;
   z-index: 100;
-  animation: pageFade 160ms ease both;
+  animation: pageFade 160ms var(--ease-out) both;
   padding: 20px;
   overflow-y: auto;
 }
@@ -266,6 +282,13 @@ h1, h2, h3, h4, .section-title { font-family: var(--ff-display); }
   max-width: 440px;
   overflow: hidden;
   margin: auto;
+  /* Scale in from near-full-size (never scale(0)); centered, since a modal is
+     not anchored to a trigger. */
+  animation: modalPop 240ms var(--ease-out) both;
+}
+@keyframes modalPop {
+  from { opacity: 0; transform: scale(0.96) translateY(6px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
 }
 
 /* ===== Scrollbar ===== */
@@ -393,7 +416,7 @@ h1, h2, h3, h4, .section-title { font-family: var(--ff-display); }
 }
 /* Opt-in hover lift — only for cards that are actual click targets (links). */
 .card-elevated-hover {
-  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+  transition: transform 160ms var(--ease-out), box-shadow 160ms var(--ease-out), border-color 160ms var(--ease-out);
 }
 .card-elevated-hover:hover {
   transform: translateY(-2px);
@@ -441,4 +464,18 @@ h1, h2, h3, h4, .section-title { font-family: var(--ff-display); }
 @media (min-width: 1024px) {
   .hero-grid { grid-template-columns: minmax(0, 1fr) 440px; gap: 56px; }
   .hero-visual-wrap { display: block; min-width: 0; }
+}
+
+/* ===== Reduced motion (accessibility) =====
+   Users who ask the OS for less motion get near-instant transitions — the end
+   state still applies (opacity/color changes remain effectively visible), only
+   movement is dropped. Global net covers CSS transitions, keyframes, inline
+   animation shorthands (via !important longhands) and smooth scrolling. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

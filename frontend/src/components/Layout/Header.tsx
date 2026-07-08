@@ -205,7 +205,7 @@ export function Header() {
               width: 'min(320px, 86vw)', background: '#fff', zIndex: 61,
               boxShadow: 'var(--sh-lg)', display: 'flex', flexDirection: 'column',
               transform: menuOpen ? 'translateX(0)' : 'translateX(100%)',
-              transition: 'transform 220ms ease', overflowY: 'auto',
+              transition: 'transform 220ms var(--ease-drawer)', overflowY: 'auto',
             }}
           >
             {/* header панели */}
@@ -414,7 +414,8 @@ function NotificationsBell({ notifications, unread }: {
             borderRadius: 12, boxShadow: 'var(--sh-lg)',
             display: 'flex', flexDirection: 'column',
             zIndex: 60,
-            animation: 'pageFade 140ms ease both',
+            transformOrigin: 'top right',
+            animation: 'popIn 150ms var(--ease-out) both',
           }}
         >
           {/* header */}
