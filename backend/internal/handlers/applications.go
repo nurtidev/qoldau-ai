@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"database/sql"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -60,10 +61,13 @@ func (h *ApplicationsHandler) List(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	if claims.Role == "admin" {
+		// Admin review queue = submitted applications only. Users' unfinished
+		// drafts are surfaced in the "Брошенные черновики" analytics widget
+		// (GET /api/analytics/quality), not in the queue.
 		err = h.db.Select(&apps,
 			`SELECT a.*, s.title AS service_title
 			 FROM applications a JOIN services s ON a.service_id = s.id
-			 WHERE a.is_synthetic = FALSE
+			 WHERE a.is_synthetic = FALSE AND a.status != 'draft'
 			 ORDER BY a.created_at DESC`)
 	} else {
 		err = h.db.Select(&apps,
@@ -228,4 +232,44 @@ func (h *ApplicationsHandler) SubmitStage2(w http.ResponseWriter, r *http.Reques
 	)
 
 	respond(w, http.StatusOK, updated)
+}
+
+// Nudge sends the draft's owner a reminder notification to finish their
+// application. Powers the "Брошенные черновики" admin analytics widget —
+// re-invoking it simply creates another notification (MVP, no dedup/cooldown).
+// POST /api/applications/{id}/nudge
+func (h *ApplicationsHandler) Nudge(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+
+	var app models.ApplicationWithService
+	err := h.db.Get(&app, `
+		SELECT a.*, s.title AS service_title
+		FROM applications a JOIN services s ON s.id = a.service_id
+		WHERE a.id = $1`, id)
+	if err == sql.ErrNoRows {
+		respondErr(w, http.StatusNotFound, "application not found")
+		return
+	}
+	if err != nil {
+		respondErr(w, http.StatusInternalServerError, "failed to fetch application")
+		return
+	}
+	if app.Status != models.AppDraft {
+		respondErr(w, http.StatusBadRequest, "application is not a draft")
+		return
+	}
+
+	msg := fmt.Sprintf(
+		"Вы остановились при заполнении заявки на «%s». Осталось совсем немного — завершите подачу в личном кабинете.",
+		app.ServiceTitle,
+	)
+	if _, err := h.db.Exec(
+		`INSERT INTO notifications (user_id, title, message) VALUES ($1, $2, $3)`,
+		app.UserID, "Заявка ждёт завершения", msg,
+	); err != nil {
+		respondErr(w, http.StatusInternalServerError, "failed to send reminder")
+		return
+	}
+
+	respond(w, http.StatusOK, map[string]bool{"ok": true})
 }

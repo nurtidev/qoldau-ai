@@ -1,18 +1,20 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { servicesApi, applicationsApi, documentsApi, mockApi, type KGDData, type ECPSignature } from '@/api/client'
+import { servicesApi, applicationsApi, documentsApi, mockApi, type KGDData, type ISZData, type ECPSignature } from '@/api/client'
 import { useAuthStore } from '@/store/auth'
 import { I } from '@/components/icons'
 import { useToast } from '@/components/Toast'
 import { FormRenderer } from '@/components/FormRenderer'
 import { KGDCheck } from '@/components/KGDCheck'
+import { ISZCheck, evaluateLivestockMatch } from '@/components/ISZCheck'
 import { PreflightPanel } from '@/components/PreflightPanel'
 import { AlternativeRecommendations } from '@/components/AlternativeRecommendations'
 import { PrescoreCard } from '@/components/PrescoreCard'
 import { AIReviewCard } from '@/components/AIReviewCard'
 import { ECPSignModal } from '@/components/ECPSignModal'
-import { computePrescore, extractRequestedAmount, toPrescoreSnapshot } from '@/lib/prescore'
+import { computePrescore, extractRequestedAmount, toPrescoreSnapshot, type PrescoreIszInput } from '@/lib/prescore'
+import { isAgroLivestockService, getAgroLivestockClaim } from '@/lib/agroLivestock'
 import type { Service } from '@/types'
 
 export function ApplyPage() {
@@ -26,6 +28,7 @@ export function ApplyPage() {
   const [egovChecked, setEgovChecked]   = useState(false)
   const [egovData, setEgovData]         = useState<Record<string, unknown> | null>(null)
   const [kgdData, setKgdData]           = useState<KGDData | null>(null)
+  const [iszData, setIszData]           = useState<ISZData | null>(null)
   const [initialData, setInitialData]   = useState<Record<string, unknown>>({})
   const [prefilledKeys, setPrefilledKeys] = useState<Set<string>>(new Set())
   const [currentValues, setCurrentValues] = useState<Record<string, unknown>>({})
@@ -65,9 +68,29 @@ export function ApplyPage() {
     () => extractRequestedAmount(service?.form_schema, currentValues),
     [service, currentValues],
   )
+
+  // Контрольный кейс животноводства: сверка заявленного поголовья с ИСЖ МСХ РК.
+  const isAgro = useMemo(() => isAgroLivestockService(service), [service])
+  const agroClaim = useMemo(
+    () => (isAgro ? getAgroLivestockClaim(currentValues) : {}),
+    [isAgro, currentValues],
+  )
+  const iszMatch = useMemo(
+    () => (iszData ? evaluateLivestockMatch(iszData, agroClaim.species, agroClaim.claimedCount) : null),
+    [iszData, agroClaim],
+  )
+  const iszPrescoreInput: PrescoreIszInput | undefined = useMemo(() => {
+    if (!iszData) return undefined
+    return {
+      hasActiveQuarantine: iszData.has_active_quarantine,
+      discrepancyRatio: iszMatch?.status === 'discrepancy' ? (iszMatch.discrepancyPct ?? 0) / 100 : undefined,
+      discrepancyMessage: iszMatch?.status === 'discrepancy' ? iszMatch.message : undefined,
+    }
+  }, [iszData, iszMatch])
+
   const prescore = useMemo(
-    () => (kgdData ? computePrescore({ egov: egovData, kgd: kgdData, requestedAmount }) : null),
-    [egovData, kgdData, requestedAmount],
+    () => (kgdData ? computePrescore({ egov: egovData, kgd: kgdData, requestedAmount, isz: iszPrescoreInput }) : null),
+    [egovData, kgdData, requestedAmount, iszPrescoreInput],
   )
 
   // FormRenderer вызывает onSubmit только после прохождения валидации всех шагов —
@@ -102,12 +125,37 @@ export function ApplyPage() {
         }
       }
 
+      // Сверка поголовья с ИСЖ — пересчитываем по финальным данным формы
+      // (currentValues к моменту сабмита совпадают с formData, но не полагаемся на это).
+      const finalClaim = isAgro ? getAgroLivestockClaim(formData) : {}
+      const finalIszMatch = iszData ? evaluateLivestockMatch(iszData, finalClaim.species, finalClaim.claimedCount) : null
+      const finalIszInput: PrescoreIszInput | undefined = iszData ? {
+        hasActiveQuarantine: iszData.has_active_quarantine,
+        discrepancyRatio: finalIszMatch?.status === 'discrepancy' ? (finalIszMatch.discrepancyPct ?? 0) / 100 : undefined,
+        discrepancyMessage: finalIszMatch?.status === 'discrepancy' ? finalIszMatch.message : undefined,
+      } : undefined
+
       // Снимок предоценки в заявку (под служебным ключом _prescore).
       const amount = extractRequestedAmount(service?.form_schema, formData)
       const result = kgdData
-        ? computePrescore({ egov: egovData, kgd: kgdData, requestedAmount: amount })
+        ? computePrescore({ egov: egovData, kgd: kgdData, requestedAmount: amount, isz: finalIszInput })
         : null
       if (result) cleanData._prescore = toPrescoreSnapshot(result)
+
+      // Снимок сверки с ИСЖ (под служебным ключом _isz) — чтобы аналитик видел
+      // расхождение поголовья, зафиксированное на момент подачи.
+      if (iszData) {
+        cleanData._isz = {
+          farm_name: iszData.farm_name,
+          region: iszData.region,
+          livestock: iszData.livestock,
+          has_active_quarantine: iszData.has_active_quarantine,
+          claimed_species: finalClaim.species,
+          claimed_count: finalClaim.claimedCount,
+          verdict: finalIszMatch?.status,
+          verdict_message: finalIszMatch?.message,
+        }
+      }
 
       // Снимок подписи ЭЦП (мок NCALayer/НУЦ РК).
       cleanData._signature = signature
@@ -197,6 +245,15 @@ export function ApplyPage() {
 
       {egovChecked && user && (
         <KGDCheck bin={user.iin} onComplete={setKgdData} />
+      )}
+
+      {isAgro && egovChecked && user && agroClaim.claimedCount !== undefined && (
+        <ISZCheck
+          iinOrBin={user.iin}
+          species={agroClaim.species}
+          claimedCount={agroClaim.claimedCount}
+          onComplete={setIszData}
+        />
       )}
 
       <PreflightPanel

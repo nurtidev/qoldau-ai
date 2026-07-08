@@ -8,6 +8,7 @@ import { useToast } from '@/components/Toast'
 import { FormRenderer } from '@/components/FormRenderer'
 import { AlternativeRecommendations } from '@/components/AlternativeRecommendations'
 import { PrescoreCard, type PrescoreCardResult } from '@/components/PrescoreCard'
+import type { ISZLivestockEntry } from '@/api/client'
 import { SlaBadge } from '@/components/SlaBadge'
 import { ECPSignModal } from '@/components/ECPSignModal'
 import { getSlaInfo } from '@/lib/sla'
@@ -59,6 +60,20 @@ function buildTimeline(app: Application): TimelineNode[] {
   })
 
   return nodes
+}
+
+// Снимок сверки с ИСЖ, сохранённый под form_data._isz при подаче агро-заявки
+// (см. ApplyPage.tsx handleSigned) — независимая от ISZData структура, чтобы
+// не тянуть служебные поля data_source/fetched_at в заявку.
+interface ISZSnapshot {
+  farm_name: string
+  region: string
+  livestock: ISZLivestockEntry[]
+  has_active_quarantine: boolean
+  claimed_species?: string
+  claimed_count?: number
+  verdict?: 'confirmed' | 'discrepancy' | 'no_match'
+  verdict_message?: string
 }
 
 const FILE_EXT_RE = /\.(\w+)$/
@@ -165,6 +180,8 @@ export function ApplicationDetailPage() {
   const formEntries = Object.entries(app.form_data)
     .filter(([k, v]) => !k.startsWith('_') && v !== null && v !== '')
   const prescore = app.form_data._prescore as PrescoreCardResult | undefined
+  // Снимок сверки поголовья с ИСЖ МСХ РК (только для агро-заявок, см. ApplyPage._isz).
+  const isz = app.form_data._isz as ISZSnapshot | undefined
   // Снимки подписи ЭЦП (мок NCALayer) — могут отсутствовать у старых заявок.
   const signature1 = app.form_data._signature as ECPSignature | undefined
   const signature2 = app.form_data._signature_stage2 as ECPSignature | undefined
@@ -305,6 +322,9 @@ export function ApplicationDetailPage() {
 
           {/* Предварительная оценка заявителя (снимок на момент подачи) */}
           {prescore && <PrescoreCard result={prescore} compact />}
+
+          {/* Сверка поголовья с ИСЖ МСХ РК (снимок на момент подачи, агро-заявки) */}
+          {isz && <IszSnapshotCard isz={isz} />}
 
           {/* Снимки подписи ЭЦП (мок NCALayer/НУЦ РК) */}
           {(signature1 || signature2) && (
@@ -462,6 +482,62 @@ export function ApplicationDetailPage() {
         onSigned={handleStage2Signed}
         onCancel={handleStage2SignCancel}
       />
+    </div>
+  )
+}
+
+// ── IszSnapshotCard ───────────────────────────────────────────────────────────
+// Компактный блок «Сверка с ИСЖ» для аналитика: таблица видов + вердикт,
+// зафиксированные в момент подачи заявки (form_data._isz).
+
+function IszSnapshotCard({ isz }: { isz: ISZSnapshot }) {
+  const verdictOk = isz.verdict === 'confirmed'
+  const bg = isz.has_active_quarantine ? '#FEF2F2' : verdictOk ? 'var(--color-success-soft)' : '#FEF3C7'
+  const border = isz.has_active_quarantine ? '#FECACA' : verdictOk ? '#A7F3D0' : '#FCD34D'
+
+  return (
+    <div className="card" style={{ padding: 18, background: bg, border: `1px solid ${border}` }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+        <I.Shield size={16} style={{ color: 'var(--color-primary)' }} />
+        <strong style={{ fontSize: 13, color: 'var(--color-text)' }}>Сверка с ИСЖ МСХ РК</strong>
+        <span style={{ fontSize: 11, color: 'var(--color-text-3)' }}>
+          {isz.farm_name} ({isz.region})
+        </span>
+      </div>
+
+      {isz.has_active_quarantine && (
+        <div style={{ fontSize: 12.5, fontWeight: 600, color: '#991B1B', marginBottom: 8 }}>
+          Действует карантин — подача была ограничена
+        </div>
+      )}
+
+      {isz.verdict_message && (
+        <div style={{ fontSize: 12.5, color: 'var(--color-text-2)', marginBottom: 10, lineHeight: 1.5 }}>
+          {isz.verdict_message}
+        </div>
+      )}
+
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
+        <thead>
+          <tr style={{ color: 'var(--color-text-3)', textAlign: 'left' }}>
+            <th style={{ fontWeight: 500, paddingBottom: 4 }}>Вид</th>
+            <th style={{ fontWeight: 500, paddingBottom: 4, textAlign: 'right' }}>В базе</th>
+            <th style={{ fontWeight: 500, paddingBottom: 4, textAlign: 'right' }}>Идентифицировано</th>
+          </tr>
+        </thead>
+        <tbody>
+          {isz.livestock.map(l => (
+            <tr key={l.species} style={{
+              borderTop: '1px solid rgba(0,0,0,0.06)',
+              fontWeight: l.species === isz.claimed_species ? 700 : 400,
+            }}>
+              <td style={{ padding: '4px 0' }}>{l.species}</td>
+              <td style={{ padding: '4px 0', textAlign: 'right' }}>{l.count}</td>
+              <td style={{ padding: '4px 0', textAlign: 'right' }}>{l.identified_count}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   )
 }

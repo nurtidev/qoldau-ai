@@ -10,6 +10,7 @@ import { useToast } from '@/components/Toast'
 import { FormRenderer } from '@/components/FormRenderer'
 import { AudienceDrawer } from '@/components/AudienceDrawer'
 import { AnalyticsDrawer } from '@/components/AnalyticsDrawer'
+import { ServiceInsights } from '@/components/ServiceInsights'
 import { BuilderTour } from '@/components/BuilderTour'
 import { parseAiFormSchema, parseAiServiceMeta, type AiServiceMeta } from '@/types/schema'
 import type { AudienceFilters } from '@/api/client'
@@ -1532,6 +1533,7 @@ export function ServiceFormPage() {
   const [showPreview, setShowPreview] = useState(false)
   const [showAudience, setShowAudience] = useState(false)
   const [showAnalytics, setShowAnalytics] = useState(false)
+  const [showInsights, setShowInsights] = useState(false)
   const [audiencePreset, setAudiencePreset] = useState<{ filters: AudienceFilters; banner: string } | null>(null)
   const [initialized, setInitialized] = useState(false)
   // Tour trigger: incrementing this restarts the BuilderTour. Used by the "🎓 Тур" button.
@@ -1750,6 +1752,9 @@ export function ServiceFormPage() {
           <button className="btn btn-secondary btn-sm" style={{ flexShrink: 0, whiteSpace: 'nowrap' }} onClick={() => setShowAnalytics(true)} title={id ? 'Воронка программы' : 'Сохраните черновик, чтобы открыть аналитику'}>
             <I.Funnel size={14} /> Аналитика
           </button>
+          <button className="btn btn-secondary btn-sm" style={{ flexShrink: 0, whiteSpace: 'nowrap' }} onClick={() => setShowInsights(true)} title={id ? 'AI-инсайты по накопленным данным' : 'Сохраните черновик, чтобы получить AI-инсайты'}>
+            <I.Sparkle size={14} /> AI-инсайты
+          </button>
           <button className="btn btn-secondary btn-sm" style={{ flexShrink: 0, whiteSpace: 'nowrap' }} onClick={() => { setAudiencePreset(null); setShowAudience(true) }} title={id ? 'Калькулятор охвата' : 'Сохраните черновик, чтобы открыть калькулятор'}>
             <I.Target size={14} /> Аудитория
           </button>
@@ -1847,6 +1852,13 @@ export function ServiceFormPage() {
             setShowAnalytics(false)
             setShowAudience(true)
           }}
+        />
+      )}
+      {showInsights && (
+        <ServiceInsights
+          serviceId={id}
+          serviceTitle={meta.title}
+          onClose={() => setShowInsights(false)}
         />
       )}
       <BuilderTour autoStart={!id} forceStart={tourTrigger > 0} onFinish={() => setTourTrigger(0)} />

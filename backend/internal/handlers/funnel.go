@@ -13,9 +13,9 @@ import (
 )
 
 // FunnelHandler powers the program-level analytics feature:
-//   • track service views (POST /api/services/:id/view)
-//   • track step events (POST /api/applications/:id/event)
-//   • aggregate funnel + drilldown insight (GET /api/services/:id/funnel)
+//   - track service views (POST /api/services/:id/view)
+//   - track step events (POST /api/applications/:id/event)
+//   - aggregate funnel + drilldown insight (GET /api/services/:id/funnel)
 type FunnelHandler struct {
 	db *sqlx.DB
 }
@@ -89,20 +89,20 @@ func (h *FunnelHandler) LogEvent(w http.ResponseWriter, r *http.Request) {
 // ─── Funnel aggregation ─────────────────────────────────────────────────────
 
 type funnelStage struct {
-	Stage    string `json:"stage"`
-	Label    string `json:"label"`
-	Count    int    `json:"count"`
-	DropPct  int    `json:"drop_pct"` // % drop from previous stage (0 for first)
+	Stage   string `json:"stage"`
+	Label   string `json:"label"`
+	Count   int    `json:"count"`
+	DropPct int    `json:"drop_pct"` // % drop from previous stage (0 for first)
 }
 
 type drilldownField struct {
-	FieldID         string                 `json:"field_id"`
-	FieldLabel      string                 `json:"field_label"`
-	AbandonedCount  int                    `json:"abandoned_count"`
-	AbandonedPct    int                    `json:"abandoned_pct"`
-	Stats           map[string]interface{} `json:"stats"`
-	Insight         string                 `json:"insight"`
-	AudienceFix     map[string]interface{} `json:"audience_fix,omitempty"`
+	FieldID        string                 `json:"field_id"`
+	FieldLabel     string                 `json:"field_label"`
+	AbandonedCount int                    `json:"abandoned_count"`
+	AbandonedPct   int                    `json:"abandoned_pct"`
+	Stats          map[string]interface{} `json:"stats"`
+	Insight        string                 `json:"insight"`
+	AudienceFix    map[string]interface{} `json:"audience_fix,omitempty"`
 }
 
 type biggestDrop struct {
@@ -127,6 +127,57 @@ type formStep struct {
 		Type  string `json:"type"`
 		Label string `json:"label"`
 	} `json:"fields"`
+}
+
+// funnelCounts holds the raw lifecycle aggregates for one service.
+type funnelCounts struct {
+	Views           int
+	Started         int            // total applications (any status)
+	StatusCounts    map[string]int // count per application_status
+	CompletedByStep map[string]int // distinct apps that completed each step_id
+}
+
+// gatherFunnelCounts computes view / start / status / step-completion counts for
+// one service. Shared by the funnel endpoint (Funnel) and the AI service-insights
+// endpoint so both read the same lifecycle numbers without duplicating SQL.
+func gatherFunnelCounts(db *sqlx.DB, serviceID string) funnelCounts {
+	fc := funnelCounts{StatusCounts: map[string]int{}, CompletedByStep: map[string]int{}}
+
+	_ = db.Get(&fc.Views,
+		`SELECT COUNT(*) FROM service_views WHERE service_id = $1`, serviceID)
+	_ = db.Get(&fc.Started,
+		`SELECT COUNT(*) FROM applications WHERE service_id = $1`, serviceID)
+
+	rows, err := db.Query(
+		`SELECT status::text, COUNT(*) FROM applications
+		 WHERE service_id = $1 GROUP BY status`, serviceID)
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var s string
+			var c int
+			if err := rows.Scan(&s, &c); err == nil {
+				fc.StatusCounts[s] = c
+			}
+		}
+	}
+
+	type stepCount struct {
+		StepID string `db:"step_id"`
+		Count  int    `db:"count"`
+	}
+	stepCounts := []stepCount{}
+	_ = db.Select(&stepCounts, `
+		SELECT step_id, COUNT(DISTINCT application_id) AS count
+		FROM application_events ev
+		JOIN applications a ON a.id = ev.application_id
+		WHERE a.service_id = $1 AND ev.event_type = 'completed'
+		GROUP BY step_id`, serviceID)
+	for _, sc := range stepCounts {
+		fc.CompletedByStep[sc.StepID] = sc.Count
+	}
+
+	return fc
 }
 
 // Funnel returns the aggregated lifecycle funnel for one service plus
@@ -160,53 +211,17 @@ func (h *FunnelHandler) Funnel(w http.ResponseWriter, r *http.Request) {
 	}
 	_ = json.Unmarshal(schemaJSON, &schema)
 
-	// 2. Counters
-	var (
-		viewCount, startedCount int
-		statusCounts            = map[string]int{}
-	)
-
-	_ = h.db.Get(&viewCount,
-		`SELECT COUNT(*) FROM service_views WHERE service_id = $1`, serviceID)
-
-	_ = h.db.Get(&startedCount,
-		`SELECT COUNT(*) FROM applications WHERE service_id = $1`, serviceID)
-
-	rows, err := h.db.Query(
-		`SELECT status::text, COUNT(*) FROM applications
-		 WHERE service_id = $1 GROUP BY status`, serviceID)
-	if err == nil {
-		defer rows.Close()
-		for rows.Next() {
-			var s string
-			var c int
-			if err := rows.Scan(&s, &c); err == nil {
-				statusCounts[s] = c
-			}
-		}
-	}
-
-	// Step completion counts: distinct applications that reached "completed" for each step
-	type stepCount struct {
-		StepID string `db:"step_id"`
-		Count  int    `db:"count"`
-	}
-	stepCounts := []stepCount{}
-	_ = h.db.Select(&stepCounts, `
-		SELECT step_id, COUNT(DISTINCT application_id) AS count
-		FROM application_events ev
-		JOIN applications a ON a.id = ev.application_id
-		WHERE a.service_id = $1 AND ev.event_type = 'completed'
-		GROUP BY step_id`, serviceID)
-	completedByStep := map[string]int{}
-	for _, sc := range stepCounts {
-		completedByStep[sc.StepID] = sc.Count
-	}
+	// 2. Counters (shared with the AI service-insights endpoint)
+	fc := gatherFunnelCounts(h.db, serviceID)
+	viewCount := fc.Views
+	startedCount := fc.Started
+	statusCounts := fc.StatusCounts
+	completedByStep := fc.CompletedByStep
 
 	// 3. Build funnel
 	stages := []funnelStage{
-		{Stage: "views",   Label: "Просмотрели карточку", Count: viewCount},
-		{Stage: "started", Label: "Начали подачу",        Count: startedCount},
+		{Stage: "views", Label: "Просмотрели карточку", Count: viewCount},
+		{Stage: "started", Label: "Начали подачу", Count: startedCount},
 	}
 	for i, st := range schema.Steps {
 		stages = append(stages, funnelStage{
@@ -218,8 +233,8 @@ func (h *FunnelHandler) Funnel(w http.ResponseWriter, r *http.Request) {
 	submittedCount := statusCounts["submitted"] + statusCounts["in_review"] + statusCounts["approved"] + statusCounts["rejected"]
 	approvedCount := statusCounts["approved"]
 	stages = append(stages,
-		funnelStage{Stage: "submitted", Label: "Подано",   Count: submittedCount},
-		funnelStage{Stage: "approved",  Label: "Одобрено", Count: approvedCount},
+		funnelStage{Stage: "submitted", Label: "Подано", Count: submittedCount},
+		funnelStage{Stage: "approved", Label: "Одобрено", Count: approvedCount},
 	)
 
 	// 4. Compute drop percentages

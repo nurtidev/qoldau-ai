@@ -109,6 +109,8 @@ func main() {
 		r.Post("/ai/explain-service", aiH.ExplainService) // SSE stream, plain-language explainer
 		r.Post("/ai/pick-service", aiH.PickService)       // screener → AI match
 		r.With(authMw).Post("/ai/review-application", aiH.ReviewApplication)
+		// AI-инсайты для автора услуги (по накопленным данным) — admin+author.
+		r.With(authMw, adminAuthorMw).Post("/ai/service-insights", aiH.ServiceInsights)
 
 		// Applications
 		r.Route("/applications", func(r chi.Router) {
@@ -117,6 +119,8 @@ func main() {
 			r.Get("/", appsH.List)
 			r.Get("/{id}", appsH.Get)
 			r.With(adminMw).Put("/{id}/status", appsH.UpdateStatus)
+			// Nudge a draft's owner to finish their application (admin analytics widget)
+			r.With(adminMw).Post("/{id}/nudge", appsH.Nudge)
 			// Stage 2: applicant provides the additional data/documents requested
 			r.Post("/{id}/stage2", appsH.SubmitStage2)
 			// Funnel step event
@@ -141,6 +145,7 @@ func main() {
 		// Mock integrations
 		r.Get("/mock/egov/{iin}", mockH.EGov)
 		r.Get("/mock/kgd/{bin}", mockH.KGD)
+		r.Get("/mock/isz/{iin_or_bin}", mockH.ISZ)
 		r.Post("/mock/eish/submit", mockH.EISHSubmit)
 		r.Post("/mock/ecp/sign", mockH.ECPSign)
 
@@ -151,6 +156,7 @@ func main() {
 
 		// Analytics (admin only)
 		r.With(authMw, adminMw).Get("/analytics/summary", analyticsH.Summary)
+		r.With(authMw, adminMw).Get("/analytics/quality", analyticsH.Quality)
 
 		// Leads ("Перезвоните мне" widget) — POST is public, list is admin-only.
 		r.Post("/leads", leadsH.Create)

@@ -40,10 +40,20 @@ type AIHandler struct {
 	// Repeated card opens are instant and cost no tokens.
 	explainMu    sync.RWMutex
 	explainCache map[string]explainCacheEntry
+
+	// In-memory cache of AI service-insights, keyed by service_id. Versioned by
+	// the application/view counts (data changes ⇒ new version) with a short TTL.
+	insightsMu    sync.RWMutex
+	insightsCache map[string]insightsCacheEntry
 }
 
 func NewAIHandler(apiKey string, db *sqlx.DB) *AIHandler {
-	return &AIHandler{apiKey: apiKey, db: db, explainCache: make(map[string]explainCacheEntry)}
+	return &AIHandler{
+		apiKey:        apiKey,
+		db:            db,
+		explainCache:  make(map[string]explainCacheEntry),
+		insightsCache: make(map[string]insightsCacheEntry),
+	}
 }
 
 // ── Shared Anthropic helpers ────────────────────────────────────────────────
@@ -498,7 +508,7 @@ func (h *AIHandler) Recommend(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userPayload := map[string]interface{}{
-		"profile":           map[string]interface{}{"egov": req.EGov, "kgd": req.KGD},
+		"profile":            map[string]interface{}{"egov": req.EGov, "kgd": req.KGD},
 		"available_services": services,
 	}
 	if req.ExcludeServiceID != "" {

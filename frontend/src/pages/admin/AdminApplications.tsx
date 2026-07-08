@@ -9,9 +9,10 @@ import { getSlaInfo } from '@/lib/sla'
 import type { Application, ApplicationStatus } from '@/types'
 import { APPLICATION_STATUS_LABELS, APPLICATION_STATUS_COLORS } from '@/types'
 
-// Основные статусные табы. "Все" сознательно исключает черновики — заявка,
-// которую заявитель ещё не подал, сотруднику обычно не нужна в очереди.
-// Черновики доступны отдельным табом правее (см. DRAFT_FILTER).
+// Статусные табы очереди. Черновики сюда не попадают вовсе: бэкенд
+// (GET /api/applications под админом) отдаёт только поданные заявки,
+// а брошенные черновики живут в виджете «Брошенные черновики»
+// на странице Аналитики (GET /api/analytics/quality) с кнопкой «Напомнить».
 const FILTERS: { id: string; label: string }[] = [
   { id: 'all',            label: 'Все' },
   { id: 'submitted',      label: 'Новые' },
@@ -20,8 +21,6 @@ const FILTERS: { id: string; label: string }[] = [
   { id: 'approved',       label: 'Одобрено' },
   { id: 'rejected',       label: 'Отклонено' },
 ]
-
-const DRAFT_FILTER = { id: 'draft', label: 'Черновики' }
 
 type SortKey = 'date_desc' | 'date_asc' | 'sla'
 
@@ -182,15 +181,6 @@ export function AdminApplications() {
             <span style={{ fontSize: 11, opacity: 0.7 }}>{statusCounts[t.id] ?? 0}</span>
           </button>
         ))}
-        <span style={{ width: 1, alignSelf: 'stretch', background: 'var(--color-border)', margin: '3px 2px' }} />
-        <button
-          onClick={() => setFilter(DRAFT_FILTER.id)}
-          title="Черновик — заявка ещё не подана заявителем"
-          style={tabStyle(filter === DRAFT_FILTER.id)}
-        >
-          {DRAFT_FILTER.label}
-          <span style={{ fontSize: 11, opacity: 0.7 }}>{statusCounts.draft ?? 0}</span>
-        </button>
       </div>
 
       {/* Search + service filter + sort */}

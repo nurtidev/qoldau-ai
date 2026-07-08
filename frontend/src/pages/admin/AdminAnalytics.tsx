@@ -1,14 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation } from '@tanstack/react-query'
 import { I } from '@/components/icons'
+import { useToast } from '@/components/Toast'
 import {
   servicesApi,
   funnelApi,
   audienceApi,
+  analyticsApi,
+  applicationsApi,
   type FunnelResponse,
   type FunnelStage,
   type AudienceMatch,
   type AudienceSnapshot,
+  type QualityResponse,
 } from '@/api/client'
 import type { Service } from '@/types'
 
@@ -164,6 +168,14 @@ export function AdminAnalytics() {
     enabled: !!selectedServiceId,
   })
 
+  // Quality-of-flow widgets: prescore grade distribution + abandoned drafts.
+  // Service-independent (aggregated across the whole platform), unlike the
+  // funnel/audience blocks above which are scoped to selectedServiceId.
+  const { data: quality, isLoading: qualityLoading } = useQuery<QualityResponse>({
+    queryKey: ['admin-analytics-quality'],
+    queryFn: () => analyticsApi.quality().then((r) => r.data),
+  })
+
   const stages = funnel?.funnel ?? []
   const worstIdx = useMemo(() => {
     let idx = -1
@@ -310,6 +322,163 @@ export function AdminAnalytics() {
                 <BreakdownList rows={byMsb} labels={MSB_LABELS} />
               </div>
             </div>
+          </div>
+
+          {/* Incoming flow quality + abandoned drafts */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16, marginTop: 24 }}>
+            <QualitySection data={quality} loading={qualityLoading} />
+            <DraftsSection data={quality} loading={qualityLoading} />
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+// ─── Quality of incoming flow (prescore grade distribution) ────────────────
+
+const GRADE_COLOR: Record<string, string> = {
+  A: 'var(--color-success)',
+  B: 'var(--color-accent)',
+  C: 'var(--color-warning)',
+  D: 'var(--color-danger)',
+  none: 'var(--color-text-3)',
+}
+
+const GRADE_LABEL: Record<string, string> = {
+  A: 'Грейд A', B: 'Грейд B', C: 'Грейд C', D: 'Грейд D', none: 'Без оценки',
+}
+
+function QualitySection({ data, loading }: { data?: QualityResponse; loading: boolean }) {
+  const grades = data?.grades ?? []
+  const total = grades.reduce((sum, g) => sum + g.count, 0)
+  const max = Math.max(...grades.map((g) => g.count), 1)
+  const abCount = grades
+    .filter((g) => g.grade === 'A' || g.grade === 'B')
+    .reduce((sum, g) => sum + g.count, 0)
+  const abPct = total > 0 ? Math.round((abCount / total) * 100) : 0
+
+  return (
+    <SectionCard title="Качество входящего потока" subtitle="Грейд рассчитывается до подачи по данным eGov и КГД">
+      {loading ? (
+        <div className="skeleton" style={{ height: 180, borderRadius: 8 }} />
+      ) : total === 0 ? (
+        <EmptyNote text="Пока нет поданных заявок с расчётом предоценки." />
+      ) : (
+        <>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+            {grades.map((g) => (
+              <div key={g.grade}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: 12, marginBottom: 5 }}>
+                  <span style={{ color: 'var(--color-text-2)', fontWeight: 600 }}>{GRADE_LABEL[g.grade] ?? g.grade}</span>
+                  <span style={{ color: 'var(--color-text)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+                    {g.count.toLocaleString('ru-RU')}
+                  </span>
+                </div>
+                <div style={{ height: 10, background: 'var(--color-surface-2)', borderRadius: 5, overflow: 'hidden' }}>
+                  <div style={{
+                    width: `${(g.count / max) * 100}%`, height: '100%', borderRadius: 5,
+                    background: GRADE_COLOR[g.grade] ?? 'var(--color-text-3)', transition: 'width 200ms',
+                  }} />
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{ padding: '12px 14px', borderRadius: 10, background: 'var(--color-accent-soft)', fontSize: 13, color: 'var(--color-text-2)', lineHeight: 1.5, marginBottom: 10 }}>
+            <strong style={{ color: 'var(--color-accent-text)' }}>{abPct}%</strong> заявок приходят с грейдом A/B — аналитик тратит время только на проходные заявки.
+          </div>
+          <p style={{ fontSize: 12, color: 'var(--color-text-3)', margin: 0, lineHeight: 1.5 }}>
+            Грейд A/B — высокая налоговая дисциплина и финансовая устойчивость по данным eGov и КГД; C/D — профиль требует внимания; «без оценки» — заявка подана без прохождения предоценки.
+          </p>
+        </>
+      )}
+    </SectionCard>
+  )
+}
+
+// ─── Abandoned drafts ────────────────────────────────────────────────────────
+
+function DraftsSection({ data, loading }: { data?: QualityResponse; loading: boolean }) {
+  const toast = useToast()
+  const [sentIds, setSentIds] = useState<string[]>([])
+
+  const nudgeMut = useMutation({
+    mutationFn: (id: string) => applicationsApi.nudge(id),
+    onSuccess: (_res, id) => {
+      toast.push('Напоминание отправлено', 'success')
+      setSentIds((arr) => [...arr, id])
+    },
+    onError: () => toast.push('Не удалось отправить напоминание', 'error'),
+  })
+
+  const drafts = data?.drafts
+  const items = drafts?.items ?? []
+
+  return (
+    <div className="card" style={{ padding: 24, minWidth: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+        <I.Clock size={18} style={{ color: 'var(--color-danger)' }} />
+        <h3 style={{ fontSize: 15, fontWeight: 600, margin: 0 }}>Брошенные черновики</h3>
+      </div>
+      <p style={{ fontSize: 13, color: 'var(--color-text-3)', margin: 0, marginBottom: 18 }}>
+        Заявители, остановившиеся на середине подачи — деньги программ, которые ещё можно довести до получателя
+      </p>
+
+      {loading ? (
+        <div className="skeleton" style={{ height: 180, borderRadius: 8 }} />
+      ) : (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 16, marginBottom: 20 }}>
+            <StatChipLarge label="Черновиков" value={drafts?.count ?? 0} />
+            <StatChipLarge label="Незавершённая сумма" value={formatStat(drafts?.amount_sum ?? 0)} />
+          </div>
+
+          {items.length === 0 ? (
+            <EmptyNote text="Брошенных черновиков сейчас нет." />
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', minWidth: 520, borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ background: 'var(--color-surface-2)' }}>
+                    {['Услуга', 'Заявитель', 'Дата', 'Сумма', ''].map((h) => (
+                      <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: 'var(--color-text-3)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((d) => {
+                    const sent = sentIds.includes(d.id)
+                    return (
+                      <tr key={d.id} style={{ borderTop: '1px solid var(--color-border)' }}>
+                        <td style={{ padding: '12px 14px', fontSize: 13, fontWeight: 500 }}>{d.service_title}</td>
+                        <td style={{ padding: '12px 14px', fontSize: 13, color: 'var(--color-text-2)' }}>{d.user_name}</td>
+                        <td style={{ padding: '12px 14px', fontSize: 13, color: 'var(--color-text-3)', whiteSpace: 'nowrap' }}>
+                          {new Date(d.updated_or_created_at).toLocaleDateString('ru-KZ')}
+                        </td>
+                        <td style={{ padding: '12px 14px', fontSize: 13, color: 'var(--color-text-2)', fontVariantNumeric: 'tabular-nums' }}>
+                          {d.amount > 0 ? formatStat(d.amount) : '—'}
+                        </td>
+                        <td style={{ padding: '12px 14px' }}>
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            disabled={sent || nudgeMut.isPending}
+                            onClick={() => nudgeMut.mutate(d.id)}
+                          >
+                            {sent ? 'Отправлено' : 'Напомнить'}
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <div style={{ marginTop: 16, padding: '12px 14px', borderRadius: 10, background: 'var(--color-danger-soft)', fontSize: 13, color: 'var(--color-text-2)', lineHeight: 1.5 }}>
+            Каждый черновик — предприниматель, не дошедший до поддержки.
           </div>
         </>
       )}

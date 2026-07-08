@@ -1,10 +1,12 @@
 // =====================================================================
 // Движок «Предварительная оценка заявителя» (по мотивам AgroScore).
-// Чистый TypeScript, без React. Все данные — mock (eGov + КГД).
-// Веса факторов в сумме дают 1.0.
+// Чистый TypeScript, без React. Все данные — mock (eGov + КГД, опционально ИСЖ).
+// Веса базовых 5 факторов в сумме дают 1.0; агро-факторы (ИСЖ) — это
+// пост-корректировка сверх базовой модели, не меняющая веса и не влияющая
+// на не-агро услуги (где isz не передаётся).
 //
-// Вход:  { egov, kgd, requestedAmount? }
-// Выход: { score 0–100, band A/B/C/D, factors[], preapprovedLimit, recommendations[] }
+// Вход:  { egov, kgd, requestedAmount?, isz? }
+// Выход: { score 0–100, band A/B/C/D, factors[], preapprovedLimit, recommendations[], stopFactors? }
 //
 // ВАЖНО: это не решение о выдаче, а справочная предоценка по открытым
 // данным eGov и КГД. Честная подпись выводится в UI (PrescoreCard).
@@ -23,12 +25,21 @@ export interface PrescoreFactor {
   hint: string // человеко-понятная подсказка
 }
 
+/** Стоп-фактор агро-сверки (ИСЖ) — по аналогии с блокирующими рисками PreflightPanel. */
+export interface PrescoreStopFactor {
+  id: string
+  level: 'blocking' | 'warning'
+  message: string
+}
+
 export interface PrescoreResult {
   score: number // итоговый балл 0–100
   band: Band
   factors: PrescoreFactor[]
   preapprovedLimit: number // предодобряемый лимит, ₸
   recommendations: string[]
+  /** Присутствует только когда передан isz — не ломает не-агро сценарий. */
+  stopFactors?: PrescoreStopFactor[]
 }
 
 /** Снимок результата для сохранения в form_data._prescore (факторы без hint). */
@@ -37,12 +48,30 @@ export interface PrescoreSnapshot {
   band: Band
   preapprovedLimit: number
   factors: { id: string; label: string; score: number; weight: number }[]
+  stopFactors?: PrescoreStopFactor[]
+}
+
+/**
+ * Опциональный вход для агро-сверки с ИСЖ МСХ РК. Намеренно «обезличен» от
+ * конкретной формы/полей (см. frontend/src/lib/agroLivestock.ts и
+ * ISZCheck.tsx, которые считают discrepancyRatio) — prescore.ts не знает
+ * ничего про поля an6/an7 конкретной услуги.
+ */
+export interface PrescoreIszInput {
+  /** Активный карантин по данным ИСЖ — блокирующий стоп-фактор. */
+  hasActiveQuarantine: boolean
+  /** Отклонение заявленного поголовья от идентифицированного в ИСЖ, доля (0.25 = 25%). Undefined — сверка не проводилась. */
+  discrepancyRatio?: number
+  /** Готовое человеко-понятное сообщение о расхождении (для recommendations/stopFactors). */
+  discrepancyMessage?: string
 }
 
 export interface PrescoreInput {
   egov: Record<string, unknown> | null
   kgd: KGDData | null
   requestedAmount?: number
+  /** Данные сверки с ИСЖ — только для агро-услуги животноводства (см. ApplyPage). */
+  isz?: PrescoreIszInput | null
 }
 
 // ── утилиты ────────────────────────────────────────────────────────────────
@@ -223,7 +252,7 @@ const LIMIT_SHARE: Record<Band, number> = { A: 0.4, B: 0.25, C: 0.1, D: 0 }
 
 // ── публичная функция ─────────────────────────────────────────────────────────
 export function computePrescore(input: PrescoreInput): PrescoreResult | null {
-  const { egov, kgd, requestedAmount } = input
+  const { egov, kgd, requestedAmount, isz } = input
   if (!kgd) return null
 
   const tax = calcTaxDiscipline(kgd)
@@ -246,11 +275,12 @@ export function computePrescore(input: PrescoreInput): PrescoreResult | null {
     mat.bucket * 0.15 +
     burden.bucket * 0.2 +
     formal.bucket * 0.1
-  const score = Math.round(clamp(raw))
-  const band = bandFor(score)
+
+  let score = Math.round(clamp(raw))
+  let band = bandFor(score)
 
   const revenue = latestRevenue(kgd)
-  const preapprovedLimit = Math.round(revenue * LIMIT_SHARE[band])
+  let preapprovedLimit = Math.round(revenue * LIMIT_SHARE[band])
 
   // Рекомендации: от самых слабых факторов + общий вывод по бэнду.
   const recommendations: string[] = []
@@ -264,7 +294,37 @@ export function computePrescore(input: PrescoreInput): PrescoreResult | null {
     recommendations.unshift('Профиль ниже порога предодобрения — устраните стоп-факторы перед подачей')
   }
 
-  return { score, band, factors, preapprovedLimit, recommendations }
+  // ── агро-корректировка по данным ИСЖ (только когда isz передан явно) ──────
+  const stopFactors: PrescoreStopFactor[] = []
+  if (isz) {
+    if (isz.discrepancyRatio !== undefined && isz.discrepancyRatio > 0.2) {
+      score = clamp(score - 15)
+      band = bandFor(score)
+      preapprovedLimit = Math.round(revenue * LIMIT_SHARE[band])
+      const message =
+        isz.discrepancyMessage ??
+        'Расхождение заявленного поголовья с данными ИСЖ более 20% — потребуется подтверждение документами'
+      stopFactors.push({ id: 'isz_discrepancy', level: 'warning', message })
+      recommendations.unshift(message)
+    }
+    if (isz.hasActiveQuarantine) {
+      band = 'D'
+      score = Math.min(score, 35)
+      preapprovedLimit = 0
+      const message = 'По данным ИСЖ в хозяйстве действует карантин — подача ограничена до снятия ограничений'
+      stopFactors.push({ id: 'isz_quarantine', level: 'blocking', message })
+      recommendations.unshift(message)
+    }
+  }
+
+  return {
+    score,
+    band,
+    factors,
+    preapprovedLimit,
+    recommendations,
+    ...(stopFactors.length > 0 ? { stopFactors } : {}),
+  }
 }
 
 // ── снимок для сохранения в заявке ───────────────────────────────────────────
@@ -274,6 +334,7 @@ export function toPrescoreSnapshot(r: PrescoreResult): PrescoreSnapshot {
     band: r.band,
     preapprovedLimit: r.preapprovedLimit,
     factors: r.factors.map(({ id, label, score, weight }) => ({ id, label, score, weight })),
+    ...(r.stopFactors && r.stopFactors.length > 0 ? { stopFactors: r.stopFactors } : {}),
   }
 }
 

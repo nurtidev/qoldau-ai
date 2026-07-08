@@ -66,9 +66,26 @@ export interface ReviewResult {
   issues: ReviewIssue[]
 }
 
+export interface ServiceInsight {
+  severity: 'critical' | 'warning' | 'info'
+  finding: string
+  recommendation: string
+  target?: string
+}
+
+export interface ServiceInsightsResult {
+  health_score: number | null
+  summary: string
+  insights: ServiceInsight[]
+}
+
 export const aiApi = {
   generateForm: (description: string) =>
     api.post('/ai/generate-form', { description }),
+
+  // AI-инсайты для автора услуги по накопленным данным (admin/author).
+  serviceInsights: (service_id: string, refresh = false) =>
+    api.post<ServiceInsightsResult>('/ai/service-insights', { service_id, refresh }),
   recommend: (payload: {
     kgd?: unknown
     egov?: unknown
@@ -139,6 +156,8 @@ export const applicationsApi = {
   // Stage 2: applicant submits the additional data/documents the admin requested.
   submitStage2: (id: string, form_data: object) =>
     api.post(`/applications/${id}/stage2`, { form_data }),
+  // Remind a draft's owner to finish their application (admin analytics widget).
+  nudge: (id: string) => api.post<{ ok: boolean }>(`/applications/${id}/nudge`, {}),
 }
 
 // Documents
@@ -248,6 +267,9 @@ export const contentApi = {
 export const mockApi = {
   egov: (iin: string) => api.get(`/mock/egov/${iin}`),
   kgd:  (bin: string) => api.get(`/mock/kgd/${bin}`),
+  // ИСЖ МСХ РК (Информационная система идентификации сельскохозяйственных
+  // животных) — сверка заявленного поголовья с госбазой учёта скота.
+  isz:  (iinOrBin: string) => api.get<ISZData>(`/mock/isz/${iinOrBin}`),
   eishSubmit: (application_id: string) =>
     api.post('/mock/eish/submit', { application_id }),
   // Имитация подписания ЭЦП (NCALayer / НУЦ РК) — см. ECPSignModal.
@@ -264,6 +286,26 @@ export interface ECPSignature {
   algorithm: string
   signed_at: string
   valid_until: string
+}
+
+// Один вид скота в ответе мока ИСЖ (см. mockApi.isz).
+export interface ISZLivestockEntry {
+  species: string
+  count: number
+  identified_count: number
+  last_update: string
+}
+
+// Ответ mock-сервиса ИСЖ МСХ РК (GET /api/mock/isz/:iin_or_bin).
+export interface ISZData {
+  iin_bin: string
+  farm_name: string
+  region: string
+  livestock: ISZLivestockEntry[]
+  total_identified: number
+  has_active_quarantine: boolean
+  data_source: string
+  fetched_at: string
 }
 
 export interface KGDData {
@@ -289,8 +331,31 @@ export interface KGDData {
 }
 
 // Analytics
+export interface QualityGrade {
+  grade: 'A' | 'B' | 'C' | 'D' | 'none'
+  count: number
+}
+
+export interface DraftItem {
+  id: string
+  service_title: string
+  user_name: string
+  updated_or_created_at: string
+  amount: number
+}
+
+export interface QualityResponse {
+  grades: QualityGrade[]
+  drafts: {
+    count: number
+    amount_sum: number
+    items: DraftItem[]
+  }
+}
+
 export const analyticsApi = {
   summary: () => api.get('/analytics/summary'),
+  quality: () => api.get<QualityResponse>('/analytics/quality'),
 }
 
 // Users (admin-only management)

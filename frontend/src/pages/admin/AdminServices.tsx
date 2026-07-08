@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { servicesApi } from '@/api/client'
 import { I } from '@/components/icons'
+import { ServiceInsights } from '@/components/ServiceInsights'
 import type { Service } from '@/types'
 import { useIsNarrow } from '@/hooks/useMediaQuery'
 import { useAuthStore } from '@/store/auth'
@@ -11,6 +13,8 @@ export function AdminServices() {
   const isNarrow = useIsNarrow()
   // Publish/delete are admin-only on the backend (adminMw). Authors build drafts only.
   const isAdmin = useAuthStore((s) => s.user?.role === 'admin')
+  // Service whose AI-insights panel is open.
+  const [insightsFor, setInsightsFor] = useState<Service | null>(null)
 
   const { data: services = [], isLoading } = useQuery<Service[]>({
     queryKey: ['admin-services'],
@@ -90,6 +94,15 @@ export function AdminServices() {
                     </button>
                   )}
 
+                  <button
+                    onClick={() => setInsightsFor(service)}
+                    className="btn btn-ghost btn-sm"
+                    style={{ fontSize: 13, color: 'var(--color-accent-text)' }}
+                    title="AI-инсайты по накопленным данным"
+                  >
+                    <I.Sparkle size={14} /> AI-инсайты
+                  </button>
+
                   <Link
                     to={`/admin/services/${service.id}/edit`}
                     className="btn btn-ghost btn-sm"
@@ -113,6 +126,14 @@ export function AdminServices() {
             ))
           )}
         </div>
+      )}
+
+      {insightsFor && (
+        <ServiceInsights
+          serviceId={insightsFor.id}
+          serviceTitle={insightsFor.title}
+          onClose={() => setInsightsFor(null)}
+        />
       )}
     </div>
   )

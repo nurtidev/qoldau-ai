@@ -12,6 +12,117 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+// iszRegions mirrors the region options offered on the agro-animal-husbandry
+// control-case form (see migrations/011_agroanimal_control.up.sql, field an4) —
+// keeps mock ИСЖ farms geographically consistent with what applicants pick.
+var iszRegions = []string{
+	"Акмолинская", "Актюбинская", "Алматинская", "Атырауская", "Восточно-Казахстанская",
+	"Жамбылская", "Западно-Казахстанская", "Карагандинская", "Костанайская", "Кызылординская",
+	"Павлодарская", "Северо-Казахстанская", "Туркестанская",
+}
+
+var iszFarmNames = []string{
+	"КХ «Береке»", "КХ «Жайлау»", "ТОО «Мал Азық Импекс»", "СПК «Ак Мая»",
+	"КХ «Тұран»", "ТОО «Агро-Дән»", "КХ «Достык»", "СПК «Шапагат»",
+	"КХ «Нұрлы Жол»", "ТОО «Байтерек Агро»",
+}
+
+// ISZLivestockEntry is one species row in a mock ИСЖ (Информационная система
+// идентификации сельскохозяйственных животных, МСХ РК) farm record.
+type ISZLivestockEntry struct {
+	Species         string `json:"species"`
+	Count           int    `json:"count"`
+	IdentifiedCount int    `json:"identified_count"`
+	LastUpdate      string `json:"last_update"`
+}
+
+// ISZ returns mock livestock-registry data for an IIN/BIN, imitating the
+// government ИСЖ database (headcount by species + identification coverage +
+// quarantine status). Deterministic from the input so the same applicant
+// always sees the same numbers — same convention as EGov/KGD mocks above.
+func (h *MockHandler) ISZ(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "iin_or_bin")
+	if id == "" {
+		respondErr(w, http.StatusBadRequest, "iin or bin required")
+		return
+	}
+
+	digitSum := 0
+	for _, c := range id {
+		if c >= '0' && c <= '9' {
+			digitSum += int(c - '0')
+		}
+	}
+	last := int(id[len(id)-1] - '0')
+	if last < 0 || last > 9 {
+		last = digitSum % 10
+	}
+
+	region := iszRegions[digitSum%len(iszRegions)]
+	farmName := iszFarmNames[digitSum%len(iszFarmNames)]
+
+	baseHeads := 60 + (digitSum%12)*15 // ~60..225 head, plausible mid-size farm
+	// Share of headcount not yet identified in ИСЖ — small realistic gap (2%..16%).
+	missing := 0.02 + float64(last)*0.014
+
+	addLivestock := func(list []ISZLivestockEntry, species string, count int, missingRate float64) []ISZLivestockEntry {
+		identified := count - int(float64(count)*missingRate)
+		if identified < 0 {
+			identified = 0
+		}
+		if identified > count {
+			identified = count
+		}
+		month := 1 + digitSum%6
+		day := 3 + digitSum%25
+		return append(list, ISZLivestockEntry{
+			Species:         species,
+			Count:           count,
+			IdentifiedCount: identified,
+			LastUpdate:      fmt.Sprintf("2026-%02d-%02d", month, day),
+		})
+	}
+
+	// КРС и МРС присутствуют у КАЖДОЙ фермы — это самые вероятные заявляемые
+	// виды в контрольной агро-услуге (поле an6), сверка на демо не должна
+	// упираться в «вид не отслеживается». Остальные виды варьируются.
+	var livestock []ISZLivestockEntry
+	livestock = addLivestock(livestock, "КРС", baseHeads, missing)
+	livestock = addLivestock(livestock, "МРС", baseHeads*3/2, missing*0.8)
+	switch last % 3 {
+	case 1:
+		livestock = addLivestock(livestock, "Птица", baseHeads*20, missing*1.2)
+	case 2:
+		livestock = addLivestock(livestock, "Лошади", baseHeads/4+5, missing*0.6)
+	}
+	if digitSum%7 == 0 {
+		livestock = addLivestock(livestock, "Верблюды", 8+digitSum%10, missing*0.5)
+	}
+
+	totalIdentified := 0
+	for _, l := range livestock {
+		totalIdentified += l.IdentifiedCount
+	}
+
+	// Rare, deterministic active-quarantine flag: only IDs ending in "7777".
+	// Seed accounts stay clean by construction: admin 000000000000 and the
+	// synthetic users from migrations 005/012/015 (IINs 100000000001..100000003000)
+	// have last-4 digits in 0001..3000 — never 7777.
+	// Demo IIN for the negative (quarantine) scenario: 100000007777.
+	hasQuarantine := strings.HasSuffix(id, "7777")
+
+	respond(w, http.StatusOK, map[string]interface{}{
+		"iin_bin":               id,
+		"farm_name":             farmName,
+		"region":                region,
+		"livestock":             livestock,
+		"total_identified":      totalIdentified,
+		"has_active_quarantine": hasQuarantine,
+		"data_source":           "mock ИСЖ МСХ РК",
+		"fetched_at":            time.Now().Format(time.RFC3339),
+	})
+}
+
 type MockHandler struct{}
 
 func NewMockHandler() *MockHandler { return &MockHandler{} }
