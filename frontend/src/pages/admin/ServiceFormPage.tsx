@@ -72,7 +72,18 @@ function pluralRu(n: number, one: string, few: string, many: string): string {
 }
 
 const CATEGORIES = ['Финансирование', 'Гарантии', 'Лизинг', 'Экспорт', 'Инвестиции', 'Гранты', 'Субсидии', 'Агросектор', 'Страхование']
-const ORGS = ['АО «НИХ «Байтерек»', 'Демеу', 'KazGuarantee', 'KazExport', 'АгроКапитал', 'ИнноФонд', 'Astana Cap.']
+const ORGS = [
+  'АО «НИХ «Байтерек»',
+  'Даму',
+  'Аграрная кредитная корпорация',
+  'КазАгроФинанс',
+  'Фонд развития промышленности',
+  'ЭКА KazakhExport',
+  'Kazakh Invest',
+  'Astana Hub',
+  'QazIndustry',
+  'Центры занятости (enbek.kz)',
+]
 
 const OP_LABELS: Record<FormFieldCondition['operator'], string> = {
   equals:       'равно',
@@ -269,7 +280,7 @@ const AI_PROMPT_PRESETS: { id: string; label: string; prompt: string }[] = [
   },
   {
     id: 'damu-credit',
-    label: '💰 Damu: льготный кредит',
+    label: '💰 Даму: льготный кредит',
     prompt: 'Льготный кредит для микро- и малого бизнеса от Фонда «Даму» под 6% годовых. Сумма до 100 млн тенге, срок до 5 лет, целевое использование — пополнение оборотных средств или приобретение основных средств. Нужны: данные компании из eGov (БИН, ОКЭД, дата регистрации), категория бизнеса (микро/малый), численность сотрудников, выручка за последний год, запрашиваемая сумма, цель кредита (select), банк-партнёр (Halyk, Kaspi, ForteBank, БЦК, Jusan), расчёт ежемесячного платежа, документы — финансовая отчётность, справка об отсутствии налоговой задолженности, бизнес-план.',
   },
   {
@@ -1720,30 +1731,32 @@ export function ServiceFormPage() {
           display: 'flex', alignItems: 'center', gap: 12, padding: '12px 28px',
           background: '#fff', borderBottom: '1px solid var(--color-border)',
           position: 'sticky', top: 0, zIndex: 5,
+          flexWrap: isBelowLaptop ? 'wrap' : 'nowrap',
+          rowGap: isBelowLaptop ? 8 : undefined,
         }}>
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/admin/services')}>
             <I.ArrowLeft size={14} /> Назад к услугам
           </button>
-          <div style={{ width: 1, height: 20, background: 'var(--color-border)' }} />
-          <div style={{ flex: 1 }}>
+          {!isBelowLaptop && <div style={{ width: 1, height: 20, background: 'var(--color-border)' }} />}
+          <div style={{ flex: isBelowLaptop ? '1 1 100%' : 1, minWidth: 0 }}>
             <div style={{ fontSize: 11, color: 'var(--color-text-3)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
               {id ? `Редактирование · #${id.slice(0, 8)}` : 'Новая услуга'}
             </div>
             <div style={{ fontSize: 14, fontWeight: 600 }}>{meta.title || 'Без названия'}</div>
           </div>
-          <span style={{ fontSize: 12, padding: '3px 10px', background: '#FEF3C7', color: '#92400E', borderRadius: 999, fontWeight: 500 }}>
+          <span style={{ fontSize: 12, padding: '3px 10px', background: '#FEF3C7', color: '#92400E', borderRadius: 999, fontWeight: 500, flexShrink: 0 }}>
             ● Черновик
           </span>
-          <button className="btn btn-secondary btn-sm" onClick={() => setShowAnalytics(true)} title={id ? 'Воронка программы' : 'Сохраните черновик, чтобы открыть аналитику'}>
+          <button className="btn btn-secondary btn-sm" style={{ flexShrink: 0, whiteSpace: 'nowrap' }} onClick={() => setShowAnalytics(true)} title={id ? 'Воронка программы' : 'Сохраните черновик, чтобы открыть аналитику'}>
             <I.Funnel size={14} /> Аналитика
           </button>
-          <button className="btn btn-secondary btn-sm" onClick={() => { setAudiencePreset(null); setShowAudience(true) }} title={id ? 'Калькулятор охвата' : 'Сохраните черновик, чтобы открыть калькулятор'}>
+          <button className="btn btn-secondary btn-sm" style={{ flexShrink: 0, whiteSpace: 'nowrap' }} onClick={() => { setAudiencePreset(null); setShowAudience(true) }} title={id ? 'Калькулятор охвата' : 'Сохраните черновик, чтобы открыть калькулятор'}>
             <I.Target size={14} /> Аудитория
           </button>
-          <button className="btn btn-secondary btn-sm" onClick={() => setShowPreview(true)}>
+          <button className="btn btn-secondary btn-sm" style={{ flexShrink: 0, whiteSpace: 'nowrap' }} onClick={() => setShowPreview(true)}>
             <I.Eye size={14} /> Предпросмотр
           </button>
-          <button className="btn btn-ghost btn-sm" onClick={() => setTourTrigger(n => n + 1)} title="Запустить экскурсию по конструктору">
+          <button className="btn btn-ghost btn-sm" style={{ flexShrink: 0, whiteSpace: 'nowrap' }} onClick={() => setTourTrigger(n => n + 1)} title="Запустить экскурсию по конструктору">
             🎓 Тур
           </button>
         </div>

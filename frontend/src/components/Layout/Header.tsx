@@ -576,11 +576,11 @@ export function AdminSidebar({ offCanvas = false, open = false, onClose }: {
         padding: '8px 12px 16px', borderBottom: '1px solid rgba(255,255,255,0.08)',
         marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8,
       }}>
-        <div style={{ fontSize: 11, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600, flex: 1 }}>Админ-панель</div>
+        <div style={{ fontSize: 11, color: '#8FA79A', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600, flex: 1 }}>Админ-панель</div>
         {offCanvas && (
           <button
             type="button" onClick={onClose} aria-label="Закрыть меню"
-            style={{ background: 'transparent', border: 'none', color: '#94A3B8', cursor: 'pointer', display: 'inline-flex', padding: 2 }}
+            style={{ background: 'transparent', border: 'none', color: '#A7BBAF', cursor: 'pointer', display: 'inline-flex', padding: 2 }}
           >
             <I.X size={18} />
           </button>
@@ -596,11 +596,11 @@ export function AdminSidebar({ offCanvas = false, open = false, onClose }: {
             style={{
               display: 'flex', alignItems: 'center', gap: 12,
               padding: '10px 12px', border: 'none', cursor: it.to ? 'pointer' : 'not-allowed',
-              background: isActive ? 'rgba(7,102,61,0.18)' : 'transparent',
-              color: isActive ? '#fff' : it.to ? '#94A3B8' : '#475569',
+              background: isActive ? 'rgba(255,255,255,0.10)' : 'transparent',
+              color: isActive ? '#fff' : it.to ? '#A7BBAF' : '#5E7468',
               borderRadius: 6, fontSize: 13, fontWeight: isActive ? 600 : 500,
               transition: 'all 120ms', opacity: it.to ? 1 : 0.5,
-              borderLeft: isActive ? '3px solid var(--color-primary-600)' : '3px solid transparent',
+              borderLeft: isActive ? '3px solid var(--color-accent)' : '3px solid transparent',
             }}
             onMouseEnter={(e) => {
               if (!isActive && it.to) {
@@ -613,7 +613,7 @@ export function AdminSidebar({ offCanvas = false, open = false, onClose }: {
               if (!isActive) {
                 const el = e.currentTarget as HTMLElement
                 el.style.background = 'transparent'
-                el.style.color = it.to ? '#94A3B8' : '#475569'
+                el.style.color = it.to ? '#A7BBAF' : '#5E7468'
               }
             }}
           >
@@ -626,7 +626,7 @@ export function AdminSidebar({ offCanvas = false, open = false, onClose }: {
   )
 
   const baseStyle: React.CSSProperties = {
-    width: 240, background: '#0F172A', color: '#CBD5E1',
+    width: 240, background: '#073822', color: '#C2D3C9',
     padding: '20px 12px', display: 'flex', flexDirection: 'column', gap: 2,
   }
 
@@ -678,7 +678,7 @@ export function AdminTopBar({ onMenuClick, showMenuButton = false }: {
   return (
     <header style={{
       position: 'sticky', top: 0, zIndex: 50,
-      background: '#0F172A', borderBottom: '1px solid rgba(255,255,255,0.08)',
+      background: '#073822', borderBottom: '1px solid rgba(255,255,255,0.08)',
       color: '#fff',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', height: 64, padding: isMobile ? '0 14px' : '0 28px', gap: isMobile ? 12 : 24 }}>
@@ -690,7 +690,7 @@ export function AdminTopBar({ onMenuClick, showMenuButton = false }: {
               width: 40, height: 40, flexShrink: 0,
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
               background: 'transparent', border: '1px solid rgba(255,255,255,0.12)',
-              borderRadius: 6, color: '#CBD5E1', cursor: 'pointer',
+              borderRadius: 6, color: '#C2D3C9', cursor: 'pointer',
             }}
           >
             <I.List size={20} />
@@ -702,13 +702,13 @@ export function AdminTopBar({ onMenuClick, showMenuButton = false }: {
           </div>
           <div style={{ lineHeight: 1.1 }}>
             <div style={{ fontWeight: 700, fontSize: 15, color: '#fff' }}>Qoldau <span style={{ color: 'var(--color-accent)' }}>AI</span></div>
-            <div style={{ fontSize: 11, color: '#64748B' }}>Admin Console</div>
+            <div style={{ fontSize: 11, color: '#8FA79A' }}>Admin Console</div>
           </div>
         </Link>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
           {!isMobile && (
             <div style={{ position: 'relative', width: 320 }}>
-              <I.Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#64748B' }} />
+              <I.Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#8FA79A' }} />
               <input placeholder="Поиск по заявкам, пользователям…" style={{
                 width: '100%', height: 34, paddingLeft: 36, paddingRight: 12,
                 background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)',
@@ -720,7 +720,7 @@ export function AdminTopBar({ onMenuClick, showMenuButton = false }: {
             onClick={() => { logout(); navigate('/') }}
             style={{
               height: 34, padding: '0 12px', border: '1px solid rgba(255,255,255,0.12)',
-              background: 'transparent', color: '#CBD5E1', borderRadius: 6, fontSize: 13, cursor: 'pointer',
+              background: 'transparent', color: '#C2D3C9', borderRadius: 6, fontSize: 13, cursor: 'pointer',
               display: 'inline-flex', alignItems: 'center', gap: 6,
             }}>
             <I.ArrowRight size={13} style={{ transform: 'rotate(180deg)' }} />Выйти

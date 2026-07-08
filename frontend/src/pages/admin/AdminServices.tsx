@@ -74,7 +74,7 @@ export function AdminServices() {
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: isNarrow ? 0 : 16, flexShrink: 0, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: isNarrow ? 0 : 16, flexShrink: 1, flexWrap: 'wrap', minWidth: 0, maxWidth: '100%' }}>
                   <span className={service.status === 'published' ? 'badge badge-green' : 'badge badge-gray'}>
                     {service.status === 'published' ? 'Опубликована' : 'Черновик'}
                   </span>

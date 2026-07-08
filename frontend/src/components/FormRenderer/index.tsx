@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import type { FormSchema, FormField, FormStep } from '@/types'
 import { I } from '@/components/icons'
 import { buildCalcPlan, evalNode, formatCurrency, formatCalcValue } from '@/lib/formula'
+import { useIsNarrow } from '@/hooks/useMediaQuery'
 
 interface Props {
   schema: FormSchema
@@ -519,6 +520,7 @@ function ReviewStep({ steps, values, getVisibleFields, onEdit, filledRequired, t
   reviewSlot?: React.ReactNode
 }) {
   const allFilled = filledRequired >= totalRequired
+  const isNarrow = useIsNarrow()
 
   return (
     <div style={{ marginBottom: 24 }}>
@@ -585,16 +587,17 @@ function ReviewStep({ steps, values, getVisibleFields, onEdit, filledRequired, t
                   const val = values[field.id]
                   return (
                     <div key={field.id} style={{
-                      display: 'grid', gridTemplateColumns: '220px 1fr',
-                      gap: 16, padding: '10px 0',
+                      display: 'grid',
+                      gridTemplateColumns: isNarrow ? '1fr' : 'minmax(0,220px) minmax(0,1fr)',
+                      gap: isNarrow ? 2 : 16, padding: '10px 0',
                       borderTop: fi > 0 ? '1px solid var(--color-border)' : 'none',
                       fontSize: 13,
                     }}>
-                      <div style={{ color: 'var(--color-text-3)' }}>
+                      <div style={{ color: 'var(--color-text-3)', minWidth: 0 }}>
                         {field.label}
                         {field.required && <span style={{ color: 'var(--color-danger)', marginLeft: 4 }} aria-hidden="true">*</span>}
                       </div>
-                      <div style={{ color: 'var(--color-text)', wordBreak: 'break-word' }}>
+                      <div style={{ color: 'var(--color-text)', wordBreak: 'break-word', minWidth: 0 }}>
                         {formatValueForReview(field, val)}
                       </div>
                     </div>
