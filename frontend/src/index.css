@@ -331,3 +331,101 @@ h1, h2, h3, h4, .section-title { font-family: var(--ff-display); }
   background-repeat: repeat;
   opacity: 0.08;
 }
+
+/* Hero zone gets a more visible ornament pass than the rest of the page
+   (still faded toward the bottom via .ornament-fade's mask). Source order
+   makes this win over .ornament-tile's 0.05 / .ornament-tile-gold's 0.08
+   regardless of className order on the element. */
+.ornament-hero { opacity: 0.11; }
+
+/* ===== Liquid glass (hero zone only — backdrop-filter is costly, never
+   use it on long/scrolling lists like the catalog) ===== */
+.glass {
+  background: rgba(255, 255, 255, 0.62);
+  backdrop-filter: blur(18px) saturate(1.2);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  box-shadow: var(--sh-lg);
+  border-radius: var(--r-card);
+}
+/* Green-tinted glass for panels sitting on the deep-green brand gradient:
+   a translucent light sheen over green, not a flat fill. Text placed
+   directly on this surface should be light (#fff / pale gold) — see
+   HeroVisual.tsx, which keeps text on the opaque green base, not the sheen. */
+.glass-green {
+  background:
+    linear-gradient(155deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.04) 40%, transparent 65%),
+    linear-gradient(160deg, var(--color-primary-600) 0%, var(--color-primary) 55%, var(--color-primary-700) 100%);
+  backdrop-filter: blur(20px) saturate(1.25);
+  -webkit-backdrop-filter: blur(20px) saturate(1.25);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: var(--sh-lg);
+  border-radius: var(--r-card);
+}
+
+/* Hero background: cream base warming into a faint brand-green tint,
+   replacing the previous flat cream fill. */
+.hero-gradient-bg {
+  background:
+    radial-gradient(1100px 420px at 85% -8%, rgba(7, 102, 61, 0.10), transparent 60%),
+    linear-gradient(180deg, var(--color-bg) 0%, var(--color-primary-tint) 62%, var(--color-primary-soft) 100%);
+}
+
+/* ===== Card depth (design wave 2 — catalog differentiation) =====
+   The services catalog read as a flat grey mass of identical cards. This
+   gives cards a tactile "raised surface": warm top-to-bottom gradient +
+   inset top highlight + a slightly stronger shadow than the base .card,
+   with a lift on hover. No backdrop-filter here on purpose — these classes
+   are used on long/scrolling lists (catalog, home preview), and blur is
+   costly at that scale; depth comes from gradient + shadow only. */
+.card-elevated {
+  background: linear-gradient(180deg, #FFFFFF 0%, var(--color-surface-warm) 100%);
+  box-shadow: var(--sh-md), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+/* Opt-in hover lift — only for cards that are actual click targets (links). */
+.card-elevated-hover {
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+}
+.card-elevated-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--sh-lg), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  border-color: var(--color-border-strong);
+}
+@media (prefers-reduced-motion: reduce) {
+  .card-elevated-hover { transition: none; }
+  .card-elevated-hover:hover { transform: none; }
+}
+
+/* ===== Service category accent palette (design wave 2) =====
+   Deep, muted, brand-adjacent tones (greens/teals/ochre/gold — no neon, no
+   rainbow) used ONLY as tactful accents on service cards (left border,
+   badge) — never as full-card fills. Mirrored as hex in
+   src/lib/categoryColor.ts (categoryColor/categorySoftBg), which also does
+   the soft-background alpha blend for badges — kept in sync manually since
+   CSS custom properties can't be alpha-blended in JS at runtime. */
+:root {
+  --cat-finance: #07663D;
+  --cat-credit: #0F766E;
+  --cat-guarantee: #A16207;
+  --cat-subsidy: #4D7C0F;
+  --cat-grant: #8A6A14;
+  --cat-export: #0E7490;
+  --cat-investment: #166534;
+  --cat-agro: #15803D;
+  --cat-default: #07663D;
+}
+
+/* Two-column hero: content + visual anchor. Visual column is desktop-only;
+   below 1024px it is removed from layout entirely so it can never
+   contribute to horizontal overflow on tablet/mobile. */
+.hero-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 40px;
+  align-items: center;
+}
+.hero-visual-wrap { display: none; }
+@media (min-width: 1024px) {
+  .hero-grid { grid-template-columns: minmax(0, 1fr) 440px; gap: 56px; }
+  .hero-visual-wrap { display: block; min-width: 0; }
+}

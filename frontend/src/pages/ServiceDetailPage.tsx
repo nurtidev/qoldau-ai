@@ -6,6 +6,7 @@ import { useAuthStore } from '@/store/auth'
 import { I } from '@/components/icons'
 import { ServiceCalculator } from '@/components/ServiceCalculator'
 import { useIsNarrow } from '@/hooks/useMediaQuery'
+import { categoryColor } from '@/lib/categoryColor'
 import type { Service, FormField } from '@/types'
 
 const PORTAL_FAQ = [
@@ -92,7 +93,7 @@ function ReadinessWidget({ user, fileFields, serviceId }: {
   const isHigh = pct >= 75
 
   return (
-    <div className="card" style={{ padding: 24 }}>
+    <div className="card card-elevated" style={{ padding: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
         <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text)' }}>Готовность к подаче</div>
         <div style={{ fontSize: 22, fontWeight: 700, color: isHigh ? 'var(--color-success)' : 'var(--color-accent)' }}>
@@ -299,11 +300,12 @@ export function ServiceDetailPage() {
         </div>
       </div>
 
-      {/* Key params bar */}
-      <div className="card" style={{
+      {/* Key params bar — top edge carries the category accent */}
+      <div className="card card-elevated" style={{
         display: 'grid',
         gridTemplateColumns: isNarrow ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
         padding: 0, marginBottom: 32, overflow: 'hidden',
+        borderTop: `3px solid ${categoryColor(service.category)}`,
       }}>
         {keyParams.map((k, i) => {
           const Ic = I[k.icon]
@@ -516,7 +518,7 @@ export function ServiceDetailPage() {
 
             {/* Org */}
             {service.org_name && (
-              <div className="card" style={{ padding: 20 }}>
+              <div className="card card-elevated" style={{ padding: 20 }}>
                 <div style={{ fontSize: 12, color: 'var(--color-text-3)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
                   Организация
                 </div>

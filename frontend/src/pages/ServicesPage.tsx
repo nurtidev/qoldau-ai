@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { servicesApi } from '@/api/client'
 import { I } from '@/components/icons'
 import { useIsNarrow } from '@/hooks/useMediaQuery'
+import { categoryColor, categorySoftBg } from '@/lib/categoryColor'
 import type { Service } from '@/types'
 
 // ---- Static filter data (matches design) ----
@@ -136,32 +137,25 @@ function FilterGroup({
 
 function ServiceCard({ service }: { service: Service }) {
   const [bookmarked, setBookmarked] = useState(false)
+  const accent = categoryColor(service.category)
 
   return (
     <Link to={`/services/${service.id}`}
-      className="card"
+      className="card card-elevated card-elevated-hover"
       style={{
         padding: 22, cursor: 'pointer',
         display: 'flex', flexDirection: 'column', gap: 14,
-        transition: 'border-color 140ms, box-shadow 140ms',
         textDecoration: 'none',
-      }}
-      onMouseEnter={(e) => {
-        const el = e.currentTarget as HTMLElement
-        el.style.borderColor = 'var(--color-accent)'
-        el.style.boxShadow = 'var(--sh-md)'
-      }}
-      onMouseLeave={(e) => {
-        const el = e.currentTarget as HTMLElement
-        el.style.borderColor = 'var(--color-border)'
-        el.style.boxShadow = 'var(--sh-xs)'
+        borderLeft: `3px solid ${accent}`,
       }}
     >
       {/* Header row */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         {service.org_name
           ? <OrgBadge name={service.org_name} />
-          : <span className="badge badge-blue">{service.category ?? 'Общее'}</span>
+          : <span className="badge" style={{ background: categorySoftBg(service.category), color: accent }}>
+              {service.category ?? 'Общее'}
+            </span>
         }
         <button
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); setBookmarked(!bookmarked) }}
@@ -193,7 +187,9 @@ function ServiceCard({ service }: { service: Service }) {
       {/* Tags */}
       {service.category && (
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          <span className="badge badge-gray">{service.category}</span>
+          <span className="badge" style={{ background: categorySoftBg(service.category), color: accent }}>
+            {service.category}
+          </span>
           <span className="badge badge-blue">МСБ</span>
         </div>
       )}
@@ -217,30 +213,25 @@ function ServiceCard({ service }: { service: Service }) {
 // ---- ServiceCard list-view variant ----
 
 function ServiceRow({ service }: { service: Service }) {
+  const accent = categoryColor(service.category)
   return (
     <Link to={`/services/${service.id}`}
-      className="card"
+      className="card card-elevated card-elevated-hover"
       style={{
         padding: '16px 20px', cursor: 'pointer',
         display: 'flex', alignItems: 'center', gap: 20,
-        transition: 'border-color 140ms, box-shadow 140ms',
         textDecoration: 'none',
-      }}
-      onMouseEnter={(e) => {
-        const el = e.currentTarget as HTMLElement
-        el.style.borderColor = 'var(--color-accent)'
-        el.style.boxShadow = 'var(--sh-md)'
-      }}
-      onMouseLeave={(e) => {
-        const el = e.currentTarget as HTMLElement
-        el.style.borderColor = 'var(--color-border)'
-        el.style.boxShadow = 'var(--sh-xs)'
+        borderLeft: `3px solid ${accent}`,
       }}
     >
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
           <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--color-text)' }}>{service.title}</span>
-          {service.category && <span className="badge badge-gray">{service.category}</span>}
+          {service.category && (
+            <span className="badge" style={{ background: categorySoftBg(service.category), color: accent }}>
+              {service.category}
+            </span>
+          )}
         </div>
         {service.description && (
           <div style={{ fontSize: 13, color: 'var(--color-text-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

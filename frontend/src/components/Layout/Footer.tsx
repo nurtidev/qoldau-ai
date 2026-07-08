@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 
 export function Footer() {
   return (
-    <footer style={{ background: '#0F172A', color: '#CBD5E1', marginTop: 80, position: 'relative', overflow: 'hidden' }}>
+    <footer style={{ background: '#073822', color: '#C2D3C9', marginTop: 80, position: 'relative', overflow: 'hidden' }}>
       <div className="ornament-tile-gold" aria-hidden="true" style={{ opacity: 0.05 }} />
       <div className="container footer-container" style={{ padding: '56px 32px 32px', position: 'relative', zIndex: 1 }}>
         <div className="footer-cols" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 48 }}>
@@ -13,7 +13,7 @@ export function Footer() {
               </div>
               <div style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>Qoldau AI</div>
             </div>
-            <p style={{ fontSize: 13, lineHeight: 1.6, color: '#94A3B8', maxWidth: 320, margin: 0 }}>
+            <p style={{ fontSize: 13, lineHeight: 1.6, color: '#A7BBAF', maxWidth: 320, margin: 0 }}>
               Единое окно государственной поддержки бизнеса. Объединяем 70+ мер поддержки от институтов развития РК.
             </p>
             <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
@@ -51,8 +51,8 @@ export function Footer() {
               <div style={{ fontSize: 13, fontWeight: 600, color: '#fff', marginBottom: 14, letterSpacing: '0.02em' }}>{col.title}</div>
               <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {col.items.map((it, j) => (
-                  <li key={j} style={{ fontSize: 13, color: '#94A3B8' }}>
-                    {it.to ? <Link to={it.to} style={{ color: '#94A3B8' }}>{it.label}</Link> : it.label}
+                  <li key={j} style={{ fontSize: 13, color: '#A7BBAF' }}>
+                    {it.to ? <Link to={it.to} style={{ color: '#A7BBAF' }}>{it.label}</Link> : it.label}
                   </li>
                 ))}
               </ul>
@@ -60,7 +60,7 @@ export function Footer() {
           ))}
         </div>
         <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', margin: '40px 0 20px' }} />
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, fontSize: 12, color: '#64748B' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, fontSize: 12, color: '#92A69A' }}>
           <div>© 2026 АО «Холдинг «Байтерек». Все права защищены.</div>
           <div style={{ display: 'flex', gap: 24 }}>
             <span style={{ cursor: 'pointer' }}>Условия использования</span>

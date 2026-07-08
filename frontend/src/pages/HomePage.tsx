@@ -4,6 +4,8 @@ import { useQuery } from '@tanstack/react-query'
 import { servicesApi } from '@/api/client'
 import { I } from '@/components/icons'
 import { EligibilityScreener } from '@/components/EligibilityScreener'
+import { HeroVisual } from '@/components/HeroVisual'
+import { categoryColor, categorySoftBg } from '@/lib/categoryColor'
 import type { Service } from '@/types'
 
 const DIRECTIONS = [
@@ -37,8 +39,7 @@ function HeroSearch() {
   const suggestions = ['Льготное финансирование', 'Гарантии по кредиту', 'Гранты для стартапов', 'Лизинг сельхозтехники']
 
   return (
-    <section style={{
-      background: 'linear-gradient(180deg, var(--color-bg) 0%, var(--color-primary-tint) 100%)',
+    <section className="hero-gradient-bg" style={{
       borderBottom: '1px solid var(--color-border)',
       paddingTop: 64, paddingBottom: 64, position: 'relative', overflow: 'hidden',
     }}>
@@ -49,68 +50,75 @@ function HeroSearch() {
         maskImage: 'linear-gradient(180deg, transparent, black 20%, black 80%, transparent)',
         pointerEvents: 'none',
       }} />
-      <div className="ornament-tile ornament-fade" aria-hidden="true" />
-      <div className="container" style={{ position: 'relative' }}>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 12px', background: '#fff', border: '1px solid var(--color-border)', borderRadius: 999, fontSize: 12, color: 'var(--color-text-2)', marginBottom: 20 }}>
-          <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--color-success)' }} />
-          Объединяем 70+ мер поддержки от 6 институтов развития
-        </div>
-        <h1 style={{ fontSize: 52, lineHeight: 1.1, fontWeight: 700, letterSpacing: '-0.025em', margin: 0, maxWidth: 820, color: 'var(--color-text)' }}>
-          Единое окно поддержки <br />
-          <span style={{ color: 'var(--color-primary)' }}>казахстанского бизнеса</span>
-        </h1>
-        <p style={{ fontSize: 18, lineHeight: 1.5, color: 'var(--color-text-2)', maxWidth: 620, marginTop: 16, marginBottom: 32 }}>
-          Найдите подходящие меры государственной поддержки, подайте заявку онлайн и отслеживайте её статус в одном кабинете.
-        </p>
-
-        {/* Search box */}
-        <div style={{ position: 'relative', maxWidth: 720 }}>
-          <div style={{
-            display: 'flex', alignItems: 'center',
-            background: '#fff',
-            border: `1px solid ${focused ? 'var(--color-accent)' : 'var(--color-border-strong)'}`,
-            borderRadius: 10,
-            boxShadow: focused ? 'var(--sh-focus)' : 'var(--sh-sm)',
-            transition: 'all 120ms ease',
-            padding: 6, paddingLeft: 16,
-          }}>
-            <I.Search size={20} style={{ color: 'var(--color-text-3)', flexShrink: 0 }} />
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              onFocus={() => setFocused(true)}
-              onBlur={() => setTimeout(() => setFocused(false), 150)}
-              placeholder="Например: «кредит на пополнение оборотных средств» или «грант»"
-              style={{ flex: 1, height: 44, border: 'none', outline: 'none', fontSize: 15, padding: '0 12px', background: 'transparent' }}
-              onKeyDown={(e) => { if (e.key === 'Enter' && q.trim()) navigate(`/services?q=${encodeURIComponent(q.trim())}`) }}
-            />
-            <button className="btn btn-primary" onClick={() => navigate(q.trim() ? `/services?q=${encodeURIComponent(q.trim())}` : '/services')}>Найти</button>
+      <div className="ornament-tile ornament-fade ornament-hero" aria-hidden="true" />
+      <div className="container hero-grid" style={{ position: 'relative' }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 12px', background: '#fff', border: '1px solid var(--color-border)', borderRadius: 999, fontSize: 12, color: 'var(--color-text-2)', marginBottom: 20 }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--color-success)' }} />
+            Объединяем 70+ мер поддержки от 6 институтов развития
           </div>
-          {focused && (
-            <div className="card" style={{ position: 'absolute', top: 64, left: 0, right: 0, padding: 8, zIndex: 10, boxShadow: 'var(--sh-md)' }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-3)', textTransform: 'uppercase', padding: '8px 12px 6px', letterSpacing: '0.06em' }}>Популярные запросы</div>
-              {suggestions.map((s, i) => (
-                <div key={i} onMouseDown={() => navigate(`/services?q=${encodeURIComponent(s)}`)} style={{ padding: '10px 12px', borderRadius: 6, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10 }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'var(--color-surface-2)' }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
-                >
-                  <I.Search size={15} style={{ color: 'var(--color-text-4)' }} />
-                  <span>{s}</span>
-                </div>
-              ))}
+          <h1 style={{ fontSize: 'clamp(30px, 6vw, 52px)', lineHeight: 1.1, fontWeight: 700, letterSpacing: '-0.025em', margin: 0, maxWidth: 820, color: 'var(--color-text)' }}>
+            Единое окно поддержки <br />
+            <span style={{ color: 'var(--color-primary)' }}>казахстанского бизнеса</span>
+          </h1>
+          <p style={{ fontSize: 18, lineHeight: 1.5, color: 'var(--color-text-2)', maxWidth: 620, marginTop: 16, marginBottom: 32 }}>
+            Найдите подходящие меры государственной поддержки, подайте заявку онлайн и отслеживайте её статус в одном кабинете.
+          </p>
+
+          {/* Search box */}
+          <div style={{ position: 'relative', maxWidth: 720 }}>
+            <div style={{
+              display: 'flex', alignItems: 'center',
+              background: '#fff',
+              border: `1px solid ${focused ? 'var(--color-accent)' : 'var(--color-border-strong)'}`,
+              borderRadius: 10,
+              boxShadow: focused ? 'var(--sh-focus)' : 'var(--sh-sm)',
+              transition: 'all 120ms ease',
+              padding: 6, paddingLeft: 16,
+            }}>
+              <I.Search size={20} style={{ color: 'var(--color-text-3)', flexShrink: 0 }} />
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                onFocus={() => setFocused(true)}
+                onBlur={() => setTimeout(() => setFocused(false), 150)}
+                placeholder="Например: «кредит на пополнение оборотных средств» или «грант»"
+                style={{ flex: 1, height: 44, border: 'none', outline: 'none', fontSize: 15, padding: '0 12px', background: 'transparent' }}
+                onKeyDown={(e) => { if (e.key === 'Enter' && q.trim()) navigate(`/services?q=${encodeURIComponent(q.trim())}`) }}
+              />
+              <button className="btn btn-primary" onClick={() => navigate(q.trim() ? `/services?q=${encodeURIComponent(q.trim())}` : '/services')}>Найти</button>
             </div>
-          )}
+            {focused && (
+              <div className="card" style={{ position: 'absolute', top: 64, left: 0, right: 0, padding: 8, zIndex: 10, boxShadow: 'var(--sh-md)' }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-3)', textTransform: 'uppercase', padding: '8px 12px 6px', letterSpacing: '0.06em' }}>Популярные запросы</div>
+                {suggestions.map((s, i) => (
+                  <div key={i} onMouseDown={() => navigate(`/services?q=${encodeURIComponent(s)}`)} style={{ padding: '10px 12px', borderRadius: 6, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10 }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'var(--color-surface-2)' }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
+                  >
+                    <I.Search size={15} style={{ color: 'var(--color-text-4)' }} />
+                    <span>{s}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Stats — elevated glass tiles */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(132px, 1fr))', gap: 14, marginTop: 40, maxWidth: 640 }}>
+            {[{ v: '70+', l: 'мер поддержки' }, { v: '6', l: 'институтов развития' }, { v: '24/7', l: 'подача заявок онлайн' }, { v: '1414', l: 'единый колл-центр' }].map((s, i) => (
+              <div key={i} className="glass" style={{
+                padding: '16px 18px',
+                boxShadow: 'var(--sh-lg), inset 0 1px 0 rgba(255,255,255,0.85)',
+              }}>
+                <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--color-primary)', letterSpacing: '-0.01em' }}>{s.v}</div>
+                <div style={{ fontSize: 12, color: 'var(--color-text-3)', marginTop: 2 }}>{s.l}</div>
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* Stats */}
-        <div style={{ display: 'flex', gap: 32, marginTop: 36, flexWrap: 'wrap' }}>
-          {[{ v: '70+', l: 'мер поддержки' }, { v: '6', l: 'институтов развития' }, { v: '24/7', l: 'подача заявок онлайн' }, { v: '1414', l: 'единый колл-центр' }].map((s, i) => (
-            <div key={i}>
-              <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--color-primary)', letterSpacing: '-0.01em' }}>{s.v}</div>
-              <div style={{ fontSize: 12, color: 'var(--color-text-3)', marginTop: 2 }}>{s.l}</div>
-            </div>
-          ))}
-        </div>
+        <HeroVisual />
       </div>
     </section>
   )
@@ -141,15 +149,16 @@ function DirectionCard({ d }: { d: typeof DIRECTIONS[0] }) {
 }
 
 function ServiceTile({ service }: { service: Service }) {
+  const accent = categoryColor(service.category)
   return (
     <Link to={`/services/${service.id}`}
-      className="card"
-      style={{ padding: 20, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 12, minWidth: 320, width: 320, transition: 'border-color 140ms, box-shadow 140ms', textDecoration: 'none' }}
-      onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'var(--color-accent)'; el.style.boxShadow = 'var(--sh-md)' }}
-      onMouseLeave={(e) => { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'var(--color-border)'; el.style.boxShadow = 'var(--sh-xs)' }}
+      className="card card-elevated card-elevated-hover"
+      style={{ padding: 20, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 12, minWidth: 320, width: 320, textDecoration: 'none', borderLeft: `3px solid ${accent}` }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span className="badge badge-blue">{service.category ?? 'Общее'}</span>
+        <span className="badge" style={{ background: categorySoftBg(service.category), color: accent }}>
+          {service.category ?? 'Общее'}
+        </span>
       </div>
       <div style={{ fontSize: 15, fontWeight: 600, lineHeight: 1.35, minHeight: 40 }}>{service.title}</div>
       {service.description && (
