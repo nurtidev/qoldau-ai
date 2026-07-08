@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Parser as FormulaParser } from 'expr-eval'
 import { servicesApi } from '@/api/client'
+import { useAuthStore } from '@/store/auth'
 import { useIsBelowLaptop } from '@/hooks/useMediaQuery'
 import { I } from '@/components/icons'
 import { useToast } from '@/components/Toast'
@@ -132,13 +133,14 @@ const DEFAULT_STEPS: BuilderStep[] = [
 
 // ─── LeftPanel ─────────────────────────────────────────────────────────────────
 
-function LeftPanel({ meta, setMeta, onSaveDraft, onPublish, saving, stacked }: {
+function LeftPanel({ meta, setMeta, onSaveDraft, onPublish, saving, stacked, canPublish = true }: {
   meta: BuilderMeta
   setMeta: (m: BuilderMeta) => void
   onSaveDraft: () => void
   onPublish: () => void
   saving: 'draft' | 'publish' | null
   stacked?: boolean
+  canPublish?: boolean
 }) {
   const set = (k: keyof BuilderMeta, v: string) => setMeta({ ...meta, [k]: v })
 
@@ -221,11 +223,13 @@ function LeftPanel({ meta, setMeta, onSaveDraft, onPublish, saving, stacked }: {
       <div style={{ flex: 1 }} />
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 14, borderTop: '1px solid var(--color-border)' }}>
-        <button data-tour-id="publish-btn" className="btn btn-primary btn-block" onClick={onPublish} disabled={saving === 'publish'}>
-          {saving === 'publish'
-            ? <><Spinner /> Публикация…</>
-            : <><I.Check size={15} /> Опубликовать</>}
-        </button>
+        {canPublish && (
+          <button data-tour-id="publish-btn" className="btn btn-primary btn-block" onClick={onPublish} disabled={saving === 'publish'}>
+            {saving === 'publish'
+              ? <><Spinner /> Публикация…</>
+              : <><I.Check size={15} /> Опубликовать</>}
+          </button>
+        )}
         <button className="btn btn-secondary btn-block" onClick={onSaveDraft} disabled={saving === 'draft'}>
           {saving === 'draft' ? <><Spinner dark /> Сохранение…</> : 'Сохранить черновик'}
         </button>
@@ -1525,6 +1529,8 @@ export function ServiceFormPage() {
   // ≤1024: панели настроек услуги/поля (280px + 300px) вместе с холстом не помещаются
   // в 3 колонки — стекаем настройки услуги сверху, а панель поля показываем оверлеем.
   const isBelowLaptop = useIsBelowLaptop()
+  // Publish is an admin-only backend action; authors save drafts only.
+  const isAdmin = useAuthStore((s) => s.user?.role === 'admin')
 
   const { data: service, isLoading } = useQuery<Service>({
     queryKey: ['service', id],
@@ -1706,7 +1712,7 @@ export function ServiceFormPage() {
       background: 'var(--color-bg)', overflow: isBelowLaptop ? 'visible' : 'hidden',
     }}>
 
-      <LeftPanel meta={meta} setMeta={setMeta} onSaveDraft={() => save('draft')} onPublish={() => save('publish')} saving={saving} stacked={isBelowLaptop} />
+      <LeftPanel meta={meta} setMeta={setMeta} onSaveDraft={() => save('draft')} onPublish={() => save('publish')} saving={saving} stacked={isBelowLaptop} canPublish={isAdmin} />
 
       {/* Center canvas */}
       <main style={{ flex: 1, overflowY: isBelowLaptop ? 'visible' : 'auto', minWidth: 0, width: '100%' }}>

@@ -16,6 +16,9 @@ import { AdminDashboard }       from '@/pages/admin/AdminDashboard'
 import { AdminServices }        from '@/pages/admin/AdminServices'
 import { AdminApplications }    from '@/pages/admin/AdminApplications'
 import { ServiceFormPage }      from '@/pages/admin/ServiceFormPage'
+import { AdminUsers }           from '@/pages/admin/AdminUsers'
+import { AdminSettings }        from '@/pages/admin/AdminSettings'
+import { AdminAnalytics }       from '@/pages/admin/AdminAnalytics'
 import { LoginPage }            from '@/pages/LoginPage'
 import { KnowledgePage }        from '@/pages/KnowledgePage'
 import { NewsPage }             from '@/pages/NewsPage'
@@ -29,10 +32,19 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
-function RequireAdmin({ children }: { children: React.ReactNode }) {
+// Staff = admin OR author (can build services, edit drafts, tweak settings).
+function RequireStaff({ children }: { children: React.ReactNode }) {
   const { user } = useAuthStore()
   if (!user) return <Navigate to="/" replace />
   if (user.role !== 'admin' && user.role !== 'author') return <Navigate to="/" replace />
+  return <>{children}</>
+}
+
+// Admin = strictly admin (applications, users, analytics).
+function RequireAdmin({ children }: { children: React.ReactNode }) {
+  const { user } = useAuthStore()
+  if (!user) return <Navigate to="/" replace />
+  if (user.role !== 'admin') return <Navigate to="/admin" replace />
   return <>{children}</>
 }
 
@@ -60,11 +72,14 @@ function Shell() {
 
   const adminRoutes = (
     <>
-      <Route path="/admin"                   element={<RequireAdmin><AdminDashboard /></RequireAdmin>} />
-      <Route path="/admin/services"          element={<RequireAdmin><AdminServices /></RequireAdmin>} />
-      <Route path="/admin/services/new"      element={<RequireAdmin><ServiceFormPage /></RequireAdmin>} />
-      <Route path="/admin/services/:id/edit" element={<RequireAdmin><ServiceFormPage /></RequireAdmin>} />
+      <Route path="/admin"                   element={<RequireStaff><AdminDashboard /></RequireStaff>} />
+      <Route path="/admin/services"          element={<RequireStaff><AdminServices /></RequireStaff>} />
+      <Route path="/admin/services/new"      element={<RequireStaff><ServiceFormPage /></RequireStaff>} />
+      <Route path="/admin/services/:id/edit" element={<RequireStaff><ServiceFormPage /></RequireStaff>} />
+      <Route path="/admin/settings"          element={<RequireStaff><AdminSettings /></RequireStaff>} />
       <Route path="/admin/applications"      element={<RequireAdmin><AdminApplications /></RequireAdmin>} />
+      <Route path="/admin/users"             element={<RequireAdmin><AdminUsers /></RequireAdmin>} />
+      <Route path="/admin/analytics"         element={<RequireAdmin><AdminAnalytics /></RequireAdmin>} />
     </>
   )
 

@@ -133,6 +133,29 @@ export const analyticsApi = {
   summary: () => api.get('/analytics/summary'),
 }
 
+// Users (admin-only management)
+export interface UserListItem {
+  id: string
+  iin: string
+  full_name: string
+  org_name?: string
+  role: 'user' | 'author' | 'admin'
+  created_at: string
+  applications_count: number
+}
+
+export interface UsersListResponse {
+  items: UserListItem[]
+  total: number
+}
+
+export const usersApi = {
+  list: (params?: { role?: string; q?: string; limit?: number; offset?: number }) =>
+    api.get<UsersListResponse>('/users', { params }),
+  setRole: (id: string, role: 'user' | 'author' | 'admin') =>
+    api.put(`/users/${id}/role`, { role }),
+}
+
 // ─── Audience (reach calculator + broadcast) ──────────────────────────────────
 
 export interface AudienceFilters {

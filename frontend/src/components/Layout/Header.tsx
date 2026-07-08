@@ -535,13 +535,15 @@ function NotificationsBell({ notifications, unread }: {
   )
 }
 
+// adminOnly items are hidden from the "author" (методолог) role — author only
+// builds services, it has no access to applications/users/analytics per backend gates.
 const ADMIN_NAV = [
-  { id: 'dash',     label: 'Дашборд',      icon: 'Grid',      to: '/admin' },
-  { id: 'apps',     label: 'Заявки',       icon: 'Document',  to: '/admin/applications' },
-  { id: 'services', label: 'Услуги',       icon: 'Briefcase', to: '/admin/services' },
-  { id: 'users',    label: 'Пользователи', icon: 'User',      to: null },
-  { id: 'analytics',label: 'Аналитика',    icon: 'Hash',      to: '/analytics' },
-  { id: 'settings', label: 'Настройки',    icon: 'Sliders',   to: null },
+  { id: 'dash',     label: 'Дашборд',      icon: 'Grid',      to: '/admin',              adminOnly: false },
+  { id: 'apps',     label: 'Заявки',       icon: 'Document',  to: '/admin/applications', adminOnly: true },
+  { id: 'services', label: 'Услуги',       icon: 'Briefcase', to: '/admin/services',     adminOnly: false },
+  { id: 'users',    label: 'Пользователи', icon: 'User',      to: '/admin/users',        adminOnly: true },
+  { id: 'analytics',label: 'Аналитика',    icon: 'Hash',      to: '/admin/analytics',    adminOnly: true },
+  { id: 'settings', label: 'Настройки',    icon: 'Sliders',   to: '/admin/settings',     adminOnly: false },
 ]
 
 export function AdminSidebar({ offCanvas = false, open = false, onClose }: {
@@ -551,9 +553,15 @@ export function AdminSidebar({ offCanvas = false, open = false, onClose }: {
 }) {
   const location = useLocation()
   const navigate = useNavigate()
+  const { user } = useAuthStore()
+  const isAdmin = user?.role === 'admin'
+  const nav = ADMIN_NAV.filter((it) => isAdmin || !it.adminOnly)
 
   const active = location.pathname.startsWith('/admin/applications') ? 'apps'
     : location.pathname.startsWith('/admin/services') ? 'services'
+    : location.pathname.startsWith('/admin/users') ? 'users'
+    : location.pathname.startsWith('/admin/analytics') ? 'analytics'
+    : location.pathname.startsWith('/admin/settings') ? 'settings'
     : 'dash'
 
   const go = (to: string | null) => {
@@ -578,7 +586,7 @@ export function AdminSidebar({ offCanvas = false, open = false, onClose }: {
           </button>
         )}
       </div>
-      {ADMIN_NAV.map((it) => {
+      {nav.map((it) => {
         const Ic = I[it.icon as keyof typeof I]
         const isActive = active === it.id
         return (

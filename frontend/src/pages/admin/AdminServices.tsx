@@ -4,10 +4,13 @@ import { servicesApi } from '@/api/client'
 import { I } from '@/components/icons'
 import type { Service } from '@/types'
 import { useIsNarrow } from '@/hooks/useMediaQuery'
+import { useAuthStore } from '@/store/auth'
 
 export function AdminServices() {
   const qc = useQueryClient()
   const isNarrow = useIsNarrow()
+  // Publish/delete are admin-only on the backend (adminMw). Authors build drafts only.
+  const isAdmin = useAuthStore((s) => s.user?.role === 'admin')
 
   const { data: services = [], isLoading } = useQuery<Service[]>({
     queryKey: ['admin-services'],
@@ -76,7 +79,7 @@ export function AdminServices() {
                     {service.status === 'published' ? 'Опубликована' : 'Черновик'}
                   </span>
 
-                  {service.status !== 'published' && (
+                  {isAdmin && service.status !== 'published' && (
                     <button
                       onClick={() => publish.mutate(service.id)}
                       disabled={publish.isPending}
@@ -95,14 +98,16 @@ export function AdminServices() {
                     <I.Wand size={14} /> Редактировать
                   </Link>
 
-                  <button
-                    onClick={() => { if (confirm('Удалить услугу?')) remove.mutate(service.id) }}
-                    disabled={remove.isPending}
-                    className="btn btn-ghost btn-sm"
-                    style={{ color: 'var(--color-danger)', fontSize: 13 }}
-                  >
-                    <I.Trash size={14} /> Удалить
-                  </button>
+                  {isAdmin && (
+                    <button
+                      onClick={() => { if (confirm('Удалить услугу?')) remove.mutate(service.id) }}
+                      disabled={remove.isPending}
+                      className="btn btn-ghost btn-sm"
+                      style={{ color: 'var(--color-danger)', fontSize: 13 }}
+                    >
+                      <I.Trash size={14} /> Удалить
+                    </button>
+                  )}
                 </div>
               </div>
             ))

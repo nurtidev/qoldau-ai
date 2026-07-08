@@ -49,6 +49,7 @@ func main() {
 	audienceH := handlers.NewAudienceHandler(database)
 	funnelH := handlers.NewFunnelHandler(database)
 	leadsH := handlers.NewLeadsHandler(database)
+	usersH := handlers.NewUsersHandler(database)
 
 	authMw := middleware.Auth(cfg.JWTSecret)
 	adminMw := middleware.RequireRole("admin")
@@ -136,6 +137,10 @@ func main() {
 		r.Get("/mock/egov/{iin}", mockH.EGov)
 		r.Get("/mock/kgd/{bin}", mockH.KGD)
 		r.Post("/mock/eish/submit", mockH.EISHSubmit)
+
+		// Users (admin only)
+		r.With(authMw, adminMw).Get("/users", usersH.List)
+		r.With(authMw, adminMw).Put("/users/{id}/role", usersH.SetRole)
 
 		// Analytics (admin only)
 		r.With(authMw, adminMw).Get("/analytics/summary", analyticsH.Summary)
