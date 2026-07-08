@@ -18,18 +18,18 @@ const DIRECTIONS = [
 ]
 
 const NEWS = [
-  { id: 1, org: 'Демеу',    color: '#07663D', date: '24 апр. 2026', title: 'Снижена ставка по программе до 9% годовых',      tag: 'Программы' },
-  { id: 2, org: 'KazExport',color: '#C9A21C', date: '22 апр. 2026', title: 'KazExport открыл представительство в Ташкенте',   tag: 'Новости'   },
-  { id: 3, org: 'ИнноФонд', color: '#0F766E', date: '18 апр. 2026', title: 'Запущен новый раунд грантов для tech-стартапов',  tag: 'Гранты'    },
+  { id: 1, org: 'Демеу',    color: '#007A40', date: '24 апр. 2026', title: 'Снижена ставка по программе до 9% годовых',      tag: 'Программы' },
+  { id: 2, org: 'KazExport',color: '#176D62', date: '22 апр. 2026', title: 'KazExport открыл представительство в Ташкенте',   tag: 'Новости'   },
+  { id: 3, org: 'ИнноФонд', color: '#0A4F3A', date: '18 апр. 2026', title: 'Запущен новый раунд грантов для tech-стартапов',  tag: 'Гранты'    },
 ]
 
 const ORGS = [
-  { id: 'demeu',   short: 'Демеу',        color: '#07663D', tag: 'D',  count: 12 },
-  { id: 'kazex',   short: 'KazExport',    color: '#C9A21C', tag: 'KE', count: 8  },
-  { id: 'agrokap', short: 'АгроКапитал', color: '#0A7A47', tag: 'AK', count: 14 },
-  { id: 'astana',  short: 'Astana Cap.',  color: '#8A6A14', tag: 'AC', count: 7  },
-  { id: 'innofnd', short: 'ИнноФонд',    color: '#0F766E', tag: 'IF', count: 5  },
-  { id: 'guarant', short: 'KazGuarantee',color: '#B45309', tag: 'KG', count: 9  },
+  { id: 'demeu',   short: 'Демеу',        color: '#007A40', tag: 'D',  count: 12 },
+  { id: 'kazex',   short: 'KazExport',    color: '#176D62', tag: 'KE', count: 8  },
+  { id: 'agrokap', short: 'АгроКапитал', color: '#1F6B3B', tag: 'AK', count: 14 },
+  { id: 'astana',  short: 'Astana Cap.',  color: '#705C33', tag: 'AC', count: 7  },
+  { id: 'innofnd', short: 'ИнноФонд',    color: '#0A4F3A', tag: 'IF', count: 5  },
+  { id: 'guarant', short: 'KazGuarantee',color: '#6E4A24', tag: 'KG', count: 9  },
 ]
 
 function HeroSearch() {
@@ -290,7 +290,7 @@ export function HomePage() {
       {/* eGov CTA */}
       <section className="container" style={{ paddingTop: 80 }}>
         <div style={{
-          background: 'linear-gradient(135deg, var(--color-primary) 0%, #0A7A47 100%)',
+          background: 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-600) 100%)',
           borderRadius: 16, padding: '48px 56px', color: '#fff',
           display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', gap: 32,
           position: 'relative', overflow: 'hidden',

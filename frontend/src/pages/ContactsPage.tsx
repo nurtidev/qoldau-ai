@@ -2,11 +2,11 @@ import { I } from '@/components/icons'
 
 const ORGS = [
   { short: 'Демеу Финанс',    color: 'var(--color-primary)', tag: 'D', phone: '+7 (7172) 70-10-20', email: 'info@demeu.kz',    address: 'пр. Мангилик Ел, 55А' },
-  { short: 'KazExport',       color: '#C9A21C', tag: 'KE', phone: '+7 (7172) 71-17-27', email: 'info@kazex.kz',    address: 'ул. Достык, 18' },
-  { short: 'АгроКапитал',    color: '#0A7A47', tag: 'AK', phone: '+7 (7172) 72-24-34', email: 'info@agrokap.kz',  address: 'пр. Кабанбай батыра, 11' },
-  { short: 'Astana Capital',  color: '#8A6A14', tag: 'AC', phone: '+7 (7172) 73-31-41', email: 'info@astana.kz',   address: 'ул. Сыганак, 70' },
-  { short: 'ИнноФонд',       color: '#0F766E', tag: 'IF', phone: '+7 (7172) 74-38-48', email: 'info@innofnd.kz',  address: 'пр. Туран, 24' },
-  { short: 'KazGuarantee',   color: '#B45309', tag: 'KG', phone: '+7 (7172) 75-45-55', email: 'info@guarant.kz',  address: 'ул. Орынбор, 8' },
+  { short: 'KazExport',       color: '#176D62', tag: 'KE', phone: '+7 (7172) 71-17-27', email: 'info@kazex.kz',    address: 'ул. Достык, 18' },
+  { short: 'АгроКапитал',    color: '#1F6B3B', tag: 'AK', phone: '+7 (7172) 72-24-34', email: 'info@agrokap.kz',  address: 'пр. Кабанбай батыра, 11' },
+  { short: 'Astana Capital',  color: '#705C33', tag: 'AC', phone: '+7 (7172) 73-31-41', email: 'info@astana.kz',   address: 'ул. Сыганак, 70' },
+  { short: 'ИнноФонд',       color: '#0A4F3A', tag: 'IF', phone: '+7 (7172) 74-38-48', email: 'info@innofnd.kz',  address: 'пр. Туран, 24' },
+  { short: 'KazGuarantee',   color: '#6E4A24', tag: 'KG', phone: '+7 (7172) 75-45-55', email: 'info@guarant.kz',  address: 'ул. Орынбор, 8' },
 ]
 
 export function ContactsPage() {

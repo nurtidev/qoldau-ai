@@ -8,11 +8,11 @@ const CHART_DAYS = [32, 41, 38, 52, 49, 65, 71, 58, 84, 79]
 const CHART_LABELS = ['01','04','07','10','13','16','19','22','25','28']
 const ORGS = [
   { short: 'Демеу',        color: 'var(--color-primary)', pct: 38 },
-  { short: 'KazExport',    color: '#C9A21C', pct: 24 },
-  { short: 'АгроКапитал', color: '#0A7A47', pct: 14 },
-  { short: 'Astana Cap.',  color: '#8A6A14', pct: 12 },
-  { short: 'ИнноФонд',    color: '#0F766E', pct:  8 },
-  { short: 'KazGuarantee',color: '#B45309', pct:  4 },
+  { short: 'KazExport',    color: '#176D62', pct: 24 },
+  { short: 'АгроКапитал', color: '#1F6B3B', pct: 14 },
+  { short: 'Astana Cap.',  color: '#705C33', pct: 12 },
+  { short: 'ИнноФонд',    color: '#0A4F3A', pct:  8 },
+  { short: 'KazGuarantee',color: '#6E4A24', pct:  4 },
 ]
 
 

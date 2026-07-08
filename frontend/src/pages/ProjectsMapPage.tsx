@@ -26,12 +26,12 @@ interface Project {
 }
 
 const ORG_COLORS: Record<OrgName, string> = {
-  'Демеу': '#07663D',
-  'KazExport': '#C9A21C',
-  'АгроКапитал': '#0A7A47',
-  'Astana Capital': '#8A6A14',
-  'ИнноФонд': '#0F766E',
-  'KazGuarantee': '#B45309',
+  'Демеу': '#007A40',
+  'KazExport': '#176D62',
+  'АгроКапитал': '#1F6B3B',
+  'Astana Capital': '#705C33',
+  'ИнноФонд': '#0A4F3A',
+  'KazGuarantee': '#6E4A24',
 }
 
 const ORGS: OrgName[] = ['Демеу', 'KazExport', 'АгроКапитал', 'Astana Capital', 'ИнноФонд', 'KazGuarantee']

@@ -11,11 +11,11 @@ import type { Service } from '@/types'
 
 const ORGS = [
   { id: 'Демеу',         short: 'Демеу',        color: 'var(--color-primary)', tag: 'D'  },
-  { id: 'KazExport',     short: 'KazExport',    color: '#C9A21C', tag: 'KE' },
-  { id: 'АгроКапитал',  short: 'АгроКапитал',  color: '#0A7A47', tag: 'AK' },
-  { id: 'Astana Cap.',   short: 'Astana Cap.',  color: '#8A6A14', tag: 'AC' },
-  { id: 'ИнноФонд',     short: 'ИнноФонд',     color: '#0F766E', tag: 'IF' },
-  { id: 'KazGuarantee',  short: 'KazGuarantee', color: '#B45309', tag: 'KG' },
+  { id: 'KazExport',     short: 'KazExport',    color: '#176D62', tag: 'KE' },
+  { id: 'АгроКапитал',  short: 'АгроКапитал',  color: '#1F6B3B', tag: 'AK' },
+  { id: 'Astana Cap.',   short: 'Astana Cap.',  color: '#705C33', tag: 'AC' },
+  { id: 'ИнноФонд',     short: 'ИнноФонд',     color: '#0A4F3A', tag: 'IF' },
+  { id: 'KazGuarantee',  short: 'KazGuarantee', color: '#6E4A24', tag: 'KG' },
 ]
 
 const DIRECTION_LABELS = [
@@ -43,7 +43,7 @@ const REGION_OPTIONS = [
 function orgColor(name: string): string {
   const found = ORGS.find((o) => name?.includes(o.short) || name?.includes(o.id))
   if (found) return found.color
-  const colors = ['var(--color-primary)', '#C9A21C', '#0A7A47', '#8A6A14', '#0F766E', '#B45309']
+  const colors = ['var(--color-primary)', '#176D62', '#1F6B3B', '#705C33', '#0A4F3A', '#6E4A24']
   let h = 0
   for (let i = 0; i < (name?.length ?? 0); i++) h = (h * 31 + name.charCodeAt(i)) & 0xfffffff
   return colors[h % colors.length]

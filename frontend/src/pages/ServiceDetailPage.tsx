@@ -49,7 +49,7 @@ function TabBar({ tabs, active, onChange }: {
   )
 }
 
-const ORG_COLORS = ['var(--color-primary)', '#C9A21C', '#0A7A47', '#8A6A14', '#0F766E', '#B45309']
+const ORG_COLORS = ['var(--color-primary)', '#176D62', '#1F6B3B', '#705C33', '#0A4F3A', '#6E4A24']
 
 function OrgBadge({ orgName, size = 'md' }: { orgName: string; size?: 'sm' | 'md' | 'lg' }) {
   const words = orgName.split(/\s+/).filter(Boolean)
