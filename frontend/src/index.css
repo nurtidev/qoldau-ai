@@ -178,10 +178,15 @@ h1, h2, h3, h4, .section-title { font-family: var(--ff-display); }
    grid item's automatic minimum size defaults to its min-content size
    (e.g. an unwrappable descendant), which can force the 1fr track wider
    than the container and reintroduce horizontal overflow. */
-@media (max-width: 640px) {
+@media (max-width: 900px) {
   .two-col-mobile-stack { grid-template-columns: 1fr !important; }
   .two-col-mobile-stack > * { min-width: 0; }
 }
+
+/* Decorative CategoryArt panel in the service-detail header: desktop only —
+   on narrow widths the header stacks and the panel is noise, so hide it. */
+.detail-art { display: block; }
+@media (max-width: 900px) { .detail-art { display: none; } }
 
 /* ===== Mobile (<=640px) ===== */
 @media (max-width: 640px) {

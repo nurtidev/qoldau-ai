@@ -7,6 +7,7 @@ import { I } from '@/components/icons'
 import { ServiceCalculator } from '@/components/ServiceCalculator'
 import { useIsNarrow } from '@/hooks/useMediaQuery'
 import { categoryColor } from '@/lib/categoryColor'
+import { CategoryArt } from '@/components/CategoryArt'
 import type { Service, FormField } from '@/types'
 
 const PORTAL_FAQ = [
@@ -23,6 +24,16 @@ const BASE_TABS = [
 ]
 
 type IconName = keyof typeof I
+
+function formatAmount(v: number): string {
+  if (v >= 1_000_000_000) {
+    const n = v / 1_000_000_000
+    return `${n % 1 === 0 ? n : n.toFixed(1)} млрд ₸`
+  }
+  if (v >= 1_000_000) return `${Math.round(v / 1_000_000)} млн ₸`
+  if (v >= 1_000)     return `${Math.round(v / 1_000)} тыс ₸`
+  return `${v} ₸`
+}
 
 function TabBar({ tabs, active, onChange }: {
   tabs: { id: string; label: string }[]
@@ -249,9 +260,15 @@ export function ServiceDetailPage() {
   })
 
   const keyParams: { l: string; v: string; icon: IconName }[] = [
-    { l: 'Сумма финансирования', v: 'По договору',   icon: 'Coins'    },
-    { l: 'Процентная ставка',    v: 'По договору',   icon: 'Hash'     },
-    { l: 'Срок',                 v: 'По договору',   icon: 'Clock'    },
+    { l: 'Сумма финансирования',
+      v: service.max_amount != null ? `до ${formatAmount(service.max_amount)}` : 'По договору',
+      icon: 'Coins' },
+    { l: 'Процентная ставка',
+      v: service.interest_rate != null ? `от ${String(service.interest_rate).replace('.', ',')}%` : 'По договору',
+      icon: 'Hash' },
+    { l: 'Срок',
+      v: service.max_term_months != null ? `до ${service.max_term_months} мес.` : 'По договору',
+      icon: 'Clock' },
     { l: 'Срок рассмотрения',    v: '10 раб. дней', icon: 'Calendar' },
   ]
 
@@ -290,6 +307,13 @@ export function ServiceDetailPage() {
               {service.description}
             </p>
           )}
+        </div>
+        {/* Брендовая декоративная панель — только на широких экранах (.detail-art) */}
+        <div className="detail-art" style={{
+          width: 200, height: 120, borderRadius: 14, overflow: 'hidden',
+          flexShrink: 0, border: '1px solid var(--color-border)',
+        }}>
+          <CategoryArt category={service.category} height={120} />
         </div>
         <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
           <button className="btn btn-secondary" onClick={() => setBookmarked(!bookmarked)}>

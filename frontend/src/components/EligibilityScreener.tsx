@@ -132,7 +132,7 @@ function scoreService(service: Service, answers: Answers): number {
       score += /сельхоз|аграр|агро|казагро|растение|животновод/.test(text) || service.category?.includes('Агросектор') ? 25 : 8
       break
     case 'tech':
-      score += /стартап|иннов|it |цифров|иннофонд/.test(text) ? 25 : 8
+      score += /стартап|иннов|it |цифров|astana hub|qazindustry/.test(text) ? 25 : 8
       break
     case 'industry':
       score += /производ|промышл|переработ/.test(text) ? 25 : 8

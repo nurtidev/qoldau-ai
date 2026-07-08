@@ -6,6 +6,8 @@ import { I } from '@/components/icons'
 import { EligibilityScreener } from '@/components/EligibilityScreener'
 import { HeroVisual } from '@/components/HeroVisual'
 import { categoryColor, categorySoftBg } from '@/lib/categoryColor'
+import { CategoryArt } from '@/components/CategoryArt'
+import { useIsNarrow } from '@/hooks/useMediaQuery'
 import type { Service } from '@/types'
 
 const DIRECTIONS = [
@@ -18,18 +20,22 @@ const DIRECTIONS = [
 ]
 
 const NEWS = [
-  { id: 1, org: 'Демеу',    color: '#007A40', date: '24 апр. 2026', title: 'Снижена ставка по программе до 9% годовых',      tag: 'Программы' },
-  { id: 2, org: 'KazExport',color: '#176D62', date: '22 апр. 2026', title: 'KazExport открыл представительство в Ташкенте',   tag: 'Новости'   },
-  { id: 3, org: 'ИнноФонд', color: '#0A4F3A', date: '18 апр. 2026', title: 'Запущен новый раунд грантов для tech-стартапов',  tag: 'Гранты'    },
+  { id: 1, org: 'Даму',    color: '#007A40', date: '24 апр. 2026', title: '«Өрлеу»: льготное кредитование МСБ по программе Даму расширено до 7 млрд ₸', tag: 'Программы' },
+  { id: 2, org: 'АКК',     color: '#1F6B3B', date: '22 апр. 2026', title: '«Кең дала 2»: АКК снизила ставку на весенне-полевые работы до 5%',           tag: 'Агросектор' },
+  { id: 3, org: 'Astana Hub', color: '#6E4A24', date: '18 апр. 2026', title: '«Іскер аймақ»: запущена единая программа поддержки малого бизнеса',        tag: 'Гранты'    },
 ]
 
 const ORGS = [
-  { id: 'demeu',   short: 'Демеу',        color: '#007A40', tag: 'D',  count: 12 },
-  { id: 'kazex',   short: 'KazExport',    color: '#176D62', tag: 'KE', count: 8  },
-  { id: 'agrokap', short: 'АгроКапитал', color: '#1F6B3B', tag: 'AK', count: 14 },
-  { id: 'astana',  short: 'Astana Cap.',  color: '#705C33', tag: 'AC', count: 7  },
-  { id: 'innofnd', short: 'ИнноФонд',    color: '#0A4F3A', tag: 'IF', count: 5  },
-  { id: 'guarant', short: 'KazGuarantee',color: '#6E4A24', tag: 'KG', count: 9  },
+  { id: 'baiterek',  short: 'Байтерек',           color: '#007A40', tag: 'НБ', count: 6  },
+  { id: 'damu',      short: 'Даму',                color: '#085E2C', tag: 'ДМ', count: 12 },
+  { id: 'akk',       short: 'АКК',                 color: '#1F6B3B', tag: 'АК', count: 14 },
+  { id: 'kaf',       short: 'КазАгроФинанс',       color: '#257E43', tag: 'КФ', count: 9  },
+  { id: 'frp',       short: 'ФРП',                 color: '#0A4F3A', tag: 'ФР', count: 5  },
+  { id: 'eca',       short: 'ЭКА KazakhExport',    color: '#176D62', tag: 'ЭК', count: 8  },
+  { id: 'kzinvest',  short: 'Kazakh Invest',       color: '#387557', tag: 'KI',  count: 6  },
+  { id: 'astanahub', short: 'Astana Hub',          color: '#6E4A24', tag: 'AH', count: 10 },
+  { id: 'qazind',    short: 'QazIndustry',         color: '#705C33', tag: 'QI', count: 7  },
+  { id: 'enbek',     short: 'Центры занятости',    color: '#8A6A14', tag: 'ЦЗ', count: 4  },
 ]
 
 function HeroSearch() {
@@ -153,8 +159,12 @@ function ServiceTile({ service }: { service: Service }) {
   return (
     <Link to={`/services/${service.id}`}
       className="card card-elevated card-elevated-hover"
-      style={{ padding: 20, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 12, minWidth: 320, width: 320, textDecoration: 'none', borderLeft: `3px solid ${accent}` }}
+      style={{ padding: 0, cursor: 'pointer', display: 'flex', flexDirection: 'column', minWidth: 320, width: 320, textDecoration: 'none', overflow: 'hidden' }}
     >
+      <div style={{ height: 72 }}>
+        <CategoryArt category={service.category} height={72} />
+      </div>
+      <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12, flex: 1 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span className="badge" style={{ background: categorySoftBg(service.category), color: accent }}>
           {service.category ?? 'Общее'}
@@ -172,11 +182,13 @@ function ServiceTile({ service }: { service: Service }) {
           Подробнее <I.ChevronRight size={14} />
         </span>
       </div>
+      </div>
     </Link>
   )
 }
 
 export function HomePage() {
+  const isNarrow = useIsNarrow()
   const { data: services = [] } = useQuery<Service[]>({
     queryKey: ['services'],
     queryFn: () => servicesApi.list().then((r) => r.data),
@@ -289,23 +301,23 @@ export function HomePage() {
 
       {/* eGov CTA */}
       <section className="container" style={{ paddingTop: 80 }}>
-        <div style={{
+        <div className="two-col-mobile-stack" style={{
           background: 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-600) 100%)',
-          borderRadius: 16, padding: '48px 56px', color: '#fff',
+          borderRadius: 16, padding: isNarrow ? '28px' : '48px 56px', color: '#fff',
           display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', gap: 32,
           position: 'relative', overflow: 'hidden',
         }}>
           <div style={{ position: 'absolute', right: -80, top: -80, width: 320, height: 320, borderRadius: '50%', background: 'rgba(255,255,255,0.06)' }} />
           <div className="ornament-tile-gold" aria-hidden="true" />
-          <div style={{ position: 'relative' }}>
+          <div style={{ position: 'relative', minWidth: 0 }}>
             <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#FAF0D8' /* pale gold, AA on green gradient (var(--color-gold) failed 2.8-3.66:1 here) */, fontWeight: 600, marginBottom: 10 }}>Цифровое удостоверение РК</div>
-            <h2 style={{ fontSize: 34, fontWeight: 700, letterSpacing: '-0.02em', margin: 0, lineHeight: 1.15 }}>Подавайте заявки за 2 минуты</h2>
+            <h2 style={{ fontSize: isNarrow ? 26 : 34, fontWeight: 700, letterSpacing: '-0.02em', margin: 0, lineHeight: 1.15 }}>Подавайте заявки за 2 минуты</h2>
             <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.75)', marginTop: 12, marginBottom: 0, maxWidth: 480 }}>
               Войдите через eGov — данные о вашей компании подгрузятся автоматически из государственных реестров.
             </p>
           </div>
-          <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <Link to="/services" className="btn btn-lg" style={{ background: '#fff', color: 'var(--color-primary)', height: 52, fontSize: 15, fontWeight: 600 }}>
+          <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0, width: isNarrow ? '100%' : undefined }}>
+            <Link to="/services" className="btn btn-lg" style={{ background: '#fff', color: 'var(--color-primary)', height: 52, fontSize: 15, fontWeight: 600, width: isNarrow ? '100%' : undefined }}>
               <I.Shield size={18} /> Выбрать услугу
             </Link>
           </div>

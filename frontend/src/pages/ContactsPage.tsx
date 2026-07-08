@@ -1,12 +1,12 @@
 import { I } from '@/components/icons'
 
 const ORGS = [
-  { short: 'Демеу Финанс',    color: 'var(--color-primary)', tag: 'D', phone: '+7 (7172) 70-10-20', email: 'info@demeu.kz',    address: 'пр. Мангилик Ел, 55А' },
-  { short: 'KazExport',       color: '#176D62', tag: 'KE', phone: '+7 (7172) 71-17-27', email: 'info@kazex.kz',    address: 'ул. Достык, 18' },
-  { short: 'АгроКапитал',    color: '#1F6B3B', tag: 'AK', phone: '+7 (7172) 72-24-34', email: 'info@agrokap.kz',  address: 'пр. Кабанбай батыра, 11' },
-  { short: 'Astana Capital',  color: '#705C33', tag: 'AC', phone: '+7 (7172) 73-31-41', email: 'info@astana.kz',   address: 'ул. Сыганак, 70' },
-  { short: 'ИнноФонд',       color: '#0A4F3A', tag: 'IF', phone: '+7 (7172) 74-38-48', email: 'info@innofnd.kz',  address: 'пр. Туран, 24' },
-  { short: 'KazGuarantee',   color: '#6E4A24', tag: 'KG', phone: '+7 (7172) 75-45-55', email: 'info@guarant.kz',  address: 'ул. Орынбор, 8' },
+  { short: 'АО «НИХ «Байтерек»',        color: 'var(--color-primary)', tag: 'НБ', phone: '+7 (7172) 69-30-00', email: 'info@baiterek.gov.kz', address: 'пр. Мангилик Ел, 55А', site: 'baiterek.gov.kz' },
+  { short: 'Даму',                      color: '#085E2C', tag: 'ДМ',  phone: '1408',                    email: 'info@damu.kz',         address: 'ул. Достык, 18',       site: 'damu.kz' },
+  { short: 'Аграрная кредитная корпорация', color: '#1F6B3B', tag: 'АК', phone: '+7 (7172) 72-24-34', email: 'info@agrocredit.kz',   address: 'пр. Кабанбай батыра, 11', site: 'agrocredit.kz' },
+  { short: 'КазАгроФинанс',              color: '#257E43', tag: 'КФ',  phone: '+7 (7172) 73-31-41', email: 'info@kaf.kz',          address: 'ул. Сыганак, 70',      site: 'kaf.kz' },
+  { short: 'Фонд развития промышленности', color: '#0A4F3A', tag: 'ФР', phone: '+7 (7172) 74-38-48', email: 'info@idfrk.kz',        address: 'пр. Туран, 24',        site: 'idfrk.kz' },
+  { short: 'ЭКА KazakhExport',           color: '#176D62', tag: 'ЭК',  phone: '+7 (7172) 75-45-55', email: 'info@kazakhexport.kz', address: 'ул. Орынбор, 8',       site: 'kazakhexport.kz' },
 ]
 
 export function ContactsPage() {
@@ -33,6 +33,9 @@ export function ContactsPage() {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--color-text-2)' }}>
                   <I.MapPin size={14} style={{ color: 'var(--color-text-3)', flexShrink: 0 }} />г. Астана, {o.address}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--color-text-2)' }}>
+                  <I.ExternalLink size={14} style={{ color: 'var(--color-text-3)', flexShrink: 0 }} />{o.site}
                 </div>
               </div>
             </div>

@@ -5,17 +5,22 @@ import { servicesApi } from '@/api/client'
 import { I } from '@/components/icons'
 import { useIsNarrow } from '@/hooks/useMediaQuery'
 import { categoryColor, categorySoftBg } from '@/lib/categoryColor'
+import { CategoryArt } from '@/components/CategoryArt'
 import type { Service } from '@/types'
 
 // ---- Static filter data (matches design) ----
 
 const ORGS = [
-  { id: 'Демеу',         short: 'Демеу',        color: 'var(--color-primary)', tag: 'D'  },
-  { id: 'KazExport',     short: 'KazExport',    color: '#176D62', tag: 'KE' },
-  { id: 'АгроКапитал',  short: 'АгроКапитал',  color: '#1F6B3B', tag: 'AK' },
-  { id: 'Astana Cap.',   short: 'Astana Cap.',  color: '#705C33', tag: 'AC' },
-  { id: 'ИнноФонд',     short: 'ИнноФонд',     color: '#0A4F3A', tag: 'IF' },
-  { id: 'KazGuarantee',  short: 'KazGuarantee', color: '#6E4A24', tag: 'KG' },
+  { id: 'АО «НИХ «Байтерек»',                short: 'Байтерек',                  color: 'var(--color-primary)', tag: 'НБ'  },
+  { id: 'Даму',                               short: 'Даму',                      color: '#085E2C', tag: 'ДМ' },
+  { id: 'Аграрная кредитная корпорация',      short: 'АКК',                       color: '#1F6B3B', tag: 'АК' },
+  { id: 'КазАгроФинанс',                      short: 'КазАгроФинанс',             color: '#257E43', tag: 'КФ' },
+  { id: 'Фонд развития промышленности',       short: 'ФРП',                       color: '#0A4F3A', tag: 'ФР' },
+  { id: 'ЭКА KazakhExport',                   short: 'ЭКА KazakhExport',          color: '#176D62', tag: 'ЭК' },
+  { id: 'Kazakh Invest',                      short: 'Kazakh Invest',             color: '#387557', tag: 'KI' },
+  { id: 'Astana Hub',                         short: 'Astana Hub',                color: '#6E4A24', tag: 'AH' },
+  { id: 'QazIndustry',                        short: 'QazIndustry',               color: '#705C33', tag: 'QI' },
+  { id: 'Центры занятости (enbek.kz)',        short: 'Центры занятости',          color: '#8A6A14', tag: 'ЦЗ' },
 ]
 
 const DIRECTION_LABELS = [
@@ -43,7 +48,7 @@ const REGION_OPTIONS = [
 function orgColor(name: string): string {
   const found = ORGS.find((o) => name?.includes(o.short) || name?.includes(o.id))
   if (found) return found.color
-  const colors = ['var(--color-primary)', '#176D62', '#1F6B3B', '#705C33', '#0A4F3A', '#6E4A24']
+  const colors = ['var(--color-primary)', '#085E2C', '#1F6B3B', '#257E43', '#0A4F3A', '#176D62', '#387557', '#6E4A24', '#705C33', '#8A6A14']
   let h = 0
   for (let i = 0; i < (name?.length ?? 0); i++) h = (h * 31 + name.charCodeAt(i)) & 0xfffffff
   return colors[h % colors.length]
@@ -143,12 +148,32 @@ function ServiceCard({ service }: { service: Service }) {
     <Link to={`/services/${service.id}`}
       className="card card-elevated card-elevated-hover"
       style={{
-        padding: 22, cursor: 'pointer',
-        display: 'flex', flexDirection: 'column', gap: 14,
-        textDecoration: 'none',
-        borderLeft: `3px solid ${accent}`,
+        padding: 0, cursor: 'pointer',
+        display: 'flex', flexDirection: 'column',
+        textDecoration: 'none', overflow: 'hidden',
       }}
     >
+      {/* Брендовая обложка-шапка (full-bleed). Bookmark вынесен поверх — контента
+          не перекрывает, фон-подложка держит контраст иконки. */}
+      <div style={{ position: 'relative', height: 84 }}>
+        <CategoryArt category={service.category} height={84} />
+        <button
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setBookmarked(!bookmarked) }}
+          style={{
+            position: 'absolute', top: 10, right: 10,
+            width: 30, height: 30, borderRadius: '50%',
+            background: 'rgba(255,255,255,0.86)', border: '1px solid var(--color-border)',
+            cursor: 'pointer', padding: 0,
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            color: bookmarked ? 'var(--color-accent)' : 'var(--color-text-3)',
+            transition: 'color 120ms',
+          }}
+        >
+          <I.Star size={16} />
+        </button>
+      </div>
+
+      <div style={{ padding: 22, display: 'flex', flexDirection: 'column', gap: 14, flex: 1 }}>
       {/* Header row */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         {service.org_name
@@ -157,16 +182,6 @@ function ServiceCard({ service }: { service: Service }) {
               {service.category ?? 'Общее'}
             </span>
         }
-        <button
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setBookmarked(!bookmarked) }}
-          style={{
-            background: 'none', border: 'none', padding: 4, cursor: 'pointer',
-            color: bookmarked ? 'var(--color-accent)' : 'var(--color-text-4)',
-            borderRadius: 4, transition: 'color 120ms',
-          }}
-        >
-          <I.Star size={18} />
-        </button>
       </div>
 
       {/* Title + description */}
@@ -206,6 +221,7 @@ function ServiceCard({ service }: { service: Service }) {
           Подать заявку <I.ArrowRight size={14} />
         </span>
       </div>
+      </div>
     </Link>
   )
 }
@@ -224,6 +240,9 @@ function ServiceRow({ service }: { service: Service }) {
         borderLeft: `3px solid ${accent}`,
       }}
     >
+      <div style={{ width: 48, height: 48, borderRadius: 10, overflow: 'hidden', flexShrink: 0 }}>
+        <CategoryArt category={service.category} height={48} />
+      </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
           <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--color-text)' }}>{service.title}</span>
