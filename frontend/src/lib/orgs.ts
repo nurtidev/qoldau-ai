@@ -44,10 +44,14 @@ export const BAITEREK_GROUP: OrgEntry[] = [
 ]
 
 export const PARTNER_ORGS: OrgEntry[] = [
+  // Официальный лого-файл Astana Hub (cdn.astanahub.com/static/img_v2/logo-mobile.svg) —
+  // сложная luminance-mask с мелкими кольцами; в Chromium на размере плашки (32px)
+  // рендерится нечитаемым чёрным пятном (в отличие от превью в Quick Look/macOS).
+  // Пригодного для этого масштаба официального файла не нашли — оставлено на тэге.
   { id: 'astanahub', short: 'Astana Hub',         full: 'Международный технопарк IT-стартапов Astana Hub', color: '#6E4A24', tag: 'AH', dbMatch: 'Astana Hub' },
-  { id: 'qazind',    short: 'QazIndustry',        full: 'QazIndustry',                                      color: '#705C33', tag: 'QI', dbMatch: 'QazIndustry' },
-  { id: 'kzinvest',  short: 'Kazakh Invest',      full: 'Kazakh Invest',                                    color: '#387557', tag: 'KI', dbMatch: 'Kazakh Invest' },
-  { id: 'enbek',     short: 'Центры занятости',   full: 'Центры занятости (enbek.kz)',                      color: '#8A6A14', tag: 'ЦЗ', dbMatch: 'Центры занятости' },
+  { id: 'qazind',    short: 'QazIndustry',        full: 'QazIndustry',                                      color: '#705C33', tag: 'QI', dbMatch: 'QazIndustry', logo: '/img/orgs/qazind.svg' },
+  { id: 'kzinvest',  short: 'Kazakh Invest',      full: 'Kazakh Invest',                                    color: '#387557', tag: 'KI', dbMatch: 'Kazakh Invest', logo: '/img/orgs/kzinvest.svg' },
+  { id: 'enbek',     short: 'Центры занятости',   full: 'Центры занятости (enbek.kz)',                      color: '#8A6A14', tag: 'ЦЗ', dbMatch: 'Центры занятости', logo: '/img/orgs/enbek.svg' },
 ]
 
 /** Матчинг по подстроке против реального `service.org_name` из данных. */

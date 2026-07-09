@@ -374,3 +374,161 @@ func (h *ContentHandler) UpdateHoldingStat(w http.ResponseWriter, r *http.Reques
 	}
 	respond(w, http.StatusOK, s)
 }
+
+// ─── Service FAQ ─────────────────────────────────────────────────────────────
+// «Вопросы и ответы» на детальной странице услуги. service_id IS NULL — общий
+// вопрос портала (виден на всех услугах); иначе привязан к конкретной услуге.
+
+// ListFAQ: GET /api/faq[?service_id=<uuid>][?scope=all].
+//   - scope=all — все вопросы (для админ-таблицы): общие + все привязанные.
+//   - service_id=<uuid> — общие + привязанные к услуге (детальная страница).
+//   - без параметров — только общие вопросы портала.
+// Специфичные вопросы идут первыми (Kaspi-порядок), затем общие; внутри —
+// по sort_order.
+func (h *ContentHandler) ListFAQ(w http.ResponseWriter, r *http.Request) {
+	items := make([]models.ServiceFAQ, 0)
+	serviceID := r.URL.Query().Get("service_id")
+
+	if r.URL.Query().Get("scope") == "all" {
+		if err := h.db.Select(&items,
+			`SELECT * FROM service_faq
+			 ORDER BY (service_id IS NULL) ASC, sort_order ASC, created_at ASC`); err != nil {
+			respondErr(w, http.StatusInternalServerError, "failed to fetch faq")
+			return
+		}
+		respond(w, http.StatusOK, items)
+		return
+	}
+
+	var err error
+	if serviceID == "" {
+		err = h.db.Select(&items,
+			`SELECT * FROM service_faq WHERE service_id IS NULL
+			 ORDER BY sort_order ASC, created_at ASC`)
+	} else {
+		if !isUUID(serviceID) {
+			respondErr(w, http.StatusBadRequest, "invalid service_id")
+			return
+		}
+		err = h.db.Select(&items,
+			`SELECT * FROM service_faq WHERE service_id IS NULL OR service_id=$1
+			 ORDER BY (service_id IS NULL) ASC, sort_order ASC, created_at ASC`, serviceID)
+	}
+	if err != nil {
+		respondErr(w, http.StatusInternalServerError, "failed to fetch faq")
+		return
+	}
+	respond(w, http.StatusOK, items)
+}
+
+type faqVoteReq struct {
+	Helpful bool `json:"helpful"`
+}
+
+// VoteFAQ: POST /api/faq/{id}/vote — публичный инкремент счётчика.
+// MVP без дедупликации по пользователю (осознанно) — защита от повторов
+// живёт на фронте в localStorage.
+func (h *ContentHandler) VoteFAQ(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	if !isUUID(id) {
+		respondErr(w, http.StatusNotFound, "faq not found")
+		return
+	}
+	var req faqVoteReq
+	if err := decode(r, &req); err != nil {
+		respondErr(w, http.StatusBadRequest, "invalid body")
+		return
+	}
+	col := "down_votes"
+	if req.Helpful {
+		col = "up_votes"
+	}
+	var f models.ServiceFAQ
+	err := h.db.QueryRowx(
+		`UPDATE service_faq SET `+col+`=`+col+`+1, updated_at=NOW() WHERE id=$1 RETURNING *`, //nolint:gosec // col — константа
+		id,
+	).StructScan(&f)
+	if err != nil {
+		updateErr(w, err, "faq not found", "failed to record vote")
+		return
+	}
+	respond(w, http.StatusOK, f)
+}
+
+type faqReq struct {
+	ServiceID *string `json:"service_id"` // nil / "" → общий вопрос
+	Question  string  `json:"question"`
+	Answer    string  `json:"answer"`
+	SortOrder int     `json:"sort_order"`
+}
+
+// serviceIDArg нормализует необязательный service_id: пустая строка → NULL,
+// невалидный UUID → ошибка. Возвращает (value, ok).
+func serviceIDArg(w http.ResponseWriter, raw *string) (interface{}, bool) {
+	if raw == nil || *raw == "" {
+		return nil, true
+	}
+	if !isUUID(*raw) {
+		respondErr(w, http.StatusBadRequest, "invalid service_id")
+		return nil, false
+	}
+	return *raw, true
+}
+
+func (h *ContentHandler) CreateFAQ(w http.ResponseWriter, r *http.Request) {
+	var req faqReq
+	if err := decode(r, &req); err != nil || req.Question == "" || req.Answer == "" {
+		respondErr(w, http.StatusBadRequest, "question and answer required")
+		return
+	}
+	sid, ok := serviceIDArg(w, req.ServiceID)
+	if !ok {
+		return
+	}
+
+	var f models.ServiceFAQ
+	err := h.db.QueryRowx(
+		`INSERT INTO service_faq (service_id, question, answer, sort_order)
+		 VALUES ($1,$2,$3,$4) RETURNING *`,
+		sid, req.Question, req.Answer, req.SortOrder,
+	).StructScan(&f)
+	if err != nil {
+		respondErr(w, http.StatusInternalServerError, "failed to create faq")
+		return
+	}
+	respond(w, http.StatusCreated, f)
+}
+
+func (h *ContentHandler) UpdateFAQ(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	if !isUUID(id) {
+		respondErr(w, http.StatusNotFound, "faq not found")
+		return
+	}
+	var req faqReq
+	if err := decode(r, &req); err != nil || req.Question == "" || req.Answer == "" {
+		respondErr(w, http.StatusBadRequest, "question and answer required")
+		return
+	}
+	sid, ok := serviceIDArg(w, req.ServiceID)
+	if !ok {
+		return
+	}
+
+	var f models.ServiceFAQ
+	err := h.db.QueryRowx(
+		`UPDATE service_faq SET service_id=$1, question=$2, answer=$3, sort_order=$4, updated_at=NOW()
+		 WHERE id=$5 RETURNING *`,
+		sid, req.Question, req.Answer, req.SortOrder, id,
+	).StructScan(&f)
+	if err != nil {
+		updateErr(w, err, "faq not found", "failed to update faq")
+		return
+	}
+	respond(w, http.StatusOK, f)
+}
+
+func (h *ContentHandler) DeleteFAQ(w http.ResponseWriter, r *http.Request) {
+	h.deleteByID(w, "service_faq", chi.URLParam(r, "id"),
+		"faq not found", "failed to delete faq")
+}

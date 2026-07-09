@@ -9,14 +9,9 @@ import { useIsNarrow } from '@/hooks/useMediaQuery'
 import { categoryColor } from '@/lib/categoryColor'
 import { CategoryArt } from '@/components/CategoryArt'
 import { ServiceExplainer } from '@/components/ServiceExplainer'
+import { ServiceFaq } from '@/components/ServiceFaq'
 import { isPartnerOrg } from '@/lib/orgs'
 import type { Service, FormField } from '@/types'
-
-const PORTAL_FAQ = [
-  { q: 'Как авторизоваться для подачи заявки?',  a: 'Используйте ИИН или БИН через eGov — кнопка «Войти» в верхнем меню. Регистрация не требуется.' },
-  { q: 'Как узнать статус заявки?',              a: 'Статус отображается в личном кабинете в разделе «Мои заявки» сразу после подачи.' },
-  { q: 'Нужна ли ЭЦП для подачи заявки?',       a: 'Для входа на портал ЭЦП не требуется — достаточно ИИН/БИН через eGov. Условия конкретной программы уточняйте у организации.' },
-]
 
 const BASE_TABS = [
   { id: 'desc', label: 'Описание' },
@@ -179,7 +174,6 @@ export function ServiceDetailPage() {
   const isNarrow = useIsNarrow()
   const [tab, setTab]               = useState('desc')
   const [bookmarked, setBookmarked] = useState(false)
-  const [openFaq, setOpenFaq]       = useState(-1)
 
   const { data: service, isLoading } = useQuery<Service>({
     queryKey: ['service', id],
@@ -423,6 +417,9 @@ export function ServiceDetailPage() {
                   ))}
                 </div>
               )}
+
+              {/* Вопросы и ответы — Kaspi-паттерн, рядом с требованиями */}
+              <ServiceFaq key={service.id} serviceId={service.id} />
             </div>
           )}
 
@@ -506,39 +503,6 @@ export function ServiceDetailPage() {
             </div>
           )}
 
-          {/* FAQ */}
-          <div style={{ marginTop: 48 }}>
-            <h2 style={{ fontSize: 20, fontWeight: 700, marginTop: 0, marginBottom: 16 }}>Часто задаваемые вопросы</h2>
-            <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-              {PORTAL_FAQ.map((f, i) => (
-                <div key={i} style={{ borderBottom: i < PORTAL_FAQ.length - 1 ? '1px solid var(--color-border)' : 'none' }}>
-                  <button
-                    onClick={() => setOpenFaq(openFaq === i ? -1 : i)}
-                    style={{
-                      width: '100%', padding: '16px 20px', background: 'none', border: 'none',
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      cursor: 'pointer', textAlign: 'left',
-                    }}
-                  >
-                    <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--color-text)' }}>{f.q}</span>
-                    <I.ChevronDown
-                      size={16}
-                      style={{
-                        transform: openFaq === i ? 'rotate(180deg)' : 'rotate(0)',
-                        transition: 'transform 200ms',
-                        color: 'var(--color-text-3)', flexShrink: 0,
-                      }}
-                    />
-                  </button>
-                  {openFaq === i && (
-                    <div className="page-fade" style={{ padding: '0 20px 20px', fontSize: 14, color: 'var(--color-text-2)', lineHeight: 1.6 }}>
-                      {f.a}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
         </main>
 
         {/* Sticky sidebar */}

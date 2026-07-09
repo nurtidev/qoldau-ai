@@ -554,3 +554,26 @@ h1, h2, h3, h4, .section-title { font-family: var(--ff-display); }
     scroll-behavior: auto !important;
   }
 }
+
+/* ===================================================================
+   Audit polish — public pages (design-audit wave, 2026-07)
+   Additive only; scoped classes, no overrides of the tokens above.
+   =================================================================== */
+
+/* Contacts: responsive card grid (1 / 2 / 3 cols) so 6 orgs read as a
+   composed 2×3 block instead of a ragged 4+2 row with dead whitespace. */
+.contacts-grid { display: grid; gap: 16px; grid-template-columns: 1fr; }
+@media (min-width: 560px) { .contacts-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 920px) { .contacts-grid { grid-template-columns: repeat(3, 1fr); } }
+
+/* Contact rows are real links (tel:/mailto:/https) — give them proper
+   hover + keyboard focus affordance instead of looking like inert text. */
+.contact-link {
+  display: inline-flex; align-items: center; gap: 8px;
+  color: var(--color-text-2); text-decoration: none; border-radius: 5px;
+  transition: color 140ms var(--ease-out);
+}
+.contact-link:hover { color: var(--color-primary); text-decoration: underline; text-underline-offset: 2px; }
+.contact-link:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; color: var(--color-primary); }
+.contact-link .contact-link-ico { color: var(--color-text-3); flex-shrink: 0; transition: color 140ms var(--ease-out); }
+.contact-link:hover .contact-link-ico { color: var(--color-primary); }

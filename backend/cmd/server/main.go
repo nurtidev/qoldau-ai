@@ -189,6 +189,16 @@ func main() {
 			r.Get("/", contentH.ListHoldingStats)
 			r.With(authMw, adminAuthorMw).Put("/{id}", contentH.UpdateHoldingStat)
 		})
+
+		// Service FAQ: «Вопросы и ответы» на детальной странице услуги.
+		// GET и голосование публичны; CRUD — admin/author.
+		r.Route("/faq", func(r chi.Router) {
+			r.Get("/", contentH.ListFAQ)
+			r.Post("/{id}/vote", contentH.VoteFAQ)
+			r.With(authMw, adminAuthorMw).Post("/", contentH.CreateFAQ)
+			r.With(authMw, adminAuthorMw).Put("/{id}", contentH.UpdateFAQ)
+			r.With(authMw, adminAuthorMw).Delete("/{id}", contentH.DeleteFAQ)
+		})
 	})
 
 	addr := fmt.Sprintf(":%s", cfg.Port)

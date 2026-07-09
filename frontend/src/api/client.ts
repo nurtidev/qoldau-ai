@@ -320,6 +320,38 @@ export const contentApi = {
   updateHoldingStat: (id: string, data: HoldingStatInput) => api.put(`/holding-stats/${id}`, data),
 }
 
+// ─── Service FAQ ─────────────────────────────────────────────────────────────
+
+export interface FaqItem {
+  id: string
+  service_id?: string // null/undefined — общий вопрос портала
+  question: string
+  answer: string // markdown
+  sort_order: number
+  up_votes: number
+  down_votes: number
+  created_at: string
+  updated_at: string
+}
+
+export type FaqInput = {
+  service_id?: string | null // '' / null — общий вопрос
+  question: string
+  answer: string
+  sort_order?: number
+}
+
+export const faqApi = {
+  list: (serviceId?: string) =>
+    api.get<FaqItem[]>('/faq', { params: serviceId ? { service_id: serviceId } : undefined }),
+  // Все вопросы (общие + привязанные к любой услуге) — для админ-таблицы.
+  listAll: () => api.get<FaqItem[]>('/faq', { params: { scope: 'all' } }),
+  vote: (id: string, helpful: boolean) => api.post<FaqItem>(`/faq/${id}/vote`, { helpful }),
+  create: (data: FaqInput) => api.post('/faq', data),
+  update: (id: string, data: FaqInput) => api.put(`/faq/${id}`, data),
+  delete: (id: string) => api.delete(`/faq/${id}`),
+}
+
 // Mock integrations
 export const mockApi = {
   egov: (iin: string) => api.get(`/mock/egov/${iin}`),

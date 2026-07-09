@@ -61,8 +61,10 @@ test.describe('Детальная страница услуги', () => {
     // остальные зависимости — select с автоматическим дефолтом.
     await page.goto('/services')
     await expect(page.locator('a.card').first()).toBeVisible({ timeout: 20_000 })
-    await page.locator('aside').getByText('Субсидии').click()
-    const card = page.locator('a.card').filter({ hasText: 'Субсидирование ставки' })
+    // Поиск вместо фильтра по категории: не зависит от пагинации и от
+    // накопившихся в dev-БД тестовых услуг, вытесняющих карточку на стр. 2.
+    await page.getByPlaceholder(/поиск по названию/i).fill('Іскер аймақ')
+    const card = page.locator('a.card').filter({ hasText: 'Іскер аймақ' }).first()
     await card.waitFor({ timeout: 10_000 })
     await card.click()
 

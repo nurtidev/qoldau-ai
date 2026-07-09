@@ -222,3 +222,19 @@ type HoldingStat struct {
 	CreatedAt time.Time `db:"created_at" json:"created_at"`
 	UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
 }
+
+// ServiceFAQ — вопрос-ответ на детальной странице услуги (миграция 018).
+// ServiceID nullable: NULL — общий вопрос портала (виден на всех услугах),
+// иначе привязан к конкретной услуге. UpVotes/DownVotes — голоса «был ли
+// ответ полезен» (инкремент публичный, без дедупликации на бэкенде).
+type ServiceFAQ struct {
+	ID        string    `db:"id"         json:"id"`
+	ServiceID *string   `db:"service_id" json:"service_id,omitempty"`
+	Question  string    `db:"question"   json:"question"`
+	Answer    string    `db:"answer"     json:"answer"`
+	SortOrder int       `db:"sort_order" json:"sort_order"`
+	UpVotes   int       `db:"up_votes"   json:"up_votes"`
+	DownVotes int       `db:"down_votes" json:"down_votes"`
+	CreatedAt time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
+}

@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   contentApi,
+  faqApi,
+  servicesApi,
   type AnalyticsMaterial,
   type MapProjectItem,
   type MaterialInput,
@@ -10,7 +12,10 @@ import {
   type NewsInput,
   type HoldingStat,
   type HoldingStatInput,
+  type FaqItem,
+  type FaqInput,
 } from '@/api/client'
+import type { Service } from '@/types'
 import { useToast } from '@/components/Toast'
 import { I } from '@/components/icons'
 
@@ -33,7 +38,7 @@ function apiErr(err: unknown, fallback: string): string {
 }
 
 export function AdminContent() {
-  const [tab, setTab] = useState<'materials' | 'projects' | 'news' | 'holding'>('materials')
+  const [tab, setTab] = useState<'materials' | 'projects' | 'news' | 'holding' | 'faq'>('materials')
 
   return (
     <div className="page-fade" style={{ padding: '32px 40px' }}>
@@ -51,6 +56,7 @@ export function AdminContent() {
           { id: 'projects', label: 'Карта проектов' },
           { id: 'news', label: 'Новости' },
           { id: 'holding', label: 'О холдинге' },
+          { id: 'faq', label: 'FAQ' },
         ] as const).map((t) => (
           <button
             key={t.id}
@@ -68,7 +74,7 @@ export function AdminContent() {
         ))}
       </div>
 
-      {tab === 'materials' ? <MaterialsTab /> : tab === 'projects' ? <ProjectsTab /> : tab === 'news' ? <NewsTab /> : <HoldingTab />}
+      {tab === 'materials' ? <MaterialsTab /> : tab === 'projects' ? <ProjectsTab /> : tab === 'news' ? <NewsTab /> : tab === 'holding' ? <HoldingTab /> : <FaqTab />}
     </div>
   )
 }
@@ -744,6 +750,182 @@ function HoldingModal({ value, saving, onClose, onSave }: {
           </Field>
           <Field label="Сноска" hint="мелким серым: на 30.06.2025">
             <input className="input" value={f.asof} onChange={(e) => set('asof', e.target.value)} />
+          </Field>
+          <Field label="Порядок">
+            <input className="input" type="number" value={f.sort_order ?? 0} onChange={(e) => set('sort_order', Number(e.target.value))} />
+          </Field>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={onClose}>Отмена</button>
+            <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>{saving ? 'Сохранение…' : 'Сохранить'}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// ─── Service FAQ ──────────────────────────────────────────────────────────────
+
+const emptyFaq: FaqInput = { service_id: '', question: '', answer: '', sort_order: 0 }
+
+// Доля 👎 среди всех голосов — чтобы отсортировать «не помогающие» ответы наверх.
+function downShare(f: FaqItem): number {
+  const total = f.up_votes + f.down_votes
+  return total === 0 ? 0 : f.down_votes / total
+}
+
+function FaqTab() {
+  const { push } = useToast()
+  const qc = useQueryClient()
+  const [editing, setEditing] = useState<{ id?: string; data: FaqInput } | null>(null)
+
+  const { data: items = [], isLoading } = useQuery<FaqItem[]>({
+    queryKey: ['faq-admin'],
+    queryFn: () => faqApi.listAll().then((r) => r.data ?? []),
+  })
+
+  const { data: services = [] } = useQuery<Service[]>({
+    queryKey: ['services'],
+    queryFn: () => servicesApi.list().then((r) => r.data ?? []),
+  })
+
+  const serviceTitle = (id?: string) => services.find((s) => s.id === id)?.title
+
+  // Общий список — все вопросы, но «не помогающие» (высокая доля 👎) сверху.
+  const sorted = [...items].sort((a, b) => downShare(b) - downShare(a))
+
+  const saveMut = useMutation({
+    mutationFn: ({ id, data }: { id?: string; data: FaqInput }) =>
+      id ? faqApi.update(id, data) : faqApi.create(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['faq-admin'] })
+      qc.invalidateQueries({ queryKey: ['faq'] })
+      push('Вопрос сохранён', 'success')
+      setEditing(null)
+    },
+    onError: (e) => push(apiErr(e, 'Не удалось сохранить вопрос'), 'error'),
+  })
+
+  const delMut = useMutation({
+    mutationFn: (id: string) => faqApi.delete(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['faq-admin'] })
+      qc.invalidateQueries({ queryKey: ['faq'] })
+      push('Вопрос удалён', 'success')
+    },
+    onError: (e) => push(apiErr(e, 'Не удалось удалить вопрос'), 'error'),
+  })
+
+  return (
+    <>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <div style={{ fontSize: 13, color: 'var(--color-text-3)' }}>
+          Всего: {items.length}. «Не помогающие» ответы (высокая доля 👎) — сверху.
+        </div>
+        <button className="btn btn-primary btn-sm" onClick={() => setEditing({ data: { ...emptyFaq } })}>
+          <I.Plus size={14} /> Добавить вопрос
+        </button>
+      </div>
+
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', minWidth: 820, borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: 'var(--color-surface-2)' }}>
+                {['#', 'Вопрос', 'Услуга', '👍', '👎', ''].map((h, i) => (
+                  <th key={i} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: 'var(--color-text-3)', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                <tr><td colSpan={6} style={{ padding: 48, textAlign: 'center', color: 'var(--color-text-3)' }}>Загрузка…</td></tr>
+              ) : sorted.length === 0 ? (
+                <tr><td colSpan={6} style={{ padding: 48, textAlign: 'center', color: 'var(--color-text-3)' }}>Вопросов пока нет</td></tr>
+              ) : sorted.map((f) => {
+                const hot = f.down_votes > f.up_votes && f.down_votes > 0
+                return (
+                  <tr key={f.id} style={{ borderTop: '1px solid var(--color-border)' }}>
+                    <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--color-text-3)' }}>{f.sort_order}</td>
+                    <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 500, maxWidth: 360 }}>{f.question}</td>
+                    <td style={{ padding: '12px 16px' }}>
+                      {f.service_id
+                        ? <span className="badge badge-gray">{serviceTitle(f.service_id) ?? 'Услуга'}</span>
+                        : <span className="badge badge-green">Общий</span>}
+                    </td>
+                    <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--color-success)', fontWeight: 600 }}>{f.up_votes}</td>
+                    <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 600, color: hot ? 'var(--color-danger)' : 'var(--color-text-2)' }}>{f.down_votes}</td>
+                    <td style={{ padding: '12px 16px' }}>
+                      <RowActions
+                        onEdit={() => setEditing({
+                          id: f.id,
+                          data: {
+                            service_id: f.service_id ?? '', question: f.question,
+                            answer: f.answer, sort_order: f.sort_order,
+                          },
+                        })}
+                        onDelete={() => { if (window.confirm(`Удалить вопрос «${f.question}»?`)) delMut.mutate(f.id) }}
+                        disabled={delMut.isPending}
+                      />
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {editing && (
+        <FaqModal
+          value={editing.data}
+          isEdit={!!editing.id}
+          saving={saveMut.isPending}
+          services={services}
+          onClose={() => setEditing(null)}
+          onSave={(data) => saveMut.mutate({ id: editing.id, data })}
+        />
+      )}
+    </>
+  )
+}
+
+function FaqModal({ value, isEdit, saving, services, onClose, onSave }: {
+  value: FaqInput
+  isEdit: boolean
+  saving: boolean
+  services: Service[]
+  onClose: () => void
+  onSave: (data: FaqInput) => void
+}) {
+  const [f, setF] = useState<FaqInput>(value)
+  const set = <K extends keyof FaqInput>(k: K, v: FaqInput[K]) => setF((p) => ({ ...p, [k]: v }))
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!f.question.trim() || !f.answer.trim()) return
+    onSave({ ...f, question: f.question.trim(), answer: f.answer.trim() })
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 640, width: '100%' }}>
+        <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontSize: 17, fontWeight: 700 }}>{isEdit ? 'Редактировать вопрос' : 'Новый вопрос'}</div>
+          <button onClick={onClose} className="btn btn-ghost btn-sm" style={{ width: 32, padding: 0 }}><I.X size={16} /></button>
+        </div>
+        <form onSubmit={submit} style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 14, maxHeight: '72vh', overflowY: 'auto' }}>
+          <Field label="Услуга" hint="«Общий» — вопрос виден на всех услугах">
+            <select className="select" value={f.service_id ?? ''} onChange={(e) => set('service_id', e.target.value)}>
+              <option value="">Общий (все услуги)</option>
+              {services.map((s) => <option key={s.id} value={s.id}>{s.title}</option>)}
+            </select>
+          </Field>
+          <Field label="Вопрос *">
+            <input className="input" value={f.question} onChange={(e) => set('question', e.target.value)} required />
+          </Field>
+          <Field label="Ответ *" hint="markdown: ## подзаголовок, «- » список, **жирный**">
+            <textarea className="textarea" value={f.answer} onChange={(e) => set('answer', e.target.value)} rows={8} required />
           </Field>
           <Field label="Порядок">
             <input className="input" type="number" value={f.sort_order ?? 0} onChange={(e) => set('sort_order', Number(e.target.value))} />
