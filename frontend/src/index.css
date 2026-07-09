@@ -395,12 +395,87 @@ h1, h2, h3, h4, .section-title { font-family: var(--ff-display); }
   border-radius: var(--r-card);
 }
 
-/* Hero background: cream base warming into a faint brand-green tint,
-   replacing the previous flat cream fill. */
+/* Hero background: cream base warming into a faint brand-green tint, then
+   settling back to cream at the very bottom so the section dissolves
+   seamlessly into the cream page body below (no visible seam / border —
+   the calculator section that follows sits on plain var(--color-bg)). */
 .hero-gradient-bg {
   background:
     radial-gradient(1100px 420px at 85% -8%, rgba(7, 102, 61, 0.10), transparent 60%),
-    linear-gradient(180deg, var(--color-bg) 0%, var(--color-primary-tint) 62%, var(--color-primary-soft) 100%);
+    linear-gradient(180deg, var(--color-bg) 0%, var(--color-primary-tint) 52%, var(--color-primary-soft) 76%, var(--color-bg) 100%);
+}
+
+/* ===== Eligibility screener — deep-green liquid-glass accent panel =====
+   The screener is the page's hero-grade accent: a floating rounded panel on
+   the brand-green gradient (mirrors .glass-green / EcosystemCard values) with
+   glass answer tiles. Lives inside .container (not full-bleed) so it reads as
+   a deliberate "card", not a background band. No backdrop-filter on the panel
+   itself (nothing meaningful sits behind it) — only the answer tiles blur. */
+.screener-panel {
+  position: relative;
+  overflow: hidden;
+  border-radius: 24px;
+  padding: clamp(24px, 3.4vw, 44px);
+  color: #fff;
+  background:
+    linear-gradient(155deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.03) 42%, transparent 66%),
+    linear-gradient(160deg, var(--color-primary-600) 0%, var(--color-primary) 52%, var(--color-primary-700) 100%);
+  box-shadow: var(--sh-lg);
+}
+@media (max-width: 640px) {
+  .screener-panel { border-radius: 18px; padding: 20px 16px; }
+}
+
+/* Glass answer tile — translucent white sheen over the green panel. */
+.screener-opt {
+  position: relative;
+  border-radius: 12px;
+  padding: 16px 18px;
+  text-align: left;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  cursor: pointer;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(12px) saturate(1.2);
+  -webkit-backdrop-filter: blur(12px) saturate(1.2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  transition: transform 160ms var(--ease-out), background 160ms var(--ease-out),
+    border-color 160ms var(--ease-out), box-shadow 160ms var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .screener-opt:not(.is-selected):hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.46);
+    transform: translateY(-3px);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+}
+.screener-opt:active { transform: scale(0.985); }
+.screener-opt.is-selected {
+  background: rgba(255, 255, 255, 0.22);
+  border: 2px solid var(--color-accent);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+@media (prefers-reduced-motion: reduce) {
+  .screener-opt:not(.is-selected):hover { transform: none; }
+  .screener-opt:active { transform: none; }
+}
+
+/* Glass navigation button for the screener (Назад / Изменить ответы). */
+.screener-glass-btn {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  color: #fff;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.screener-glass-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.46);
+  color: #fff;
 }
 
 /* ===== Card depth (design wave 2 — catalog differentiation) =====

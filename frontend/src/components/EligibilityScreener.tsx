@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import { I } from '@/components/icons'
@@ -172,6 +172,27 @@ function scoreService(service: Service, answers: Answers): number {
   }
 
   return Math.min(score, 99)
+}
+
+/**
+ * Тёмно-зелёная liquid-glass панель скринера — главный акцент главной.
+ * Плавающий скруглённый контейнер внутри .container (не full-bleed), градиент
+ * и блики зеркалят .glass-green / EcosystemCard; приглушённый орнамент-тайл.
+ * Оборачивает и вопросы, и экран результатов — общий шелл для консистентности.
+ */
+function ScreenerPanel({ children }: { children: ReactNode }) {
+  return (
+    <div className="screener-panel">
+      {/* орнамент-тайл, приглушённый маской (ornament-fade → opacity 0.06) */}
+      <div className="ornament-tile-gold ornament-fade" aria-hidden="true" />
+      {/* мягкий стеклянный блик сверху-слева */}
+      <div aria-hidden="true" style={{
+        position: 'absolute', top: -90, left: -90, width: 280, height: 280, borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(255,255,255,0.14), transparent 70%)', pointerEvents: 'none',
+      }} />
+      <div style={{ position: 'relative', zIndex: 1 }}>{children}</div>
+    </div>
+  )
 }
 
 function ScoreChip({ score, ai }: { score: number; ai?: boolean }) {
@@ -483,63 +504,66 @@ function Results({ services, answers, onReset }: { services: Service[]; answers:
 
   return (
     <section className="container page-fade" style={{ paddingTop: 52 }}>
-      <div style={{ marginBottom: 20, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <div className="section-eyebrow" style={{ marginBottom: 6 }}>Подбор программ</div>
-          <h2 className="section-title">
-            {display.length > 0
-              ? `Найдено ${display.length} подходящ${display.length === 1 ? 'ая программа' : display.length < 5 ? 'ие программы' : 'их программ'}`
-              : 'Подходящих программ не найдено'}
-          </h2>
-          <p style={{ fontSize: 14, color: 'var(--color-text-3)', marginTop: 4 }}>
-            {useAi
-              ? 'AI отранжировал программы под ваш профиль. Рассчитайте платёж прямо в карточке.'
-              : 'По вашим ответам — показываем наилучшие совпадения. Рассчитайте платёж прямо в карточке.'}
-          </p>
+      <ScreenerPanel>
+        <div style={{ marginBottom: 20, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+          <div>
+            <div className="section-eyebrow" style={{ marginBottom: 6, color: '#FAF0D8' }}>Подбор программ</div>
+            <h2 className="section-title" style={{ color: '#fff' }}>
+              {display.length > 0
+                ? `Найдено ${display.length} подходящ${display.length === 1 ? 'ая программа' : display.length < 5 ? 'ие программы' : 'их программ'}`
+                : 'Подходящих программ не найдено'}
+            </h2>
+            <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.85)', marginTop: 4 }}>
+              {useAi
+                ? 'AI отранжировал программы под ваш профиль. Рассчитайте платёж прямо в карточке.'
+                : 'По вашим ответам — показываем наилучшие совпадения. Рассчитайте платёж прямо в карточке.'}
+            </p>
+          </div>
+          <button className="btn btn-sm screener-glass-btn" onClick={onReset}>
+            <I.ArrowLeft size={14} /> Изменить ответы
+          </button>
         </div>
-        <button className="btn btn-ghost btn-sm" onClick={onReset}>
-          <I.ArrowLeft size={14} /> Изменить ответы
-        </button>
-      </div>
 
-      {aiLoading && (
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16,
-          padding: '10px 14px', borderRadius: 8,
-          background: 'var(--color-accent-soft)', color: 'var(--color-primary)',
-          fontSize: 13, fontWeight: 500,
-        }}>
-          <span style={{
-            width: 14, height: 14, borderRadius: '50%',
-            border: '2px solid var(--color-primary-soft)', borderTopColor: 'var(--color-primary)',
-            animation: 'spin 700ms linear infinite', display: 'inline-block',
-          }} />
-          <I.Sparkle size={14} /> AI анализирует ваш профиль…
+        {aiLoading && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16,
+            padding: '10px 14px', borderRadius: 10,
+            background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)',
+            backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+            color: '#fff', fontSize: 13, fontWeight: 500,
+          }}>
+            <span style={{
+              width: 14, height: 14, borderRadius: '50%',
+              border: '2px solid rgba(255,255,255,0.35)', borderTopColor: '#fff',
+              animation: 'spin 700ms linear infinite', display: 'inline-block',
+            }} />
+            <I.Sparkle size={14} style={{ color: 'var(--color-gold)' }} /> AI анализирует ваш профиль…
+          </div>
+        )}
+
+        {display.length === 0 ? (
+          <div className="card" style={{ padding: 32, textAlign: 'center', color: 'var(--color-text-3)' }}>
+            <p>Попробуйте изменить параметры подбора</p>
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16, marginBottom: 20 }}>
+            {display.map(({ service, score, ai, reason, caution }) => (
+              <ResultCard key={service.id} service={service} score={score} ai={ai} reason={reason} caution={caution} />
+            ))}
+          </div>
+        )}
+
+        <CallMeBack />
+
+        <div style={{ textAlign: 'center', marginTop: 24 }}>
+          <Link
+            to={`/services?q=${encodeURIComponent(goalQuery)}`}
+            style={{ fontSize: 14, color: '#FAF0D8', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 4 }}
+          >
+            Смотреть все программы <I.ArrowRight size={14} />
+          </Link>
         </div>
-      )}
-
-      {display.length === 0 ? (
-        <div className="card" style={{ padding: 32, textAlign: 'center', color: 'var(--color-text-3)' }}>
-          <p>Попробуйте изменить параметры подбора</p>
-        </div>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16, marginBottom: 20 }}>
-          {display.map(({ service, score, ai, reason, caution }) => (
-            <ResultCard key={service.id} service={service} score={score} ai={ai} reason={reason} caution={caution} />
-          ))}
-        </div>
-      )}
-
-      <CallMeBack />
-
-      <div style={{ textAlign: 'center', marginTop: 24 }}>
-        <Link
-          to={`/services?q=${encodeURIComponent(goalQuery)}`}
-          style={{ fontSize: 14, color: 'var(--color-accent-text)', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 4 }}
-        >
-          Смотреть все программы <I.ArrowRight size={14} />
-        </Link>
-      </div>
+      </ScreenerPanel>
     </section>
   )
 }
@@ -572,83 +596,65 @@ export function EligibilityScreener({ services }: Props) {
 
   return (
     <section className="container" style={{ paddingTop: 52 }}>
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-          <div className="section-eyebrow">Подбор программы</div>
-          <div style={{ display: 'flex', gap: 4 }}>
-            {QUESTIONS.map((_, i) => (
-              <div key={i} style={{
-                height: 4, borderRadius: 2,
-                width: i === step ? 24 : 12,
-                background: i < step ? 'var(--color-accent)' : i === step ? 'var(--color-primary)' : 'var(--color-border)',
-                transition: 'all 200ms',
-              }} />
-            ))}
+      <ScreenerPanel>
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
+            <div className="section-eyebrow" style={{ color: '#FAF0D8' }}>Подбор программы</div>
+            {/* прогресс-индикатор — золотой */}
+            <div style={{ display: 'flex', gap: 4 }}>
+              {QUESTIONS.map((_, i) => (
+                <div key={i} style={{
+                  height: 4, borderRadius: 2,
+                  width: i === step ? 24 : 12,
+                  background: i < step ? 'var(--color-accent)' : i === step ? 'var(--color-gold)' : 'rgba(255,255,255,0.28)',
+                  transition: 'all 200ms var(--ease-out)',
+                }} />
+              ))}
+            </div>
+            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.82)', fontWeight: 500 }}>{step + 1} / {QUESTIONS.length}</span>
           </div>
-          <span style={{ fontSize: 12, color: 'var(--color-text-3)' }}>{step + 1} / {QUESTIONS.length}</span>
+          <h2 className="section-title" style={{ color: '#fff' }}>{current.question}</h2>
+          <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.85)', marginTop: 4 }}>{current.hint}</p>
         </div>
-        <h2 className="section-title">{current.question}</h2>
-        <p style={{ fontSize: 14, color: 'var(--color-text-3)', marginTop: 4 }}>{current.hint}</p>
-      </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${current.cols}, minmax(0, 1fr))`, gap: 12 }}>
-        {current.options.map((opt) => {
-          const Icon = I[opt.icon as keyof typeof I]
-          const isSelected = selectedValue === opt.value
-          return (
-            <button
-              key={opt.value}
-              onClick={() => select(opt.value)}
-              className="card"
-              style={{
-                padding: '16px 18px', cursor: 'pointer', textAlign: 'left',
-                display: 'flex', gap: 12, alignItems: 'flex-start',
-                border: isSelected ? '2px solid var(--color-accent)' : '1.5px solid var(--color-border)',
-                background: isSelected ? 'var(--color-accent-soft)' : '#fff',
-                transition: 'all 140ms',
-              }}
-              onMouseEnter={(e) => {
-                if (!isSelected) {
-                  const el = e.currentTarget as HTMLElement
-                  el.style.borderColor = 'var(--color-accent)'
-                  el.style.boxShadow = 'var(--sh-md)'
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isSelected) {
-                  const el = e.currentTarget as HTMLElement
-                  el.style.borderColor = 'var(--color-border)'
-                  el.style.boxShadow = 'var(--sh-xs)'
-                }
-              }}
-            >
-              <div style={{
-                width: 36, height: 36, borderRadius: 8, flexShrink: 0,
-                background: isSelected ? 'var(--color-primary)' : 'var(--color-accent-soft)',
-                color: isSelected ? '#fff' : 'var(--color-primary)',
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                transition: 'all 140ms',
-              }}>
-                {Icon && <Icon size={18} />}
-              </div>
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text)', marginBottom: 2 }}>{opt.label}</div>
-                <div style={{ fontSize: 12, color: 'var(--color-text-3)', lineHeight: 1.4 }}>{opt.desc}</div>
-              </div>
-            </button>
-          )
-        })}
-      </div>
+        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${current.cols}, minmax(0, 1fr))`, gap: 12 }}>
+          {current.options.map((opt) => {
+            const Icon = I[opt.icon as keyof typeof I]
+            const isSelected = selectedValue === opt.value
+            return (
+              <button
+                key={opt.value}
+                onClick={() => select(opt.value)}
+                className={`screener-opt${isSelected ? ' is-selected' : ''}`}
+              >
+                <div style={{
+                  width: 36, height: 36, borderRadius: 8, flexShrink: 0,
+                  background: isSelected ? 'var(--color-accent)' : 'rgba(255,255,255,0.16)',
+                  color: isSelected ? '#1A1206' : '#fff',
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  transition: 'background 160ms var(--ease-out), color 160ms var(--ease-out)',
+                }}>
+                  {Icon && <Icon size={18} />}
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: '#fff', marginBottom: 2 }}>{opt.label}</div>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.82)', lineHeight: 1.4 }}>{opt.desc}</div>
+                </div>
+              </button>
+            )
+          })}
+        </div>
 
-      {step > 0 && (
-        <button
-          className="btn btn-ghost btn-sm"
-          onClick={() => setStep(s => s - 1)}
-          style={{ marginTop: 16 }}
-        >
-          <I.ArrowLeft size={14} /> Назад
-        </button>
-      )}
+        {step > 0 && (
+          <button
+            className="btn btn-sm screener-glass-btn"
+            onClick={() => setStep(s => s - 1)}
+            style={{ marginTop: 16 }}
+          >
+            <I.ArrowLeft size={14} /> Назад
+          </button>
+        )}
+      </ScreenerPanel>
     </section>
   )
 }

@@ -101,11 +101,14 @@ function HeroMedia() {
             'linear-gradient(90deg, var(--color-bg) 0%, var(--color-bg) 42%, color-mix(in srgb, var(--color-bg) 40%, transparent) 52%, transparent 58%)',
         }} />
       )}
-      {/* Нижний мягкий стык с секцией. */}
+      {/* Нижний мягкий стык с секцией: медиа полностью растворяется в кремовом
+          фоне секции (снизу секция = var(--color-bg)), стык поднят и усилен —
+          сплошной кремовый до 34% высоты полосы, затем плавно в прозрачность,
+          чтобы не было видимого шва между фото/видео и калькулятором ниже. */}
       {anyVisible && (
         <div style={{
-          position: 'absolute', insetInline: 0, bottom: 0, height: 96,
-          background: 'linear-gradient(to top, var(--color-bg) 0%, transparent 100%)',
+          position: 'absolute', insetInline: 0, bottom: 0, height: 160,
+          background: 'linear-gradient(to top, var(--color-bg) 0%, var(--color-bg) 34%, transparent 100%)',
         }} />
       )}
     </div>
@@ -120,7 +123,6 @@ function HeroSearch() {
 
   return (
     <section className="hero-gradient-bg" style={{
-      borderBottom: '1px solid var(--color-border)',
       paddingTop: 64, paddingBottom: 64, position: 'relative', overflow: 'hidden',
     }}>
       <HeroMedia />
@@ -205,23 +207,30 @@ function HeroSearch() {
 
 function DirectionCard({ d }: { d: typeof DIRECTIONS[0] }) {
   const Icon = I[d.icon as keyof typeof I]
+  // Спокойное оживление: категорийный цвет в иконке/стрелке + лёгкий стеклянный
+  // хайлайт сверху и подъём на hover. Секция остаётся светлой — не спорит с
+  // тёмно-зелёным glass-скринером выше по странице (ритм: скринер → спокойные
+  // направления).
+  const accent = categoryColor(d.title)
   return (
     <Link to={`/services?category=${encodeURIComponent(d.title)}`}
       className="card"
-      style={{ padding: 24, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 12, transition: 'border-color 140ms, box-shadow 140ms', textDecoration: 'none' }}
-      onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'var(--color-accent)'; el.style.boxShadow = 'var(--sh-md)' }}
-      onMouseLeave={(e) => { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'var(--color-border)'; el.style.boxShadow = 'var(--sh-xs)' }}
+      style={{ position: 'relative', overflow: 'hidden', padding: 24, cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 12, transition: 'transform 160ms var(--ease-out), border-color 160ms var(--ease-out), box-shadow 160ms var(--ease-out)', textDecoration: 'none' }}
+      onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.borderColor = accent; el.style.boxShadow = 'var(--sh-md)'; el.style.transform = 'translateY(-3px)' }}
+      onMouseLeave={(e) => { const el = e.currentTarget as HTMLElement; el.style.borderColor = 'var(--color-border)'; el.style.boxShadow = 'var(--sh-xs)'; el.style.transform = 'translateY(0)' }}
     >
-      <div style={{ width: 44, height: 44, borderRadius: 10, background: 'var(--color-accent-soft)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-primary)' }}>
+      {/* стеклянный хайлайт — тонкий градиент сверху в цвет категории */}
+      <div aria-hidden="true" style={{ position: 'absolute', insetInline: 0, top: 0, height: 64, background: `linear-gradient(180deg, ${categorySoftBg(d.title, 0.10)} 0%, transparent 100%)`, pointerEvents: 'none' }} />
+      <div style={{ position: 'relative', width: 44, height: 44, borderRadius: 10, background: categorySoftBg(d.title, 0.12), display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: accent }}>
         {Icon && <Icon size={22} />}
       </div>
-      <div>
+      <div style={{ position: 'relative' }}>
         <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--color-text)', marginBottom: 4 }}>{d.title}</div>
         <div style={{ fontSize: 13, color: 'var(--color-text-3)', lineHeight: 1.5 }}>{d.desc}</div>
       </div>
-      <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8 }}>
+      <div style={{ position: 'relative', marginTop: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8 }}>
         <span style={{ fontSize: 12, color: 'var(--color-text-3)' }}>{d.count} услуг</span>
-        <I.ArrowRight size={16} style={{ color: 'var(--color-accent)' }} />
+        <I.ArrowRight size={16} style={{ color: accent }} />
       </div>
     </Link>
   )
