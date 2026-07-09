@@ -8,6 +8,8 @@ import {
   type MapProjectInput,
   type NewsItem,
   type NewsInput,
+  type HoldingStat,
+  type HoldingStatInput,
 } from '@/api/client'
 import { useToast } from '@/components/Toast'
 import { I } from '@/components/icons'
@@ -31,14 +33,14 @@ function apiErr(err: unknown, fallback: string): string {
 }
 
 export function AdminContent() {
-  const [tab, setTab] = useState<'materials' | 'projects' | 'news'>('materials')
+  const [tab, setTab] = useState<'materials' | 'projects' | 'news' | 'holding'>('materials')
 
   return (
     <div className="page-fade" style={{ padding: '32px 40px' }}>
       <div style={{ marginBottom: 20 }}>
         <h1 style={{ fontSize: 26, fontWeight: 700, margin: 0 }}>Контент порталов</h1>
         <p style={{ fontSize: 14, color: 'var(--color-text-3)', marginTop: 6 }}>
-          Управление публичными разделами «Аналитика дочек», «Карта проектов» и «Новости» без правки кода.
+          Управление публичными разделами «Аналитика дочек», «Карта проектов», «Новости» и «О холдинге» без правки кода.
         </p>
       </div>
 
@@ -48,6 +50,7 @@ export function AdminContent() {
           { id: 'materials', label: 'Аналитика дочек' },
           { id: 'projects', label: 'Карта проектов' },
           { id: 'news', label: 'Новости' },
+          { id: 'holding', label: 'О холдинге' },
         ] as const).map((t) => (
           <button
             key={t.id}
@@ -65,7 +68,7 @@ export function AdminContent() {
         ))}
       </div>
 
-      {tab === 'materials' ? <MaterialsTab /> : tab === 'projects' ? <ProjectsTab /> : <NewsTab />}
+      {tab === 'materials' ? <MaterialsTab /> : tab === 'projects' ? <ProjectsTab /> : tab === 'news' ? <NewsTab /> : <HoldingTab />}
     </div>
   )
 }
@@ -623,6 +626,128 @@ function NewsModal({ value, isEdit, saving, onClose, onSave }: {
             <input type="checkbox" checked={!!f.is_featured} onChange={(e) => set('is_featured', e.target.checked)} />
             Главный материал (featured)
           </label>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={onClose}>Отмена</button>
+            <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>{saving ? 'Сохранение…' : 'Сохранить'}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// ─── Holding stats ────────────────────────────────────────────────────────────
+
+// Набор фиксирован (4 цифры о холдинге): правятся value/label/asof, без add/delete.
+function HoldingTab() {
+  const { push } = useToast()
+  const qc = useQueryClient()
+  const [editing, setEditing] = useState<HoldingStat | null>(null)
+
+  const { data: items = [], isLoading } = useQuery<HoldingStat[]>({
+    queryKey: ['holding-stats'],
+    queryFn: () => contentApi.holdingStats().then((r) => r.data ?? []),
+  })
+
+  const saveMut = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: HoldingStatInput }) =>
+      contentApi.updateHoldingStat(id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['holding-stats'] })
+      push('Показатель сохранён', 'success')
+      setEditing(null)
+    },
+    onError: (e) => push(apiErr(e, 'Не удалось сохранить показатель'), 'error'),
+  })
+
+  return (
+    <>
+      <div style={{ fontSize: 13, color: 'var(--color-text-3)', marginBottom: 16 }}>
+        Цифры для секции «Холдинг „Байтерек“» на главной. Набор фиксирован — правятся значение, подпись и сноска.
+      </div>
+
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', minWidth: 720, borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: 'var(--color-surface-2)' }}>
+                {['#', 'Подпись', 'Значение', 'Сноска', ''].map((h, i) => (
+                  <th key={i} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: 'var(--color-text-3)', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                <tr><td colSpan={5} style={{ padding: 48, textAlign: 'center', color: 'var(--color-text-3)' }}>Загрузка…</td></tr>
+              ) : items.length === 0 ? (
+                <tr><td colSpan={5} style={{ padding: 48, textAlign: 'center', color: 'var(--color-text-3)' }}>Показателей пока нет</td></tr>
+              ) : items.map((s) => (
+                <tr key={s.id} style={{ borderTop: '1px solid var(--color-border)' }}>
+                  <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--color-text-3)' }}>{s.sort_order}</td>
+                  <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 500 }}>{s.label}</td>
+                  <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--color-primary)', fontWeight: 600, whiteSpace: 'nowrap' }}>{s.value}</td>
+                  <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--color-text-2)' }}>{s.asof ?? '—'}</td>
+                  <td style={{ padding: '12px 16px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                      <button type="button" className="btn btn-secondary btn-sm" onClick={() => setEditing(s)}>Изменить</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {editing && (
+        <HoldingModal
+          value={editing}
+          saving={saveMut.isPending}
+          onClose={() => setEditing(null)}
+          onSave={(data) => saveMut.mutate({ id: editing.id, data })}
+        />
+      )}
+    </>
+  )
+}
+
+function HoldingModal({ value, saving, onClose, onSave }: {
+  value: HoldingStat
+  saving: boolean
+  onClose: () => void
+  onSave: (data: HoldingStatInput) => void
+}) {
+  const [f, setF] = useState<HoldingStatInput>({
+    value: value.value, label: value.label, asof: value.asof ?? '', sort_order: value.sort_order,
+  })
+  const set = <K extends keyof HoldingStatInput>(k: K, v: HoldingStatInput[K]) => setF((p) => ({ ...p, [k]: v }))
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!f.value.trim() || !f.label.trim()) return
+    onSave({ ...f, value: f.value.trim(), label: f.label.trim() })
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 560, width: '100%' }}>
+        <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontSize: 17, fontWeight: 700 }}>Показатель холдинга</div>
+          <button onClick={onClose} className="btn btn-ghost btn-sm" style={{ width: 32, padding: 0 }}><I.X size={16} /></button>
+        </div>
+        <form onSubmit={submit} style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <Field label="Подпись *" hint="напр. Активы холдинга">
+            <input className="input" value={f.label} onChange={(e) => set('label', e.target.value)} required />
+          </Field>
+          <Field label="Значение *" hint="число/текст как строка: 15,91 трлн ₸">
+            <input className="input" value={f.value} onChange={(e) => set('value', e.target.value)} required />
+          </Field>
+          <Field label="Сноска" hint="мелким серым: на 30.06.2025">
+            <input className="input" value={f.asof} onChange={(e) => set('asof', e.target.value)} />
+          </Field>
+          <Field label="Порядок">
+            <input className="input" type="number" value={f.sort_order ?? 0} onChange={(e) => set('sort_order', Number(e.target.value))} />
+          </Field>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
             <button type="button" className="btn btn-ghost btn-sm" onClick={onClose}>Отмена</button>
             <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>{saving ? 'Сохранение…' : 'Сохранить'}</button>

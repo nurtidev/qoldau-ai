@@ -183,6 +183,12 @@ func main() {
 			r.With(authMw, adminAuthorMw).Put("/{id}", contentH.UpdateNews)
 			r.With(authMw, adminAuthorMw).Delete("/{id}", contentH.DeleteNews)
 		})
+		// Holding stats: фиксированный набор цифр о холдинге (главная).
+		// GET public; правка value/label/asof — admin/author, без create/delete.
+		r.Route("/holding-stats", func(r chi.Router) {
+			r.Get("/", contentH.ListHoldingStats)
+			r.With(authMw, adminAuthorMw).Put("/{id}", contentH.UpdateHoldingStat)
+		})
 	})
 
 	addr := fmt.Sprintf(":%s", cfg.Port)

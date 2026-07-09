@@ -208,3 +208,17 @@ type MapProject struct {
 	CreatedAt   time.Time `db:"created_at"  json:"created_at"`
 	UpdatedAt   time.Time `db:"updated_at"  json:"updated_at"`
 }
+
+// HoldingStat — администрируемая цифра о холдинге «Байтерек» для секции
+// «Институт развития страны» на главной (миграция 017). Набор фиксированный:
+// value/label/asof правятся из админки, создание/удаление не предусмотрены.
+type HoldingStat struct {
+	ID        string    `db:"id"         json:"id"`
+	StatKey   string    `db:"stat_key"   json:"stat_key"`
+	Value     string    `db:"value"      json:"value"`
+	Label     string    `db:"label"      json:"label"`
+	AsOf      *string   `db:"asof"       json:"asof,omitempty"`
+	SortOrder int       `db:"sort_order" json:"sort_order"`
+	CreatedAt time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
+}

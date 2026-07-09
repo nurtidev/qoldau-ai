@@ -328,3 +328,49 @@ func (h *ContentHandler) DeleteNews(w http.ResponseWriter, r *http.Request) {
 	h.deleteByID(w, "news", chi.URLParam(r, "id"),
 		"news not found", "failed to delete news")
 }
+
+// ─── Holding stats ─────────────────────────────────────────────────────────────
+
+func (h *ContentHandler) ListHoldingStats(w http.ResponseWriter, r *http.Request) {
+	items := make([]models.HoldingStat, 0)
+	if err := h.db.Select(&items,
+		`SELECT * FROM holding_stats ORDER BY sort_order ASC, created_at ASC`); err != nil {
+		respondErr(w, http.StatusInternalServerError, "failed to fetch holding stats")
+		return
+	}
+	respond(w, http.StatusOK, items)
+}
+
+// holdingStatReq — набор фиксирован, поэтому правятся только эти поля
+// (stat_key неизменен, создания/удаления нет).
+type holdingStatReq struct {
+	Value     string `json:"value"`
+	Label     string `json:"label"`
+	AsOf      string `json:"asof"`
+	SortOrder int    `json:"sort_order"`
+}
+
+func (h *ContentHandler) UpdateHoldingStat(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	if !isUUID(id) {
+		respondErr(w, http.StatusNotFound, "holding stat not found")
+		return
+	}
+	var req holdingStatReq
+	if err := decode(r, &req); err != nil || req.Value == "" || req.Label == "" {
+		respondErr(w, http.StatusBadRequest, "value and label required")
+		return
+	}
+
+	var s models.HoldingStat
+	err := h.db.QueryRowx(
+		`UPDATE holding_stats SET value=$1, label=$2, asof=$3, sort_order=$4, updated_at=NOW()
+		 WHERE id=$5 RETURNING *`,
+		req.Value, req.Label, nullStr(req.AsOf), req.SortOrder, id,
+	).StructScan(&s)
+	if err != nil {
+		updateErr(w, err, "holding stat not found", "failed to update holding stat")
+		return
+	}
+	respond(w, http.StatusOK, s)
+}

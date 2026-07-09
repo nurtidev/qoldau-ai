@@ -280,6 +280,25 @@ export type NewsInput = {
   sort_order?: number
 }
 
+export interface HoldingStat {
+  id: string
+  stat_key: string
+  value: string
+  label: string
+  asof?: string
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
+// Правится только value/label/asof/sort_order — набор фиксирован (без create/delete).
+export type HoldingStatInput = {
+  value: string
+  label: string
+  asof?: string
+  sort_order?: number
+}
+
 export const contentApi = {
   materials: () => api.get<AnalyticsMaterial[]>('/materials'),
   createMaterial: (data: MaterialInput) => api.post('/materials', data),
@@ -296,6 +315,9 @@ export const contentApi = {
   createNews: (data: NewsInput) => api.post('/news', data),
   updateNews: (id: string, data: NewsInput) => api.put(`/news/${id}`, data),
   deleteNews: (id: string) => api.delete(`/news/${id}`),
+
+  holdingStats: () => api.get<HoldingStat[]>('/holding-stats'),
+  updateHoldingStat: (id: string, data: HoldingStatInput) => api.put(`/holding-stats/${id}`, data),
 }
 
 // Mock integrations

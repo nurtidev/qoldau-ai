@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { servicesApi } from '@/api/client'
+import { servicesApi, contentApi, type HoldingStat } from '@/api/client'
 import { I } from '@/components/icons'
 import { EligibilityScreener } from '@/components/EligibilityScreener'
 import { EcosystemCard } from '@/components/HeroVisual'
@@ -299,6 +299,93 @@ function OrgTile({ org, count, size = 'lg' }: { org: OrgEntry; count?: number; s
   )
 }
 
+// Спокойная светлая секция об институте развития. Цифры администрируются из
+// админки (/api/holding-stats). Если API пуст — секция не рендерится вовсе.
+function HoldingSection() {
+  const { data: stats, isLoading } = useQuery<HoldingStat[]>({
+    queryKey: ['holding-stats'],
+    queryFn: () => contentApi.holdingStats().then((r) => r.data ?? []),
+  })
+
+  if (!isLoading && (!stats || stats.length === 0)) return null
+
+  return (
+    <section className="container" style={{ paddingTop: 72 }}>
+      <div
+        style={{
+          position: 'relative', overflow: 'hidden',
+          background: 'var(--color-surface-warm)',
+          border: '1px solid var(--color-border)', borderRadius: 20,
+          padding: 'clamp(28px, 4vw, 48px)',
+        }}
+      >
+        <div className="ornament-tile-gold" aria-hidden="true" style={{ opacity: 0.05 }} />
+        <div
+          className="two-col-mobile-stack"
+          style={{
+            position: 'relative', display: 'grid',
+            gridTemplateColumns: 'minmax(0, 1.1fr) minmax(0, 1fr)',
+            gap: 'clamp(28px, 4vw, 56px)', alignItems: 'center',
+          }}
+        >
+          {/* Left column — текст */}
+          <div style={{ minWidth: 0 }}>
+            <div className="section-eyebrow" style={{ marginBottom: 8 }}>Институт развития страны</div>
+            <h2 className="section-title" style={{ fontSize: 28 }}>Холдинг «Байтерек»</h2>
+            <p style={{ fontSize: 15, lineHeight: 1.65, color: 'var(--color-text-2)', marginTop: 14, maxWidth: 520 }}>
+              Национальный инвестиционный холдинг, основанный в 2013 году. Содействует устойчивому росту
+              экономики Казахстана через поддержку производства отечественных товаров и услуг,
+              модернизацию инфраструктуры и укрепление продовольственной безопасности.
+            </p>
+            <a
+              href="#baiterek-group"
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 18,
+                fontSize: 14, fontWeight: 500, color: 'var(--color-accent-text)',
+              }}
+            >
+              <I.Building size={15} />
+              7 дочерних организаций + КазАгроФинанс и ФРП в составе группы
+            </a>
+            <p style={{ fontSize: 12, color: 'var(--color-text-3)', marginTop: 22, marginBottom: 0 }}>
+              По данным официальной отчётности и публикаций холдинга.
+            </p>
+          </div>
+
+          {/* Right — 2×2 стат-карточки */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}>
+            {isLoading
+              ? [...Array(4)].map((_, i) => (
+                  <div key={i} className="skeleton" style={{ height: 128, borderRadius: 14 }} />
+                ))
+              : stats!.map((s) => (
+                  <div
+                    key={s.id}
+                    style={{
+                      background: 'var(--color-surface)', border: '1px solid var(--color-border)',
+                      borderRadius: 14, padding: '18px 18px', boxShadow: 'var(--sh-xs)', minWidth: 0,
+                    }}
+                  >
+                    <div style={{ fontSize: 'clamp(20px, 2.4vw, 26px)', fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--color-primary)', lineHeight: 1.1 }}>
+                      {s.value}
+                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text)', marginTop: 8, lineHeight: 1.35 }}>
+                      {s.label}
+                    </div>
+                    {s.asof && (
+                      <div style={{ fontSize: 11.5, color: 'var(--color-text-3)', marginTop: 6, lineHeight: 1.35 }}>
+                        {s.asof}
+                      </div>
+                    )}
+                  </div>
+                ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 export function HomePage() {
   const isNarrow = useIsNarrow()
   const { data: services = [] } = useQuery<Service[]>({
@@ -385,7 +472,7 @@ export function HomePage() {
       </section>
 
       {/* Organisations: группа «Байтерек» (8 дочек) + партнёрские программы (4) */}
-      <section className="container" style={{ paddingTop: 72 }}>
+      <section id="baiterek-group" className="container" style={{ paddingTop: 72, scrollMarginTop: 80 }}>
         <div style={{ marginBottom: 24 }}>
           <div className="section-eyebrow" style={{ marginBottom: 6 }}>Группа «Байтерек»</div>
           <h2 className="section-title">Дочерние организации холдинга</h2>
@@ -407,6 +494,9 @@ export function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* Holding «Байтерек» — спокойная светлая секция с выверенными цифрами */}
+      <HoldingSection />
 
       {/* News */}
       <section className="container" style={{ paddingTop: 72 }}>

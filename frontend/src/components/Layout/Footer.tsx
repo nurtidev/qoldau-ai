@@ -61,7 +61,7 @@ export function Footer() {
         </div>
         <div style={{ height: 1, background: 'rgba(255,255,255,0.08)', margin: '40px 0 20px' }} />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, fontSize: 12, color: '#92A69A' }}>
-          <div>© 2026 АО «Холдинг «Байтерек». Все права защищены.</div>
+          <div>© 2026 АО «НИХ «Байтерек». Все права защищены.</div>
           <div style={{ display: 'flex', gap: 24 }}>
             <span style={{ cursor: 'pointer' }}>Условия использования</span>
             <span style={{ cursor: 'pointer' }}>Политика конфиденциальности</span>
