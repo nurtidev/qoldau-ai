@@ -17,6 +17,30 @@ const AMOUNT_STEP = 500_000
 const DEFAULT_AMOUNT = 10_000_000
 const DEFAULT_TERM = 36
 
+// Пресеты сроков (мес.) для чипов — как в akk-portal (funnel/calculator.tsx):
+// ряд кнопок, отфильтрованных по потолку программы. Реальный max программы
+// добавляется отдельно, если он не совпадает с пресетом (напр. 18 мес. у
+// «Кең дала 2»), чтобы верхняя граница всегда была доступна выбором.
+const TERM_PRESETS = [12, 24, 36, 60, 84, 120]
+
+function termOptionsFor(maxTerm: number): number[] {
+  const opts = TERM_PRESETS.filter((x) => x <= maxTerm)
+  if (maxTerm > 0 && !opts.includes(maxTerm)) opts.push(maxTerm)
+  if (opts.length === 0) opts.push(maxTerm > 0 ? maxTerm : DEFAULT_TERM)
+  return opts.sort((a, b) => a - b)
+}
+
+/** Дефолтный срок в новых границах: наибольший пресет ≤ 36, иначе минимальный. */
+function pickInitialTerm(opts: number[]): number {
+  return [...opts].reverse().find((x) => x <= DEFAULT_TERM) ?? opts[0]
+}
+
+/** Короткое имя программы — часть до « — » (полное имя длинное для чипа-карточки). */
+function shortName(title: string): string {
+  const head = title.split('—')[0].trim()
+  return head.length >= 3 ? head : title
+}
+
 function fmt(n: number): string {
   if (!Number.isFinite(n)) return '—'
   return new Intl.NumberFormat('ru-RU').format(Math.round(n))
@@ -125,9 +149,12 @@ export function HomeCalculator() {
   })
 
   // Только кредитные/лизинговые программы: есть и ставка, и лимит суммы.
+  // Отсекаем E2E-фикстуры (title «E2E · …») — тестовый мусор не место в
+  // публичном калькуляторе главной.
   const programs = useMemo(
     () => services.filter(
       (s) => typeof s.interest_rate === 'number' && typeof s.max_amount === 'number' && s.max_amount > 0
+        && !s.title.startsWith('E2E ·')
     ),
     [services]
   )
@@ -138,6 +165,7 @@ export function HomeCalculator() {
   const maxAmount = selected?.max_amount ?? DEFAULT_AMOUNT
   const maxTerm = selected?.max_term_months ?? 60
   const rate = selected?.interest_rate ?? 0
+  const termOptions = useMemo(() => termOptionsFor(maxTerm), [maxTerm])
 
   const [amount, setAmount] = useState(DEFAULT_AMOUNT)
   const [term, setTerm] = useState(DEFAULT_TERM)
@@ -147,7 +175,7 @@ export function HomeCalculator() {
   useEffect(() => {
     if (!selected) return
     setAmount(clamp(DEFAULT_AMOUNT, MIN_AMOUNT, selected.max_amount ?? DEFAULT_AMOUNT))
-    setTerm(Math.min(DEFAULT_TERM, selected.max_term_months ?? 60))
+    setTerm(pickInitialTerm(termOptionsFor(selected.max_term_months ?? 60)))
   }, [selected?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const payment = useMemo(() => annuityPayment(amount, rate, term), [amount, rate, term])
@@ -178,21 +206,64 @@ export function HomeCalculator() {
   return (
     <div className="card" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
       <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
-        {/* Программа */}
+        {/* Программа — ряд карточек-табов (прокручиваемый на переполнении).
+            Паттерн из akk-portal (funnel/program-showcase): активная программа
+            подсвечена рамкой/заливкой primary; здесь — компактные табы вместо
+            карусели со стрелками, т.к. блок узкий и программ немного. */}
         <div>
-          <label className="field-label" htmlFor="home-calc-program">Программа финансирования</label>
-          <select
-            id="home-calc-program"
-            className="select"
-            value={selected?.id ?? ''}
-            onChange={(e) => setSelectedId(e.target.value)}
+          <label className="field-label" style={{ marginBottom: 10 }}>Программа финансирования</label>
+          <div
+            role="tablist"
+            aria-label="Программа финансирования"
+            style={{
+              display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 8,
+              scrollSnapType: 'x proximity', margin: '0 -4px', paddingInline: 4,
+            }}
           >
-            {programs.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.title} — {p.interest_rate}% годовых
-              </option>
-            ))}
-          </select>
+            {programs.map((p) => {
+              const active = p.id === selected?.id
+              const pAccent = categoryColor(p.category)
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setSelectedId(p.id)}
+                  style={{
+                    flex: '0 0 auto', width: 158, textAlign: 'left', cursor: 'pointer',
+                    scrollSnapAlign: 'start', borderRadius: 12, padding: '12px 14px',
+                    display: 'flex', flexDirection: 'column', gap: 6,
+                    background: active ? categorySoftBg(p.category) : '#fff',
+                    border: `1.5px solid ${active ? pAccent : 'var(--color-border)'}`,
+                    boxShadow: active ? 'var(--sh-sm)' : 'none',
+                    transition: 'border-color 140ms var(--ease-out), background 140ms var(--ease-out), box-shadow 140ms var(--ease-out)',
+                  }}
+                  onMouseEnter={(e) => { if (!active) (e.currentTarget as HTMLElement).style.borderColor = 'var(--color-border-strong)' }}
+                  onMouseLeave={(e) => { if (!active) (e.currentTarget as HTMLElement).style.borderColor = 'var(--color-border)' }}
+                >
+                  <span style={{
+                    fontSize: 13, fontWeight: 600, lineHeight: 1.3, color: 'var(--color-text)',
+                    display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+                    minHeight: 34,
+                  } as React.CSSProperties}>
+                    {shortName(p.title)}
+                  </span>
+                  {p.org_name && (
+                    <span style={{
+                      fontSize: 11, color: 'var(--color-text-3)', lineHeight: 1.3,
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    }}>
+                      {p.org_name}
+                    </span>
+                  )}
+                  <span style={{ marginTop: 'auto', fontSize: 18, fontWeight: 700, color: active ? pAccent : 'var(--color-primary)', letterSpacing: '-0.01em' }}>
+                    от {p.interest_rate}%
+                  </span>
+                </button>
+              )
+            })}
+          </div>
         </div>
 
         {/* Параметры */}
@@ -205,15 +276,36 @@ export function HomeCalculator() {
           suffix="₸"
           onChange={setAmount}
         />
-        <SliderRow
-          label="Срок"
-          value={term}
-          min={6}
-          max={maxTerm}
-          step={1}
-          suffix="мес."
-          onChange={setTerm}
-        />
+
+        {/* Срок — выбор чипами (как в akk-portal), применяется мгновенно. */}
+        <div>
+          <label className="field-label" style={{ marginBottom: 10 }}>Срок</label>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {termOptions.map((x) => {
+              const active = x === term
+              return (
+                <button
+                  key={x}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => setTerm(x)}
+                  style={{
+                    cursor: 'pointer', borderRadius: 8, padding: '7px 14px',
+                    fontSize: 13, fontWeight: 600,
+                    color: active ? '#fff' : 'var(--color-text-2)',
+                    background: active ? 'var(--color-primary)' : '#fff',
+                    border: `1px solid ${active ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                    transition: 'border-color 120ms var(--ease-out), background 120ms var(--ease-out), color 120ms var(--ease-out)',
+                  }}
+                  onMouseEnter={(e) => { if (!active) (e.currentTarget as HTMLElement).style.borderColor = 'var(--color-primary)' }}
+                  onMouseLeave={(e) => { if (!active) (e.currentTarget as HTMLElement).style.borderColor = 'var(--color-border)' }}
+                >
+                  {x} мес.
+                </button>
+              )
+            })}
+          </div>
+        </div>
 
         {/* Результат */}
         <div style={{

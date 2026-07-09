@@ -81,6 +81,7 @@ export function EcosystemCard() {
       padding: 32,
       display: 'flex',
       flexDirection: 'column',
+      height: '100%',
     }}>
       {/* ornament overlay — a separate absolutely-positioned layer, not
           applied to the panel itself: .ornament-tile-gold sets
@@ -121,13 +122,17 @@ export function EcosystemCard() {
             Все меры поддержки — в одном окне
           </div>
 
-          {/* fanned stack of step cards */}
-          <div style={{ position: 'relative', marginTop: 44, height: 210, flexShrink: 0 }}>
-            {STEPS.map((s) => <StepCard key={s.n} {...s} />)}
+          {/* fanned stack of step cards — центрируется в свободной высоте
+              (flex:1 обёртка), чтобы при равной высоте с калькулятором не
+              оставалось пустой «дыры» между шагами и статами внизу. */}
+          <div style={{ flex: 1, minHeight: 254, display: 'flex', alignItems: 'center', marginTop: 32 }}>
+            <div style={{ position: 'relative', width: '100%', height: 210 }}>
+              {STEPS.map((s) => <StepCard key={s.n} {...s} />)}
+            </div>
           </div>
 
           <div style={{
-            marginTop: 'auto', paddingTop: 24, display: 'flex', gap: 28,
+            paddingTop: 24, display: 'flex', gap: 28,
             borderTop: '1px solid rgba(255,255,255,0.18)',
           }}>
             <div>

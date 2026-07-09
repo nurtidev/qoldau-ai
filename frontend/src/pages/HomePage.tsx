@@ -322,7 +322,7 @@ export function HomePage() {
         </div>
         <div
           className="two-col-mobile-stack"
-          style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.5fr) minmax(0, 1fr)', gap: 24, alignItems: 'start' }}
+          style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.5fr) minmax(0, 1fr)', gap: 24, alignItems: 'stretch' }}
         >
           <HomeCalculator />
           <EcosystemCard />
