@@ -109,7 +109,7 @@ function HeroMedia() {
         <div style={{
           position: 'absolute', inset: 0,
           background:
-            'linear-gradient(90deg, var(--color-bg) 0%, var(--color-bg) 50%, color-mix(in srgb, var(--color-bg) 55%, transparent) 66%, transparent 85%)',
+            'linear-gradient(90deg, var(--color-bg) 0%, var(--color-bg) 44%, color-mix(in srgb, var(--color-bg) 45%, transparent) 54%, transparent 62%)',
         }} />
       )}
       {/* Нижний мягкий стык с секцией. */}
