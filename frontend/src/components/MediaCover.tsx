@@ -35,7 +35,7 @@ export function MediaCover({
   /** Оверлеи поверх обложки (напр. bookmark-кнопка). */
   children?: React.ReactNode
 }) {
-  const { image, video } = resolveServiceMedia(title, category)
+  const { image, video, focus } = resolveServiceMedia(title, category)
 
   const hostRef = useRef<HTMLDivElement | null>(null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
@@ -112,6 +112,7 @@ export function MediaCover({
             width: '100%',
             height: '100%',
             objectFit: 'cover',
+            objectPosition: focus,
             opacity: imgLoaded ? 1 : 0,
             transition: 'opacity 400ms var(--ease-out)',
           }}
@@ -122,6 +123,9 @@ export function MediaCover({
       {useHoverVideo && videoOk && (
         <video
           ref={videoRef}
+          // src напрямую (не <source>): 404 у <source> НЕ вызывает onError
+          // самого video — а нам нужно зафиксировать «файла нет».
+          src={video}
           muted
           loop
           playsInline
@@ -135,12 +139,11 @@ export function MediaCover({
             width: '100%',
             height: '100%',
             objectFit: 'cover',
+            objectPosition: focus,
             opacity: active && videoReady ? 1 : 0,
             transition: 'opacity 500ms var(--ease-out)',
           }}
-        >
-          <source src={video} type="video/mp4" />
-        </video>
+        />
       )}
 
       {children}

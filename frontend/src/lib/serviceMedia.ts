@@ -21,6 +21,8 @@ export interface ServiceMedia {
   image?: string
   /** Абсолютный путь к видео, напр. '/media/services/orleu.mp4'. */
   video?: string
+  /** CSS object-position для кропа фото/видео в низкой полосе обложки. */
+  focus?: string
 }
 
 /**
@@ -62,6 +64,24 @@ const CATEGORY_RULES: Readonly<Record<string, string>> = {
   'Агросектор': 'agro-generic',
 }
 
+/**
+ * Фокус кадра (CSS object-position) по ключу. Обложка карточки — широкая
+ * низкая полоса; object-fit:cover по умолчанию берёт вертикальный центр
+ * 16:9-кадра и режет смысловой центр (у wagons состав уходил за верхний срез,
+ * у ken-dala комбайн — над центром). Y подобран по реальным сгенерированным
+ * jpg: где в кадре смысловой центр (состав ~20% высоты, комбайн ~33%,
+ * стадо с фермой ~55%).
+ */
+const FOCUS: Readonly<Record<string, string>> = {
+  'wagons': 'center 12%',         // состав и рельсы — верхняя треть кадра
+  'ken-dala': 'center 30%',       // комбайн чуть выше центра
+  'agro-livestock': 'center 55%', // стадо и ферма ниже центра
+}
+
+/** Дефолт для ключей без записи в FOCUS: чуть выше центра — у пейзажных
+ *  кадров смысл обычно у горизонта, а не в нижней половине. */
+export const DEFAULT_FOCUS = 'center 40%'
+
 const BASE = '/media/services'
 
 /** Ключ медиа для услуги (title → category), либо undefined. */
@@ -88,5 +108,10 @@ export function resolveServiceMedia(
 ): ServiceMedia {
   const key = resolveServiceMediaKey(title, category)
   if (!key) return {}
-  return { key, image: `${BASE}/${key}.jpg`, video: `${BASE}/${key}.mp4` }
+  return {
+    key,
+    image: `${BASE}/${key}.jpg`,
+    video: `${BASE}/${key}.mp4`,
+    focus: FOCUS[key] ?? DEFAULT_FOCUS,
+  }
 }

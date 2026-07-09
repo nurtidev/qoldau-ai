@@ -39,65 +39,73 @@ const ORGS = [
 ]
 
 /**
- * Фоновое hero-видео (инфраструктура «как в akk-portal», с фолбэками).
- *  — только десктоп (min-width: 768px): на мобиле video-элемент НЕ рендерится
- *    вовсе (не грузим тяжёлый файл на мобильном трафике — исправляем ошибку
- *    донора, где видео скрыто лишь CSS'ом, но качается);
- *  — preload="metadata" (не "auto"); показываем видео-слой только после
- *    onPlaying/onLoadedData; onError → «нет видео» → текущий кремовый фон;
- *  — prefers-reduced-motion → вместо видео только постер (если файл есть);
- *  — градиент-переток: слева непрозрачный var(--color-bg), чтобы текст hero
- *    остался на текущем светлом фоне (контраст сохранён), справа — прозрачный,
- *    открывая видео. Без файла секция выглядит ровно как сейчас.
+ * Фоновое hero-медиа (инфраструктура «как в akk-portal», с фолбэками).
+ * Два НЕЗАВИСИМЫХ слоя со своими onLoad/onError — потому что jpg и mp4 могут
+ * существовать в любой комбинации:
+ *  — постер <img> (jpg): самостоятельный слой, fade-in по onLoad. ВАЖНО: он не
+ *    poster-атрибут видео — 404 у <source> не вызывает onError видео-элемента,
+ *    и с атрибутом постер оставался невидимым (video стоял в opacity:0);
+ *  — <video> (mp4) поверх: src напрямую (тогда 404 честно даёт onError),
+ *    preload="metadata", кроссфейд после onPlaying/onLoadedData;
+ *  — только десктоп (min-width: 768px): на мобиле НИ img, НИ video не
+ *    рендерятся вовсе (ноль запросов — исправляем ошибку донора, где видео
+ *    скрыто лишь CSS'ом, но качается);
+ *  — prefers-reduced-motion → только постер, видео не рендерится;
+ *  — градиент-переток слева держит текст на var(--color-bg) (контраст как
+ *    сейчас), оверлеи включаются только когда виден хоть один медиа-слой.
+ * Матрица: ничего нет → кремовый фон; jpg → статичный фото-hero; jpg+mp4 →
+ * видео поверх постера; mp4 без jpg → видео после onPlaying.
  */
 function HeroMedia() {
   const isDesktop = useMediaQuery('(min-width: 768px)')
   const reduce = useMediaQuery('(prefers-reduced-motion: reduce)')
-  const [state, setState] = useState<'idle' | 'ready' | 'error'>('idle')
+  const [posterState, setPosterState] = useState<'idle' | 'ready' | 'error'>('idle')
+  const [videoState, setVideoState] = useState<'idle' | 'ready' | 'error'>('idle')
 
-  // На мобиле видео-слой не существует (ни запроса, ни элемента).
+  // На мобиле медиа-слоя не существует (ни запроса, ни элементов).
   if (!isDesktop) return null
 
-  const ready = state === 'ready'
+  const posterVisible = posterState === 'ready'
+  const videoVisible = videoState === 'ready' && !reduce
+  const anyVisible = posterVisible || videoVisible
 
   return (
     <div aria-hidden="true" style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
-      {state !== 'error' && (
-        reduce ? (
-          // Reduced motion → только постер (если есть); onError → текущий фон.
-          <img
-            src="/media/hero/hero-main.jpg"
-            alt=""
-            onLoad={() => setState('ready')}
-            onError={() => setState('error')}
-            style={{
-              position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover',
-              opacity: ready ? 1 : 0, transition: 'opacity 700ms var(--ease-out)',
-            }}
-          />
-        ) : (
-          <video
-            autoPlay
-            muted
-            loop
-            playsInline
-            preload="metadata"
-            poster="/media/hero/hero-main.jpg"
-            onLoadedData={() => setState('ready')}
-            onPlaying={() => setState('ready')}
-            onError={() => setState('error')}
-            style={{
-              position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover',
-              opacity: ready ? 1 : 0, transition: 'opacity 700ms var(--ease-out)',
-            }}
-          >
-            <source src="/media/hero/hero-main.mp4" type="video/mp4" />
-          </video>
-        )
+      {/* Постер — самостоятельный слой (виден и когда mp4 ещё нет/не готов). */}
+      {posterState !== 'error' && (
+        <img
+          src="/media/hero/hero-main.jpg"
+          alt=""
+          onLoad={() => setPosterState('ready')}
+          onError={() => setPosterState('error')}
+          style={{
+            position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover',
+            opacity: posterVisible ? 1 : 0, transition: 'opacity 700ms var(--ease-out)',
+          }}
+        />
       )}
 
-      {/* Переток видео → фон hero слева (текст остаётся на кремовом, контраст AA). */}
-      {ready && (
+      {/* Видео — поверх постера, кроссфейд когда реально готово. */}
+      {!reduce && videoState !== 'error' && (
+        <video
+          src="/media/hero/hero-main.mp4"
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          onLoadedData={() => setVideoState('ready')}
+          onPlaying={() => setVideoState('ready')}
+          onError={() => setVideoState('error')}
+          style={{
+            position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover',
+            opacity: videoVisible ? 1 : 0, transition: 'opacity 700ms var(--ease-out)',
+          }}
+        />
+      )}
+
+      {/* Переток медиа → фон hero слева (текст остаётся на кремовом, контраст AA). */}
+      {anyVisible && (
         <div style={{
           position: 'absolute', inset: 0,
           background:
@@ -105,7 +113,7 @@ function HeroMedia() {
         }} />
       )}
       {/* Нижний мягкий стык с секцией. */}
-      {ready && (
+      {anyVisible && (
         <div style={{
           position: 'absolute', insetInline: 0, bottom: 0, height: 96,
           background: 'linear-gradient(to top, var(--color-bg) 0%, transparent 100%)',
