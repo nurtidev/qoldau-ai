@@ -273,14 +273,32 @@ function ServiceTile({ service }: { service: Service }) {
 function OrgTile({ org, count, size = 'lg' }: { org: OrgEntry; count?: number; size?: 'lg' | 'sm' }) {
   const clickable = !!org.dbMatch
   const dim = size === 'lg' ? 56 : 40
+  const logoH = size === 'lg' ? 32 : 24
+  // Официальный логотип — приоритет; onError (битый/пропавший файл) откатывает
+  // на буквенную плашку без повторных запросов (паттерн как в MediaCover).
+  const [logoOk, setLogoOk] = useState(!!org.logo)
   const style: React.CSSProperties = {
     padding: size === 'lg' ? 20 : 14,
     display: 'flex', flexDirection: 'column', alignItems: 'center', gap: size === 'lg' ? 10 : 6,
     transition: 'border-color 140ms', textDecoration: 'none',
   }
+  const badge = org.logo && logoOk
+    ? (
+      <div style={{ height: dim, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <img
+          src={org.logo}
+          alt={org.full}
+          onError={() => setLogoOk(false)}
+          style={{ height: logoH, width: 'auto', maxWidth: 120, objectFit: 'contain' }}
+        />
+      </div>
+    )
+    : (
+      <div style={{ width: dim, height: dim, borderRadius: 10, background: org.color, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: size === 'lg' ? 18 : 13, fontWeight: 700 }}>{org.tag}</div>
+    )
   const body = (
     <>
-      <div style={{ width: dim, height: dim, borderRadius: 10, background: org.color, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: size === 'lg' ? 18 : 13, fontWeight: 700 }}>{org.tag}</div>
+      {badge}
       <div style={{ fontSize: size === 'lg' ? 13 : 12, fontWeight: 600, textAlign: 'center', lineHeight: 1.3 }}>{org.short}</div>
       {clickable && !!count && <div style={{ fontSize: 11, color: 'var(--color-text-3)' }}>{count} услуг</div>}
     </>

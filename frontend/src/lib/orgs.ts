@@ -28,17 +28,19 @@ export interface OrgEntry {
   website?: string
   /** Подстрока для матчинга service.org_name; отсутствует = нет услуг в MVP. */
   dbMatch?: string
+  /** Путь к официальному логотипу (public/img/orgs/*) для светлого фона; отсутствует = плашка с тегом. */
+  logo?: string
 }
 
 export const BAITEREK_GROUP: OrgEntry[] = [
-  { id: 'brk',    short: 'БРК',                full: 'Банк развития Казахстана',                    color: '#14532D', tag: 'БР', website: 'kdb.kz' },
-  { id: 'frp',    short: 'ФРП',                full: 'Фонд развития промышленности',                color: '#0A4F3A', tag: 'ФР', website: 'idfrk.kz',        dbMatch: 'Фонд развития промышленности' },
-  { id: 'damu',   short: 'Даму',               full: 'Фонд развития предпринимательства «Даму»',     color: '#085E2C', tag: 'ДМ', website: 'damu.kz',          dbMatch: 'Даму' },
-  { id: 'otbasy', short: 'Отбасы банк',        full: 'Отбасы банк',                                  color: '#3A8B5C', tag: 'ОБ', website: 'homeportal.kz' },
-  { id: 'eca',    short: 'ЭКА KazakhExport',   full: 'Экспортное страховое агентство KazakhExport',  color: '#176D62', tag: 'ЭК', website: 'kazakhexport.kz', dbMatch: 'ЭКА KazakhExport' },
-  { id: 'kaf',    short: 'КазАгроФинанс',      full: 'КазАгроФинанс',                                color: '#257E43', tag: 'КФ', website: 'kaf.kz',           dbMatch: 'КазАгроФинанс' },
-  { id: 'akk',    short: 'АКК',                full: 'Аграрная кредитная корпорация',                color: '#1F6B3B', tag: 'АК', website: 'agrocredit.kz',    dbMatch: 'Аграрная кредитная корпорация' },
-  { id: 'qic',    short: 'QIC',                full: 'Qazaqstan Investment Corporation',             color: '#0F6B4D', tag: 'QC', website: 'qic.kz' },
+  { id: 'brk',    short: 'БРК',                full: 'Банк развития Казахстана',                    color: '#14532D', tag: 'БР', website: 'kdb.kz',           logo: '/img/orgs/brk.png' },
+  { id: 'frp',    short: 'ФРП',                full: 'Фонд развития промышленности',                color: '#0A4F3A', tag: 'ФР', website: 'idfrk.kz',        dbMatch: 'Фонд развития промышленности', logo: '/img/orgs/frp.png' },
+  { id: 'damu',   short: 'Даму',               full: 'Фонд развития предпринимательства «Даму»',     color: '#085E2C', tag: 'ДМ', website: 'damu.kz',          dbMatch: 'Даму', logo: '/img/orgs/damu.png' },
+  { id: 'otbasy', short: 'Отбасы банк',        full: 'Отбасы банк',                                  color: '#3A8B5C', tag: 'ОБ', website: 'homeportal.kz',    logo: '/img/orgs/otbasy.svg' },
+  { id: 'eca',    short: 'ЭКА KazakhExport',   full: 'Экспортное страховое агентство KazakhExport',  color: '#176D62', tag: 'ЭК', website: 'kazakhexport.kz', dbMatch: 'ЭКА KazakhExport', logo: '/img/orgs/eca.png' },
+  { id: 'kaf',    short: 'КазАгроФинанс',      full: 'КазАгроФинанс',                                color: '#257E43', tag: 'КФ', website: 'kaf.kz',           dbMatch: 'КазАгроФинанс', logo: '/img/orgs/kaf.png' },
+  { id: 'akk',    short: 'АКК',                full: 'Аграрная кредитная корпорация',                color: '#1F6B3B', tag: 'АК', website: 'agrocredit.kz',    dbMatch: 'Аграрная кредитная корпорация', logo: '/img/orgs/akk.png' },
+  { id: 'qic',    short: 'QIC',                full: 'Qazaqstan Investment Corporation',             color: '#0F6B4D', tag: 'QC', website: 'qic.kz',           logo: '/img/orgs/qic.svg' },
 ]
 
 export const PARTNER_ORGS: OrgEntry[] = [
