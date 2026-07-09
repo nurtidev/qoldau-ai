@@ -243,7 +243,7 @@ function ServiceTile({ service }: { service: Service }) {
       className="card card-elevated card-elevated-hover"
       style={{ padding: 0, cursor: 'pointer', display: 'flex', flexDirection: 'column', minWidth: 320, width: 320, textDecoration: 'none', overflow: 'hidden' }}
     >
-      <div style={{ position: 'relative', height: 72 }}>
+      <div style={{ position: 'relative', aspectRatio: '16 / 9' }}>
         <MediaCover title={service.title} category={service.category} hoverVideo />
       </div>
       <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12, flex: 1 }}>

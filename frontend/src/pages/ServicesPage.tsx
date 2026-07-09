@@ -156,7 +156,7 @@ function ServiceCard({ service }: { service: Service }) {
     >
       {/* Брендовая обложка-шапка (full-bleed). Bookmark вынесен поверх — контента
           не перекрывает, фон-подложка держит контраст иконки. */}
-      <div style={{ position: 'relative', height: 84 }}>
+      <div style={{ position: 'relative', aspectRatio: '16 / 9' }}>
         <MediaCover title={service.title} category={service.category} hoverVideo />
         <button
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); setBookmarked(!bookmarked) }}
