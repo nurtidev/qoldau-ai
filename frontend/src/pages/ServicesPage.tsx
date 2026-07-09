@@ -6,6 +6,7 @@ import { I } from '@/components/icons'
 import { useIsNarrow } from '@/hooks/useMediaQuery'
 import { categoryColor, categorySoftBg } from '@/lib/categoryColor'
 import { MediaCover } from '@/components/MediaCover'
+import { isPartnerOrg } from '@/lib/orgs'
 import type { Service } from '@/types'
 
 // ---- Static filter data (matches design) ----
@@ -177,7 +178,12 @@ function ServiceCard({ service }: { service: Service }) {
       {/* Header row */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         {service.org_name
-          ? <OrgBadge name={service.org_name} />
+          ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <OrgBadge name={service.org_name} />
+              {isPartnerOrg(service.org_name) && <span className="badge badge-gray">Партнёрская программа</span>}
+            </div>
+          )
           : <span className="badge" style={{ background: categorySoftBg(service.category), color: accent }}>
               {service.category ?? 'Общее'}
             </span>
@@ -259,8 +265,9 @@ function ServiceRow({ service }: { service: Service }) {
         )}
       </div>
       {service.org_name && (
-        <div style={{ flexShrink: 0 }}>
+        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
           <OrgBadge name={service.org_name} />
+          {isPartnerOrg(service.org_name) && <span className="badge badge-gray">Партнёрская программа</span>}
         </div>
       )}
       <span style={{ fontSize: 13, color: 'var(--color-accent-text)', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>

@@ -9,6 +9,7 @@ import { useIsNarrow } from '@/hooks/useMediaQuery'
 import { categoryColor } from '@/lib/categoryColor'
 import { CategoryArt } from '@/components/CategoryArt'
 import { ServiceExplainer } from '@/components/ServiceExplainer'
+import { isPartnerOrg } from '@/lib/orgs'
 import type { Service, FormField } from '@/types'
 
 const PORTAL_FAQ = [
@@ -297,6 +298,9 @@ export function ServiceDetailPage() {
         <div style={{ flex: '1 1 260px', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
             {service.org_name && <OrgBadge orgName={service.org_name} />}
+            {service.org_name && isPartnerOrg(service.org_name) && (
+              <span className="badge badge-gray">Партнёрская программа</span>
+            )}
             <span className="badge badge-green badge-dot">Действующая программа</span>
             <span className="badge badge-gray">Обновлено {updatedDate}</span>
           </div>
@@ -552,7 +556,9 @@ export function ServiceDetailPage() {
                   <OrgBadge orgName={service.org_name} size="lg" />
                   <div>
                     <div style={{ fontSize: 14, fontWeight: 600 }}>{service.org_name}</div>
-                    <div style={{ fontSize: 12, color: 'var(--color-text-3)' }}>Дочерняя организация Холдинга «Байтерек»</div>
+                    <div style={{ fontSize: 12, color: 'var(--color-text-3)' }}>
+                      {isPartnerOrg(service.org_name) ? 'Партнёрская программа' : 'Дочерняя организация Холдинга «Байтерек»'}
+                    </div>
                   </div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 13, color: 'var(--color-text-2)' }}>

@@ -1,14 +1,13 @@
 import { I } from '@/components/icons'
 
 /**
- * Desktop-only decorative anchor for the homepage hero ("единое окно"
- * metaphor): a deep-green liquid-glass panel holding a fanned stack of
- * step cards (find → apply → track) plus a seal-style Bayterek emblem.
- *
- * Purely illustrative — mirrors content already in the hero copy/stats,
- * so it is marked aria-hidden to avoid duplicating the a11y tree.
- * Hidden below 1024px via .hero-visual-wrap in index.css (never rendered
- * off-canvas, so it cannot cause horizontal overflow on tablet/mobile).
+ * Deep-green liquid-glass panel ("экосистема Байтерек" — единое окно):
+ * a fanned stack of step cards (find → apply → track) plus a seal-style
+ * Bayterek emblem. Раньше жил desktop-only якорем в hero; после того как
+ * hero стал «текст + чистое фото», карточка переехала в секцию
+ * «Рассчитайте условия» рядом с калькулятором (см. HomePage) и теперь
+ * видна на всех ширинах, поэтому больше не завёрнута в .hero-visual-wrap
+ * и не aria-hidden — это самостоятельный информационный блок.
  */
 
 const STEPS: Array<{ n: number; icon: keyof typeof I; title: string; tag: string; style: React.CSSProperties }> = [
@@ -74,22 +73,20 @@ function StepCard({ n, icon, title, tag, style }: (typeof STEPS)[number]) {
   )
 }
 
-export function HeroVisual() {
+export function EcosystemCard() {
   return (
-    <div className="hero-visual-wrap" aria-hidden="true">
-      <div className="glass-green" style={{
-        position: 'relative',
-        overflow: 'hidden',
-        padding: 32,
-        minHeight: 460,
-        display: 'flex',
-        flexDirection: 'column',
-      }}>
-        {/* ornament overlay — a separate absolutely-positioned layer, not
-            applied to the panel itself: .ornament-tile-gold sets
-            position:absolute + opacity on its own element, which would
-            fade the whole panel (incl. text) if placed on the same node. */}
-        <div className="ornament-tile-gold ornament-hero" aria-hidden="true" />
+    <div className="glass-green" style={{
+      position: 'relative',
+      overflow: 'hidden',
+      padding: 32,
+      display: 'flex',
+      flexDirection: 'column',
+    }}>
+      {/* ornament overlay — a separate absolutely-positioned layer, not
+          applied to the panel itself: .ornament-tile-gold sets
+          position:absolute + opacity on its own element, which would
+          fade the whole panel (incl. text) if placed on the same node. */}
+      <div className="ornament-tile-gold ornament-hero" aria-hidden="true" />
 
         {/* glass sheen highlight, top-left */}
         <div style={{
@@ -143,7 +140,6 @@ export function HeroVisual() {
             </div>
           </div>
         </div>
-      </div>
     </div>
   )
 }

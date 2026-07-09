@@ -1,11 +1,13 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { servicesApi } from '@/api/client'
 import { I } from '@/components/icons'
 import { EligibilityScreener } from '@/components/EligibilityScreener'
-import { HeroVisual } from '@/components/HeroVisual'
+import { EcosystemCard } from '@/components/HeroVisual'
+import { HomeCalculator } from '@/components/HomeCalculator'
 import { categoryColor, categorySoftBg } from '@/lib/categoryColor'
+import { BAITEREK_GROUP, PARTNER_ORGS, type OrgEntry } from '@/lib/orgs'
 import { MediaCover } from '@/components/MediaCover'
 import { useIsNarrow, useMediaQuery } from '@/hooks/useMediaQuery'
 import type { Service } from '@/types'
@@ -23,19 +25,6 @@ const NEWS = [
   { id: 1, org: 'Даму',    color: '#007A40', date: '24 апр. 2026', title: '«Өрлеу»: льготное кредитование МСБ по программе Даму расширено до 7 млрд ₸', tag: 'Программы' },
   { id: 2, org: 'АКК',     color: '#1F6B3B', date: '22 апр. 2026', title: '«Кең дала 2»: АКК снизила ставку на весенне-полевые работы до 5%',           tag: 'Агросектор' },
   { id: 3, org: 'Astana Hub', color: '#6E4A24', date: '18 апр. 2026', title: '«Іскер аймақ»: запущена единая программа поддержки малого бизнеса',        tag: 'Гранты'    },
-]
-
-const ORGS = [
-  { id: 'baiterek',  short: 'Байтерек',           color: '#007A40', tag: 'НБ', count: 6  },
-  { id: 'damu',      short: 'Даму',                color: '#085E2C', tag: 'ДМ', count: 12 },
-  { id: 'akk',       short: 'АКК',                 color: '#1F6B3B', tag: 'АК', count: 14 },
-  { id: 'kaf',       short: 'КазАгроФинанс',       color: '#257E43', tag: 'КФ', count: 9  },
-  { id: 'frp',       short: 'ФРП',                 color: '#0A4F3A', tag: 'ФР', count: 5  },
-  { id: 'eca',       short: 'ЭКА KazakhExport',    color: '#176D62', tag: 'ЭК', count: 8  },
-  { id: 'kzinvest',  short: 'Kazakh Invest',       color: '#387557', tag: 'KI',  count: 6  },
-  { id: 'astanahub', short: 'Astana Hub',          color: '#6E4A24', tag: 'AH', count: 10 },
-  { id: 'qazind',    short: 'QazIndustry',         color: '#705C33', tag: 'QI', count: 7  },
-  { id: 'enbek',     short: 'Центры занятости',    color: '#8A6A14', tag: 'ЦЗ', count: 4  },
 ]
 
 /**
@@ -109,7 +98,7 @@ function HeroMedia() {
         <div style={{
           position: 'absolute', inset: 0,
           background:
-            'linear-gradient(90deg, var(--color-bg) 0%, var(--color-bg) 44%, color-mix(in srgb, var(--color-bg) 45%, transparent) 54%, transparent 62%)',
+            'linear-gradient(90deg, var(--color-bg) 0%, var(--color-bg) 42%, color-mix(in srgb, var(--color-bg) 40%, transparent) 52%, transparent 58%)',
         }} />
       )}
       {/* Нижний мягкий стык с секцией. */}
@@ -143,11 +132,11 @@ function HeroSearch() {
         pointerEvents: 'none',
       }} />
       <div className="ornament-tile ornament-fade ornament-hero" aria-hidden="true" />
-      <div className="container hero-grid" style={{ position: 'relative' }}>
-        <div style={{ minWidth: 0 }}>
+      <div className="container" style={{ position: 'relative' }}>
+        <div style={{ minWidth: 0, maxWidth: 660 }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 12px', background: '#fff', border: '1px solid var(--color-border)', borderRadius: 999, fontSize: 12, color: 'var(--color-text-2)', marginBottom: 20 }}>
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--color-success)' }} />
-            Объединяем 70+ мер поддержки от 6 институтов развития
+            70+ мер поддержки от 8 организаций группы «Байтерек» и партнёров
           </div>
           <h1 style={{ fontSize: 'clamp(30px, 6vw, 52px)', lineHeight: 1.1, fontWeight: 700, letterSpacing: '-0.025em', margin: 0, maxWidth: 820, color: 'var(--color-text)' }}>
             Единое окно поддержки <br />
@@ -198,7 +187,7 @@ function HeroSearch() {
 
           {/* Stats — elevated glass tiles */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(132px, 1fr))', gap: 14, marginTop: 40, maxWidth: 640 }}>
-            {[{ v: '70+', l: 'мер поддержки' }, { v: '6', l: 'институтов развития' }, { v: '24/7', l: 'подача заявок онлайн' }, { v: '1414', l: 'единый колл-центр' }].map((s, i) => (
+            {[{ v: '70+', l: 'мер поддержки' }, { v: '8', l: 'институтов группы «Байтерек»' }, { v: '24/7', l: 'подача заявок онлайн' }, { v: '1414', l: 'единый колл-центр' }].map((s, i) => (
               <div key={i} className="glass" style={{
                 padding: '16px 18px',
                 boxShadow: 'var(--sh-lg), inset 0 1px 0 rgba(255,255,255,0.85)',
@@ -209,8 +198,6 @@ function HeroSearch() {
             ))}
           </div>
         </div>
-
-        <HeroVisual />
       </div>
     </section>
   )
@@ -273,6 +260,36 @@ function ServiceTile({ service }: { service: Service }) {
   )
 }
 
+/** Плашка организации: клик-через в каталог только у тех, у кого уже есть услуги (dbMatch задан). */
+function OrgTile({ org, count, size = 'lg' }: { org: OrgEntry; count?: number; size?: 'lg' | 'sm' }) {
+  const clickable = !!org.dbMatch
+  const dim = size === 'lg' ? 56 : 40
+  const style: React.CSSProperties = {
+    padding: size === 'lg' ? 20 : 14,
+    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: size === 'lg' ? 10 : 6,
+    transition: 'border-color 140ms', textDecoration: 'none',
+  }
+  const body = (
+    <>
+      <div style={{ width: dim, height: dim, borderRadius: 10, background: org.color, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: size === 'lg' ? 18 : 13, fontWeight: 700 }}>{org.tag}</div>
+      <div style={{ fontSize: size === 'lg' ? 13 : 12, fontWeight: 600, textAlign: 'center', lineHeight: 1.3 }}>{org.short}</div>
+      {clickable && !!count && <div style={{ fontSize: 11, color: 'var(--color-text-3)' }}>{count} услуг</div>}
+    </>
+  )
+  if (!clickable) {
+    return <div className="card" style={{ ...style, cursor: 'default', opacity: 0.65 }}>{body}</div>
+  }
+  return (
+    <Link to={`/services?org_name=${encodeURIComponent(org.dbMatch!)}`}
+      className="card" style={{ ...style, cursor: 'pointer' }}
+      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--color-accent)' }}
+      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--color-border)' }}
+    >
+      {body}
+    </Link>
+  )
+}
+
 export function HomePage() {
   const isNarrow = useIsNarrow()
   const { data: services = [] } = useQuery<Service[]>({
@@ -280,9 +297,38 @@ export function HomePage() {
     queryFn: () => servicesApi.list().then((r) => r.data),
   })
 
+  // Реальные счётчики услуг по организациям (матч по подстроке org_name).
+  const orgCounts = useMemo(() => {
+    const map: Record<string, number> = {}
+    for (const o of [...BAITEREK_GROUP, ...PARTNER_ORGS]) {
+      if (!o.dbMatch) continue
+      map[o.id] = services.filter((s) => s.org_name?.includes(o.dbMatch!)).length
+    }
+    return map
+  }, [services])
+
   return (
     <div className="page-fade">
       <HeroSearch />
+
+      {/* Кредитный калькулятор + карточка «Экосистема Байтерек» */}
+      <section className="container" style={{ paddingTop: 64 }}>
+        <div style={{ marginBottom: 24 }}>
+          <div className="section-eyebrow" style={{ marginBottom: 6 }}>Инструменты</div>
+          <h2 className="section-title">Рассчитайте условия</h2>
+          <p style={{ fontSize: 14, color: 'var(--color-text-3)', marginTop: 6 }}>
+            Подберите сумму и срок — увидите ежемесячный платёж и переплату по программе
+          </p>
+        </div>
+        <div
+          className="two-col-mobile-stack"
+          style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.5fr) minmax(0, 1fr)', gap: 24, alignItems: 'start' }}
+        >
+          <HomeCalculator />
+          <EcosystemCard />
+        </div>
+      </section>
+
       <EligibilityScreener services={services} />
 
       {/* Directions */}
@@ -329,26 +375,27 @@ export function HomePage() {
         )}
       </section>
 
-      {/* Organisations */}
+      {/* Organisations: группа «Байтерек» (8 дочек) + партнёрские программы (4) */}
       <section className="container" style={{ paddingTop: 72 }}>
         <div style={{ marginBottom: 24 }}>
-          <div className="section-eyebrow" style={{ marginBottom: 6 }}>Институты развития</div>
-          <h2 className="section-title">Наши партнёры</h2>
-          <p style={{ fontSize: 14, color: 'var(--color-text-3)', marginTop: 6 }}>Дочерние организации Холдинга «Байтерек» и партнёры портала</p>
+          <div className="section-eyebrow" style={{ marginBottom: 6 }}>Группа «Байтерек»</div>
+          <h2 className="section-title">Дочерние организации холдинга</h2>
+          <p style={{ fontSize: 14, color: 'var(--color-text-3)', marginTop: 6 }}>8 институтов развития в составе холдинга «Байтерек»</p>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
-          {ORGS.map((o) => (
-            <Link key={o.id} to={`/services?org_name=${encodeURIComponent(o.short)}`}
-              className="card"
-              style={{ padding: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, cursor: 'pointer', transition: 'border-color 140ms', textDecoration: 'none' }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--color-accent)' }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--color-border)' }}
-            >
-              <div style={{ width: 56, height: 56, borderRadius: 10, background: o.color, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 700 }}>{o.tag}</div>
-              <div style={{ fontSize: 13, fontWeight: 600, textAlign: 'center', lineHeight: 1.3 }}>{o.short}</div>
-              <div style={{ fontSize: 11, color: 'var(--color-text-3)' }}>{o.count} услуг</div>
-            </Link>
-          ))}
+          {BAITEREK_GROUP.map((o) => <OrgTile key={o.id} org={o} count={orgCounts[o.id]} size="lg" />)}
+        </div>
+
+        <div style={{ marginTop: 40, paddingTop: 28, borderTop: '1px solid var(--color-border)' }}>
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text-2)' }}>Партнёрские программы</div>
+            <p style={{ fontSize: 13, color: 'var(--color-text-3)', marginTop: 4, marginBottom: 0 }}>
+              Программы партнёров доступны на портале наравне с программами группы
+            </p>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 10 }}>
+            {PARTNER_ORGS.map((o) => <OrgTile key={o.id} org={o} count={orgCounts[o.id]} size="sm" />)}
+          </div>
         </div>
       </section>
 
