@@ -171,6 +171,24 @@ type AnalyticsMaterial struct {
 	UpdatedAt    time.Time `db:"updated_at"    json:"updated_at"`
 }
 
+// News — новостной материал editorial-раздела /news (миграция 016).
+// Управляется из админ-кабинета; PublishedAt хранит только дату.
+type News struct {
+	ID          string     `db:"id"           json:"id"`
+	Title       string     `db:"title"        json:"title"`
+	Lead        *string    `db:"lead"         json:"lead,omitempty"`
+	Body        *string    `db:"body"         json:"body,omitempty"`
+	Rubric      *string    `db:"rubric"       json:"rubric,omitempty"`
+	Source      *string    `db:"source"       json:"source,omitempty"`
+	SourceURL   *string    `db:"source_url"   json:"source_url,omitempty"`
+	ImageURL    *string    `db:"image_url"    json:"image_url,omitempty"`
+	PublishedAt *time.Time `db:"published_at" json:"published_at,omitempty"`
+	IsFeatured  bool       `db:"is_featured"  json:"is_featured"`
+	SortOrder   int        `db:"sort_order"   json:"sort_order"`
+	CreatedAt   time.Time  `db:"created_at"   json:"created_at"`
+	UpdatedAt   time.Time  `db:"updated_at"   json:"updated_at"`
+}
+
 // MapProject — проект на публичной карте /projects-map (миграция 014).
 // Lat/Lng nullable: если пусто, фронт берёт координаты центра региона.
 type MapProject struct {

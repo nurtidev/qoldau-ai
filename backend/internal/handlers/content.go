@@ -1,12 +1,21 @@
 package handlers
 
 import (
+	"database/sql"
+	"errors"
 	"net/http"
+	"regexp"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jmoiron/sqlx"
 	"github.com/nurtidev/qoldau-ai/backend/internal/models"
 )
+
+// uuidRe валидирует id из URL до запроса к БД: невалидный UUID Postgres
+// роняет синтаксической ошибкой (22P02), а для клиента это тот же not found.
+var uuidRe = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
+
+func isUUID(s string) bool { return uuidRe.MatchString(s) }
 
 // ContentHandler обслуживает публичный контент, управляемый из админки:
 // аналитические материалы дочек (/materials) и проекты на карте (/map-projects).
@@ -20,6 +29,34 @@ func NewContentHandler(db *sqlx.DB) *ContentHandler {
 
 func validMaterialFormat(f string) bool {
 	return f == "web" || f == "pdf" || f == "embed"
+}
+
+// deleteByID — единый паттерн удаления для контент-сущностей: 404 при
+// невалидном id или отсутствующей строке (RowsAffected==0), 500 при ошибке БД.
+func (h *ContentHandler) deleteByID(w http.ResponseWriter, table, id, notFoundMsg, failMsg string) {
+	if !isUUID(id) {
+		respondErr(w, http.StatusNotFound, notFoundMsg)
+		return
+	}
+	res, err := h.db.Exec(`DELETE FROM `+table+` WHERE id=$1`, id) //nolint:gosec // table — константа из хендлера
+	if err != nil {
+		respondErr(w, http.StatusInternalServerError, failMsg)
+		return
+	}
+	if n, err := res.RowsAffected(); err == nil && n == 0 {
+		respondErr(w, http.StatusNotFound, notFoundMsg)
+		return
+	}
+	respond(w, http.StatusOK, map[string]string{"status": "deleted"})
+}
+
+// updateErr разводит ошибки Update*-хендлеров: sql.ErrNoRows → 404, иначе 500.
+func updateErr(w http.ResponseWriter, err error, notFoundMsg, failMsg string) {
+	if errors.Is(err, sql.ErrNoRows) {
+		respondErr(w, http.StatusNotFound, notFoundMsg)
+		return
+	}
+	respondErr(w, http.StatusInternalServerError, failMsg)
 }
 
 // ─── Analytics materials ─────────────────────────────────────────────────────
@@ -79,6 +116,10 @@ func (h *ContentHandler) CreateMaterial(w http.ResponseWriter, r *http.Request) 
 
 func (h *ContentHandler) UpdateMaterial(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
+	if !isUUID(id) {
+		respondErr(w, http.StatusNotFound, "material not found")
+		return
+	}
 	var req materialReq
 	if err := decode(r, &req); err != nil || req.Title == "" {
 		respondErr(w, http.StatusBadRequest, "title required")
@@ -103,19 +144,15 @@ func (h *ContentHandler) UpdateMaterial(w http.ResponseWriter, r *http.Request) 
 		nullStr(req.UpdatedDate), req.SortOrder, id,
 	).StructScan(&m)
 	if err != nil {
-		respondErr(w, http.StatusInternalServerError, "failed to update material")
+		updateErr(w, err, "material not found", "failed to update material")
 		return
 	}
 	respond(w, http.StatusOK, m)
 }
 
 func (h *ContentHandler) DeleteMaterial(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
-	if _, err := h.db.Exec(`DELETE FROM analytics_materials WHERE id=$1`, id); err != nil {
-		respondErr(w, http.StatusInternalServerError, "failed to delete material")
-		return
-	}
-	respond(w, http.StatusOK, map[string]string{"status": "deleted"})
+	h.deleteByID(w, "analytics_materials", chi.URLParam(r, "id"),
+		"material not found", "failed to delete material")
 }
 
 // ─── Map projects ────────────────────────────────────────────────────────────
@@ -170,6 +207,10 @@ func (h *ContentHandler) CreateProject(w http.ResponseWriter, r *http.Request) {
 
 func (h *ContentHandler) UpdateProject(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
+	if !isUUID(id) {
+		respondErr(w, http.StatusNotFound, "map project not found")
+		return
+	}
 	var req projectReq
 	if err := decode(r, &req); err != nil || req.Name == "" {
 		respondErr(w, http.StatusBadRequest, "name required")
@@ -187,17 +228,103 @@ func (h *ContentHandler) UpdateProject(w http.ResponseWriter, r *http.Request) {
 		nullStr(req.Description), req.Lat, req.Lng, req.SortOrder, id,
 	).StructScan(&p)
 	if err != nil {
-		respondErr(w, http.StatusInternalServerError, "failed to update map project")
+		updateErr(w, err, "map project not found", "failed to update map project")
 		return
 	}
 	respond(w, http.StatusOK, p)
 }
 
 func (h *ContentHandler) DeleteProject(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
-	if _, err := h.db.Exec(`DELETE FROM map_projects WHERE id=$1`, id); err != nil {
-		respondErr(w, http.StatusInternalServerError, "failed to delete map project")
+	h.deleteByID(w, "map_projects", chi.URLParam(r, "id"),
+		"map project not found", "failed to delete map project")
+}
+
+// ─── News ────────────────────────────────────────────────────────────────────
+
+func (h *ContentHandler) ListNews(w http.ResponseWriter, r *http.Request) {
+	items := make([]models.News, 0)
+	if err := h.db.Select(&items,
+		`SELECT * FROM news ORDER BY published_at DESC NULLS LAST, sort_order ASC, created_at DESC`); err != nil {
+		respondErr(w, http.StatusInternalServerError, "failed to fetch news")
 		return
 	}
-	respond(w, http.StatusOK, map[string]string{"status": "deleted"})
+	respond(w, http.StatusOK, items)
+}
+
+func (h *ContentHandler) GetNews(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	var n models.News
+	if err := h.db.Get(&n, `SELECT * FROM news WHERE id=$1`, id); err != nil {
+		respondErr(w, http.StatusNotFound, "news not found")
+		return
+	}
+	respond(w, http.StatusOK, n)
+}
+
+type newsReq struct {
+	Title       string `json:"title"`
+	Lead        string `json:"lead"`
+	Body        string `json:"body"`
+	Rubric      string `json:"rubric"`
+	Source      string `json:"source"`
+	SourceURL   string `json:"source_url"`
+	ImageURL    string `json:"image_url"`
+	PublishedAt string `json:"published_at"`
+	IsFeatured  bool   `json:"is_featured"`
+	SortOrder   int    `json:"sort_order"`
+}
+
+func (h *ContentHandler) CreateNews(w http.ResponseWriter, r *http.Request) {
+	var req newsReq
+	if err := decode(r, &req); err != nil || req.Title == "" {
+		respondErr(w, http.StatusBadRequest, "title required")
+		return
+	}
+
+	var n models.News
+	err := h.db.QueryRowx(
+		`INSERT INTO news
+		   (title, lead, body, rubric, source, source_url, image_url, published_at, is_featured, sort_order)
+		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+		req.Title, nullStr(req.Lead), nullStr(req.Body), nullStr(req.Rubric), nullStr(req.Source),
+		nullStr(req.SourceURL), nullStr(req.ImageURL), nullStr(req.PublishedAt), req.IsFeatured, req.SortOrder,
+	).StructScan(&n)
+	if err != nil {
+		respondErr(w, http.StatusInternalServerError, "failed to create news")
+		return
+	}
+	respond(w, http.StatusCreated, n)
+}
+
+func (h *ContentHandler) UpdateNews(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	if !isUUID(id) {
+		respondErr(w, http.StatusNotFound, "news not found")
+		return
+	}
+	var req newsReq
+	if err := decode(r, &req); err != nil || req.Title == "" {
+		respondErr(w, http.StatusBadRequest, "title required")
+		return
+	}
+
+	var n models.News
+	err := h.db.QueryRowx(
+		`UPDATE news SET
+		   title=$1, lead=$2, body=$3, rubric=$4, source=$5, source_url=$6,
+		   image_url=$7, published_at=$8, is_featured=$9, sort_order=$10, updated_at=NOW()
+		 WHERE id=$11 RETURNING *`,
+		req.Title, nullStr(req.Lead), nullStr(req.Body), nullStr(req.Rubric), nullStr(req.Source),
+		nullStr(req.SourceURL), nullStr(req.ImageURL), nullStr(req.PublishedAt), req.IsFeatured, req.SortOrder, id,
+	).StructScan(&n)
+	if err != nil {
+		updateErr(w, err, "news not found", "failed to update news")
+		return
+	}
+	respond(w, http.StatusOK, n)
+}
+
+func (h *ContentHandler) DeleteNews(w http.ResponseWriter, r *http.Request) {
+	h.deleteByID(w, "news", chi.URLParam(r, "id"),
+		"news not found", "failed to delete news")
 }

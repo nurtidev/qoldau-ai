@@ -6,6 +6,8 @@ import {
   type MapProjectItem,
   type MaterialInput,
   type MapProjectInput,
+  type NewsItem,
+  type NewsInput,
 } from '@/api/client'
 import { useToast } from '@/components/Toast'
 import { I } from '@/components/icons'
@@ -29,14 +31,14 @@ function apiErr(err: unknown, fallback: string): string {
 }
 
 export function AdminContent() {
-  const [tab, setTab] = useState<'materials' | 'projects'>('materials')
+  const [tab, setTab] = useState<'materials' | 'projects' | 'news'>('materials')
 
   return (
     <div className="page-fade" style={{ padding: '32px 40px' }}>
       <div style={{ marginBottom: 20 }}>
         <h1 style={{ fontSize: 26, fontWeight: 700, margin: 0 }}>Контент порталов</h1>
         <p style={{ fontSize: 14, color: 'var(--color-text-3)', marginTop: 6 }}>
-          Управление публичными разделами «Аналитика дочек» и «Карта проектов» без правки кода.
+          Управление публичными разделами «Аналитика дочек», «Карта проектов» и «Новости» без правки кода.
         </p>
       </div>
 
@@ -45,6 +47,7 @@ export function AdminContent() {
         {([
           { id: 'materials', label: 'Аналитика дочек' },
           { id: 'projects', label: 'Карта проектов' },
+          { id: 'news', label: 'Новости' },
         ] as const).map((t) => (
           <button
             key={t.id}
@@ -62,7 +65,7 @@ export function AdminContent() {
         ))}
       </div>
 
-      {tab === 'materials' ? <MaterialsTab /> : <ProjectsTab />}
+      {tab === 'materials' ? <MaterialsTab /> : tab === 'projects' ? <ProjectsTab /> : <NewsTab />}
     </div>
   )
 }
@@ -431,6 +434,195 @@ function ProjectModal({ value, isEdit, saving, onClose, onSave }: {
               <input className="input" type="number" step="any" value={f.lng ?? ''} onChange={(e) => set('lng', numOrNull(e.target.value))} />
             </Field>
           </Row>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={onClose}>Отмена</button>
+            <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>{saving ? 'Сохранение…' : 'Сохранить'}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// ─── News ─────────────────────────────────────────────────────────────────────
+
+const NEWS_RUBRICS = ['Программы', 'Новости', 'Истории успеха', 'СМИ о нас']
+
+const emptyNews: NewsInput = {
+  title: '', lead: '', body: '', rubric: 'Новости', source: '', source_url: '',
+  image_url: '', published_at: '', is_featured: false, sort_order: 0,
+}
+
+// ISO datetime → 'YYYY-MM-DD' для <input type="date">.
+const toDateInput = (iso?: string): string => (iso ? iso.slice(0, 10) : '')
+const fmtDate = (iso?: string): string => {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' })
+}
+
+function NewsTab() {
+  const { push } = useToast()
+  const qc = useQueryClient()
+  const [editing, setEditing] = useState<{ id?: string; data: NewsInput } | null>(null)
+
+  const { data: items = [], isLoading } = useQuery<NewsItem[]>({
+    queryKey: ['news'],
+    queryFn: () => contentApi.news().then((r) => r.data ?? []),
+  })
+
+  const saveMut = useMutation({
+    mutationFn: ({ id, data }: { id?: string; data: NewsInput }) =>
+      id ? contentApi.updateNews(id, data) : contentApi.createNews(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['news'] })
+      push('Новость сохранена', 'success')
+      setEditing(null)
+    },
+    onError: (e) => push(apiErr(e, 'Не удалось сохранить новость'), 'error'),
+  })
+
+  const delMut = useMutation({
+    mutationFn: (id: string) => contentApi.deleteNews(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['news'] })
+      push('Новость удалена', 'success')
+    },
+    onError: (e) => push(apiErr(e, 'Не удалось удалить новость'), 'error'),
+  })
+
+  return (
+    <>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <div style={{ fontSize: 13, color: 'var(--color-text-3)' }}>Всего: {items.length}</div>
+        <button className="btn btn-primary btn-sm" onClick={() => setEditing({ data: { ...emptyNews } })}>
+          <I.Plus size={14} /> Добавить новость
+        </button>
+      </div>
+
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', minWidth: 760, borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: 'var(--color-surface-2)' }}>
+                {['#', 'Заголовок', 'Рубрика', 'Дата', 'Топ', ''].map((h, i) => (
+                  <th key={i} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: 'var(--color-text-3)', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                <tr><td colSpan={6} style={{ padding: 48, textAlign: 'center', color: 'var(--color-text-3)' }}>Загрузка…</td></tr>
+              ) : items.length === 0 ? (
+                <tr><td colSpan={6} style={{ padding: 48, textAlign: 'center', color: 'var(--color-text-3)' }}>Новостей пока нет</td></tr>
+              ) : items.map((n) => (
+                <tr key={n.id} style={{ borderTop: '1px solid var(--color-border)' }}>
+                  <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--color-text-3)' }}>{n.sort_order}</td>
+                  <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 500, maxWidth: 380 }}>{n.title}</td>
+                  <td style={{ padding: '12px 16px' }}><span className="badge badge-gray">{n.rubric ?? '—'}</span></td>
+                  <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--color-text-2)', whiteSpace: 'nowrap' }}>{fmtDate(n.published_at)}</td>
+                  <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                    {n.is_featured
+                      ? <I.Star size={15} style={{ color: 'var(--color-accent)' }} />
+                      : <span style={{ color: 'var(--color-text-3)' }}>—</span>}
+                  </td>
+                  <td style={{ padding: '12px 16px' }}>
+                    <RowActions
+                      onEdit={() => setEditing({
+                        id: n.id,
+                        data: {
+                          title: n.title, lead: n.lead ?? '', body: n.body ?? '', rubric: n.rubric ?? 'Новости',
+                          source: n.source ?? '', source_url: n.source_url ?? '', image_url: n.image_url ?? '',
+                          published_at: toDateInput(n.published_at), is_featured: n.is_featured, sort_order: n.sort_order,
+                        },
+                      })}
+                      onDelete={() => { if (window.confirm(`Удалить новость «${n.title}»?`)) delMut.mutate(n.id) }}
+                      disabled={delMut.isPending}
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {editing && (
+        <NewsModal
+          value={editing.data}
+          isEdit={!!editing.id}
+          saving={saveMut.isPending}
+          onClose={() => setEditing(null)}
+          onSave={(data) => saveMut.mutate({ id: editing.id, data })}
+        />
+      )}
+    </>
+  )
+}
+
+function NewsModal({ value, isEdit, saving, onClose, onSave }: {
+  value: NewsInput
+  isEdit: boolean
+  saving: boolean
+  onClose: () => void
+  onSave: (data: NewsInput) => void
+}) {
+  const [f, setF] = useState<NewsInput>(value)
+  const set = <K extends keyof NewsInput>(k: K, v: NewsInput[K]) => setF((p) => ({ ...p, [k]: v }))
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!f.title.trim()) return
+    onSave({ ...f, title: f.title.trim() })
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 680, width: '100%' }}>
+        <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontSize: 17, fontWeight: 700 }}>{isEdit ? 'Редактировать новость' : 'Новая новость'}</div>
+          <button onClick={onClose} className="btn btn-ghost btn-sm" style={{ width: 32, padding: 0 }}><I.X size={16} /></button>
+        </div>
+        <form onSubmit={submit} style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 14, maxHeight: '72vh', overflowY: 'auto' }}>
+          <Field label="Заголовок *">
+            <input className="input" value={f.title} onChange={(e) => set('title', e.target.value)} required />
+          </Field>
+          <Row>
+            <Field label="Рубрика">
+              <select className="select" value={f.rubric} onChange={(e) => set('rubric', e.target.value)}>
+                {NEWS_RUBRICS.map((r) => <option key={r} value={r}>{r}</option>)}
+              </select>
+            </Field>
+            <Field label="Дата публикации">
+              <input className="input" type="date" value={f.published_at} onChange={(e) => set('published_at', e.target.value)} />
+            </Field>
+          </Row>
+          <Field label="Лид" hint="1–3 предложения — показывается в карточке">
+            <textarea className="textarea" value={f.lead} onChange={(e) => set('lead', e.target.value)} rows={2} />
+          </Field>
+          <Field label="Текст" hint="markdown: ## подзаголовок, «- » список, **жирный**">
+            <textarea className="textarea" value={f.body} onChange={(e) => set('body', e.target.value)} rows={9} />
+          </Field>
+          <Row>
+            <Field label="Источник">
+              <input className="input" value={f.source} onChange={(e) => set('source', e.target.value)} placeholder="Пресс-служба Байтерека" />
+            </Field>
+            <Field label="Ссылка на источник">
+              <input className="input" value={f.source_url} onChange={(e) => set('source_url', e.target.value)} placeholder="https://…" />
+            </Field>
+          </Row>
+          <Row>
+            <Field label="Обложка (image URL)" hint="пусто — градиент по рубрике">
+              <input className="input" value={f.image_url} onChange={(e) => set('image_url', e.target.value)} placeholder="https://…" />
+            </Field>
+            <Field label="Порядок">
+              <input className="input" type="number" value={f.sort_order ?? 0} onChange={(e) => set('sort_order', Number(e.target.value))} />
+            </Field>
+          </Row>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, cursor: 'pointer' }}>
+            <input type="checkbox" checked={!!f.is_featured} onChange={(e) => set('is_featured', e.target.checked)} />
+            Главный материал (featured)
+          </label>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
             <button type="button" className="btn btn-ghost btn-sm" onClick={onClose}>Отмена</button>
             <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>{saving ? 'Сохранение…' : 'Сохранить'}</button>

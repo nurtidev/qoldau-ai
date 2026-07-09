@@ -6,8 +6,8 @@ import { I } from '@/components/icons'
 import { EligibilityScreener } from '@/components/EligibilityScreener'
 import { HeroVisual } from '@/components/HeroVisual'
 import { categoryColor, categorySoftBg } from '@/lib/categoryColor'
-import { CategoryArt } from '@/components/CategoryArt'
-import { useIsNarrow } from '@/hooks/useMediaQuery'
+import { MediaCover } from '@/components/MediaCover'
+import { useIsNarrow, useMediaQuery } from '@/hooks/useMediaQuery'
 import type { Service } from '@/types'
 
 const DIRECTIONS = [
@@ -38,6 +38,83 @@ const ORGS = [
   { id: 'enbek',     short: 'Центры занятости',    color: '#8A6A14', tag: 'ЦЗ', count: 4  },
 ]
 
+/**
+ * Фоновое hero-видео (инфраструктура «как в akk-portal», с фолбэками).
+ *  — только десктоп (min-width: 768px): на мобиле video-элемент НЕ рендерится
+ *    вовсе (не грузим тяжёлый файл на мобильном трафике — исправляем ошибку
+ *    донора, где видео скрыто лишь CSS'ом, но качается);
+ *  — preload="metadata" (не "auto"); показываем видео-слой только после
+ *    onPlaying/onLoadedData; onError → «нет видео» → текущий кремовый фон;
+ *  — prefers-reduced-motion → вместо видео только постер (если файл есть);
+ *  — градиент-переток: слева непрозрачный var(--color-bg), чтобы текст hero
+ *    остался на текущем светлом фоне (контраст сохранён), справа — прозрачный,
+ *    открывая видео. Без файла секция выглядит ровно как сейчас.
+ */
+function HeroMedia() {
+  const isDesktop = useMediaQuery('(min-width: 768px)')
+  const reduce = useMediaQuery('(prefers-reduced-motion: reduce)')
+  const [state, setState] = useState<'idle' | 'ready' | 'error'>('idle')
+
+  // На мобиле видео-слой не существует (ни запроса, ни элемента).
+  if (!isDesktop) return null
+
+  const ready = state === 'ready'
+
+  return (
+    <div aria-hidden="true" style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
+      {state !== 'error' && (
+        reduce ? (
+          // Reduced motion → только постер (если есть); onError → текущий фон.
+          <img
+            src="/media/hero/hero-main.jpg"
+            alt=""
+            onLoad={() => setState('ready')}
+            onError={() => setState('error')}
+            style={{
+              position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover',
+              opacity: ready ? 1 : 0, transition: 'opacity 700ms var(--ease-out)',
+            }}
+          />
+        ) : (
+          <video
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="metadata"
+            poster="/media/hero/hero-main.jpg"
+            onLoadedData={() => setState('ready')}
+            onPlaying={() => setState('ready')}
+            onError={() => setState('error')}
+            style={{
+              position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover',
+              opacity: ready ? 1 : 0, transition: 'opacity 700ms var(--ease-out)',
+            }}
+          >
+            <source src="/media/hero/hero-main.mp4" type="video/mp4" />
+          </video>
+        )
+      )}
+
+      {/* Переток видео → фон hero слева (текст остаётся на кремовом, контраст AA). */}
+      {ready && (
+        <div style={{
+          position: 'absolute', inset: 0,
+          background:
+            'linear-gradient(90deg, var(--color-bg) 0%, var(--color-bg) 50%, color-mix(in srgb, var(--color-bg) 55%, transparent) 66%, transparent 85%)',
+        }} />
+      )}
+      {/* Нижний мягкий стык с секцией. */}
+      {ready && (
+        <div style={{
+          position: 'absolute', insetInline: 0, bottom: 0, height: 96,
+          background: 'linear-gradient(to top, var(--color-bg) 0%, transparent 100%)',
+        }} />
+      )}
+    </div>
+  )
+}
+
 function HeroSearch() {
   const [q, setQ] = useState('')
   const [focused, setFocused] = useState(false)
@@ -49,6 +126,7 @@ function HeroSearch() {
       borderBottom: '1px solid var(--color-border)',
       paddingTop: 64, paddingBottom: 64, position: 'relative', overflow: 'hidden',
     }}>
+      <HeroMedia />
       <div style={{
         position: 'absolute', inset: 0,
         backgroundImage: 'radial-gradient(circle, rgba(7,102,61,0.06) 1px, transparent 1px)',
@@ -161,8 +239,8 @@ function ServiceTile({ service }: { service: Service }) {
       className="card card-elevated card-elevated-hover"
       style={{ padding: 0, cursor: 'pointer', display: 'flex', flexDirection: 'column', minWidth: 320, width: 320, textDecoration: 'none', overflow: 'hidden' }}
     >
-      <div style={{ height: 72 }}>
-        <CategoryArt category={service.category} height={72} />
+      <div style={{ position: 'relative', height: 72 }}>
+        <MediaCover title={service.title} category={service.category} hoverVideo />
       </div>
       <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12, flex: 1 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

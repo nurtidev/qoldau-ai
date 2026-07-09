@@ -5,7 +5,7 @@ import { servicesApi } from '@/api/client'
 import { I } from '@/components/icons'
 import { useIsNarrow } from '@/hooks/useMediaQuery'
 import { categoryColor, categorySoftBg } from '@/lib/categoryColor'
-import { CategoryArt } from '@/components/CategoryArt'
+import { MediaCover } from '@/components/MediaCover'
 import type { Service } from '@/types'
 
 // ---- Static filter data (matches design) ----
@@ -156,7 +156,7 @@ function ServiceCard({ service }: { service: Service }) {
       {/* Брендовая обложка-шапка (full-bleed). Bookmark вынесен поверх — контента
           не перекрывает, фон-подложка держит контраст иконки. */}
       <div style={{ position: 'relative', height: 84 }}>
-        <CategoryArt category={service.category} height={84} />
+        <MediaCover title={service.title} category={service.category} hoverVideo />
         <button
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); setBookmarked(!bookmarked) }}
           style={{
@@ -240,8 +240,8 @@ function ServiceRow({ service }: { service: Service }) {
         borderLeft: `3px solid ${accent}`,
       }}
     >
-      <div style={{ width: 48, height: 48, borderRadius: 10, overflow: 'hidden', flexShrink: 0 }}>
-        <CategoryArt category={service.category} height={48} />
+      <div style={{ position: 'relative', width: 48, height: 48, borderRadius: 10, overflow: 'hidden', flexShrink: 0 }}>
+        <MediaCover title={service.title} category={service.category} />
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>

@@ -251,6 +251,35 @@ export type MapProjectInput = {
   sort_order?: number
 }
 
+export interface NewsItem {
+  id: string
+  title: string
+  lead?: string
+  body?: string
+  rubric?: string
+  source?: string
+  source_url?: string
+  image_url?: string
+  published_at?: string // ISO date (YYYY-MM-DDT00:00:00Z)
+  is_featured: boolean
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
+export type NewsInput = {
+  title: string
+  lead?: string
+  body?: string
+  rubric?: string
+  source?: string
+  source_url?: string
+  image_url?: string
+  published_at?: string // 'YYYY-MM-DD'
+  is_featured?: boolean
+  sort_order?: number
+}
+
 export const contentApi = {
   materials: () => api.get<AnalyticsMaterial[]>('/materials'),
   createMaterial: (data: MaterialInput) => api.post('/materials', data),
@@ -261,6 +290,12 @@ export const contentApi = {
   createProject: (data: MapProjectInput) => api.post('/map-projects', data),
   updateProject: (id: string, data: MapProjectInput) => api.put(`/map-projects/${id}`, data),
   deleteProject: (id: string) => api.delete(`/map-projects/${id}`),
+
+  news: () => api.get<NewsItem[]>('/news'),
+  newsOne: (id: string) => api.get<NewsItem>(`/news/${id}`),
+  createNews: (data: NewsInput) => api.post('/news', data),
+  updateNews: (id: string, data: NewsInput) => api.put(`/news/${id}`, data),
+  deleteNews: (id: string) => api.delete(`/news/${id}`),
 }
 
 // Mock integrations

@@ -176,6 +176,13 @@ func main() {
 			r.With(authMw, adminAuthorMw).Put("/{id}", contentH.UpdateProject)
 			r.With(authMw, adminAuthorMw).Delete("/{id}", contentH.DeleteProject)
 		})
+		r.Route("/news", func(r chi.Router) {
+			r.Get("/", contentH.ListNews)
+			r.Get("/{id}", contentH.GetNews)
+			r.With(authMw, adminAuthorMw).Post("/", contentH.CreateNews)
+			r.With(authMw, adminAuthorMw).Put("/{id}", contentH.UpdateNews)
+			r.With(authMw, adminAuthorMw).Delete("/{id}", contentH.DeleteNews)
+		})
 	})
 
 	addr := fmt.Sprintf(":%s", cfg.Port)

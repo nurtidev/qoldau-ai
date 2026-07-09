@@ -23,6 +23,7 @@ import { AdminAnalytics }       from '@/pages/admin/AdminAnalytics'
 import { LoginPage }            from '@/pages/LoginPage'
 import { KnowledgePage }        from '@/pages/KnowledgePage'
 import { NewsPage }             from '@/pages/NewsPage'
+import { NewsDetailPage }       from '@/pages/NewsDetailPage'
 import { ContactsPage }         from '@/pages/ContactsPage'
 import { ProjectsMapPage }      from '@/pages/ProjectsMapPage'
 import { AnalyticsCatalogPage } from '@/pages/AnalyticsCatalogPage'
@@ -109,6 +110,7 @@ function Shell() {
             <Route path="/projects-map" element={<ProjectsMapPage />} />
             <Route path="/analytics"  element={<AnalyticsCatalogPage />} />
             <Route path="/news"       element={<NewsPage />} />
+            <Route path="/news/:id"   element={<NewsDetailPage />} />
             <Route path="/contacts"   element={<ContactsPage />} />
             <Route path="/cabinet"    element={<RequireAuth><CabinetDashboard /></RequireAuth>} />
             <Route path="/cabinet/apply/:service_id" element={<RequireAuth><ApplyPage /></RequireAuth>} />
