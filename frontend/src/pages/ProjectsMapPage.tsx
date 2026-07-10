@@ -232,7 +232,6 @@ export function ProjectsMapPage() {
         }} />
         <div className="ornament-tile ornament-fade ornament-hero" aria-hidden="true" />
         <div className="container" style={{ position: 'relative' }}>
-          <div className="section-eyebrow" style={{ marginBottom: 10 }}>Прозрачность холдинга</div>
           <h1 style={{ fontSize: 'clamp(28px, 5vw, 42px)', fontWeight: 700, letterSpacing: '-0.02em', margin: 0, color: 'var(--color-text)', lineHeight: 1.12 }}>
             География проектов «Байтерека»
           </h1>
@@ -242,14 +241,21 @@ export function ProjectsMapPage() {
             отрасль — карта и цифры пересчитаются мгновенно.
           </p>
 
-          {/* Stats — elevated glass tiles (по всему портфелю) */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 14, marginTop: 32, maxWidth: 700 }}>
-            {heroTiles.map((s, i) => (
-              <div key={i} className="glass" style={{ padding: '16px 18px', boxShadow: 'var(--sh-lg), inset 0 1px 0 rgba(255,255,255,0.85)' }}>
-                <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--color-primary)', letterSpacing: '-0.01em' }}>{isLoading ? '…' : s.v}</div>
-                <div style={{ fontSize: 12, color: 'var(--color-text-3)', marginTop: 2 }}>{s.l}</div>
-              </div>
-            ))}
+          {/* Stats — тёмно-зелёная committed-поверхность (как скринер на главной):
+              белые цифры и приглушённо-светлые подписи читаются на зелёном. */}
+          <div className="screener-panel" style={{ marginTop: 30, maxWidth: 760, padding: 'clamp(18px, 2.4vw, 26px)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(148px, 1fr))', gap: 12 }}>
+              {heroTiles.map((s, i) => (
+                <div key={i} style={{
+                  padding: '14px 16px', borderRadius: 12,
+                  background: 'rgba(255,255,255,0.10)', border: '1px solid rgba(255,255,255,0.20)',
+                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.14)',
+                }}>
+                  <div style={{ fontSize: 25, fontWeight: 800, color: '#fff', letterSpacing: '-0.01em', lineHeight: 1.1 }}>{isLoading ? '…' : s.v}</div>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.92)', marginTop: 3, lineHeight: 1.35 }}>{s.l}</div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
@@ -433,12 +439,16 @@ export function ProjectsMapPage() {
       {/* ── ФЛАГМАНЫ ПОРТФЕЛЯ ───────────────────────────────────────────── */}
       {(isLoading || topProjects.length > 0) && (
         <section className="container" style={{ paddingTop: 48, paddingBottom: 80 }}>
-          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
             <div>
               <div className="section-eyebrow" style={{ marginBottom: 6 }}>Флагманы портфеля</div>
               <h2 className="section-title">Крупнейшие проекты</h2>
             </div>
-            <span style={{ fontSize: 13, color: 'var(--color-text-3)' }}>по сумме финансирования</span>
+            {topProjects.length > 2 && (
+              <span style={{ fontSize: 13, color: 'var(--color-text-3)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                листайте <I.ArrowRight size={15} />
+              </span>
+            )}
           </div>
           {isLoading ? (
             <div style={{ display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 8 }}>
@@ -447,10 +457,22 @@ export function ProjectsMapPage() {
               ))}
             </div>
           ) : (
-            <div style={{ display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 8, alignItems: 'stretch', scrollSnapType: 'x mandatory' }}>
-              {topProjects.map((p) => (
-                <FlagshipCard key={p.id} project={p} onClick={() => focusProject(p)} />
-              ))}
+            <div style={{ position: 'relative' }}>
+              <div
+                style={{
+                  display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 8, alignItems: 'stretch',
+                  scrollSnapType: 'x mandatory',
+                  // затухание справа — намёк, что лента продолжается за краем
+                  WebkitMaskImage: topProjects.length > 2 ? 'linear-gradient(90deg, #000 0%, #000 90%, transparent 100%)' : undefined,
+                  maskImage: topProjects.length > 2 ? 'linear-gradient(90deg, #000 0%, #000 90%, transparent 100%)' : undefined,
+                }}
+              >
+                {topProjects.map((p) => (
+                  <FlagshipCard key={p.id} project={p} onClick={() => focusProject(p)} />
+                ))}
+                {/* спейсер, чтобы последняя карточка не «съедалась» маской в конце скролла */}
+                <div aria-hidden style={{ flex: '0 0 1px' }} />
+              </div>
             </div>
           )}
         </section>

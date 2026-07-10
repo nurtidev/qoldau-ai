@@ -2,8 +2,22 @@ import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { I } from '@/components/icons'
 import { Portal } from '@/components/Portal'
+import { DuotonePhoto } from '@/components/DuotonePhoto'
 import { contentApi, type AnalyticsMaterial } from '@/api/client'
 import { BAITEREK_GROUP, PARTNER_ORGS } from '@/lib/orgs'
+
+// Фото-обложка featured-героя годового отчёта (солидный корпоративный сюжет —
+// переговорная с видом на деловой центр), под зелёным дуотоном.
+const REPORT_HERO_PHOTO = '/media/services/invest-generic.jpg'
+// Фирменные зелёные — заданы литералами: SVG-градиенты не читают CSS-переменные
+// кроссбраузерно (см. stop-color), поэтому дублируем значения токенов.
+const G_700 = '#00602F'
+const G_600 = '#068244'
+
+/** Год из материала (period → title), для крупной типографики годового отчёта. */
+function reportYear(m: AnalyticsMaterial): string {
+  return m.period?.match(/\d{4}/)?.[0] ?? m.title.match(/\d{4}/)?.[0] ?? '2025'
+}
 
 // ─── Presentation config ─────────────────────────────────────────────────────
 
@@ -131,11 +145,11 @@ function motif(type: string | undefined, c: string, rng: () => number): JSX.Elem
             const x = 40 + i * slot
             return (
               <rect key={i} x={x} y={120 - h} width={barW} height={h} rx={3}
-                fill={c} fillOpacity={i === maxI ? 0.34 : 0.17} />
+                fill={c} fillOpacity={i === maxI ? 0.58 : 0.32} />
             )
           })}
-          <circle cx={250} cy={30} r={5} fill={c} fillOpacity={0.75} />
-          <circle cx={272} cy={30} r={5} fill={GOLD} fillOpacity={0.85} />
+          <circle cx={250} cy={30} r={5} fill={c} fillOpacity={0.8} />
+          <circle cx={272} cy={30} r={5} fill={GOLD} fillOpacity={0.9} />
         </g>
       )
     }
@@ -152,8 +166,8 @@ function motif(type: string | undefined, c: string, rng: () => number): JSX.Elem
       const area = `${line} L ${pts[n - 1][0]} 122 L ${pts[0][0]} 122 Z`
       return (
         <g>
-          <path d={area} fill={c} fillOpacity={0.1} />
-          <path d={line} fill="none" stroke={c} strokeOpacity={0.8} strokeWidth={2.5} strokeLinecap="round" />
+          <path d={area} fill={c} fillOpacity={0.18} />
+          <path d={line} fill="none" stroke={c} strokeOpacity={0.9} strokeWidth={2.5} strokeLinecap="round" />
           {pts.map((p, i) => (
             <circle key={i} cx={p[0]} cy={p[1]} r={i === maxI ? 4 : 3}
               fill={i === maxI ? GOLD : c} fillOpacity={i === maxI ? 1 : 0.85} />
@@ -167,15 +181,15 @@ function motif(type: string | undefined, c: string, rng: () => number): JSX.Elem
       const rows = 5
       return (
         <g>
-          <rect x={214} y={30} width={62} height={96} rx={4} fill={c} fillOpacity={0.1} />
+          <rect x={214} y={30} width={62} height={96} rx={4} fill={c} fillOpacity={0.16} />
           {Array.from({ length: rows }).map((_, i) => {
             const y = 42 + i * 20
             const head = i === 0
             return (
               <g key={i}>
-                <rect x={34} y={y} width={rand(52, 84)} height={7} rx={3.5} fill={c} fillOpacity={head ? 0.55 : 0.26} />
-                <rect x={140} y={y} width={rand(30, 52)} height={7} rx={3.5} fill={c} fillOpacity={head ? 0.5 : 0.24} />
-                <rect x={224} y={y} width={rand(26, 42)} height={7} rx={3.5} fill={c} fillOpacity={head ? 0.62 : 0.42} />
+                <rect x={34} y={y} width={rand(52, 84)} height={7} rx={3.5} fill={c} fillOpacity={head ? 0.72 : 0.42} />
+                <rect x={140} y={y} width={rand(30, 52)} height={7} rx={3.5} fill={c} fillOpacity={head ? 0.66 : 0.4} />
+                <rect x={224} y={y} width={rand(26, 42)} height={7} rx={3.5} fill={c} fillOpacity={head ? 0.8 : 0.56} />
               </g>
             )
           })}
@@ -183,31 +197,19 @@ function motif(type: string | undefined, c: string, rng: () => number): JSX.Elem
       )
     }
 
-    // Годовой отчёт → обложка-буклет (задняя страница + текстовые строки + золотой корешок)
-    case 'Годовой отчёт': {
-      return (
-        <g>
-          <rect x={126} y={32} width={82} height={86} rx={5} fill={c} fillOpacity={0.1} />
-          <rect x={112} y={26} width={84} height={92} rx={5} fill={c} fillOpacity={0.14} stroke={c} strokeOpacity={0.34} strokeWidth={1.5} />
-          <line x1={112} y1={26} x2={112} y2={118} stroke={c} strokeOpacity={0.3} strokeWidth={1.5} />
-          <rect x={124} y={40} width={rand(44, 62)} height={8} rx={2} fill={GOLD} fillOpacity={0.85} />
-          {[62, 74, 86, 98].map((y, i) => (
-            <rect key={y} x={124} y={y} width={rand(36, 62)} height={5} rx={2.5} fill={c} fillOpacity={0.28 - i * 0.02} />
-          ))}
-        </g>
-      )
-    }
+    // Годовой отчёт (обычная карточка) обрабатывается сплошной зелёной плашкой
+    // в самом MaterialArt (см. reportPlate) — сюда поток не доходит.
 
     // Исследование → диаграмма рассеяния + линия тренда (по осям)
     case 'Исследование': {
       const dots = Array.from({ length: 11 }, () => [rand(48, 286), rand(38, 112)] as [number, number])
       return (
         <g>
-          <path d="M40 30 L40 118 L288 118" fill="none" stroke={c} strokeOpacity={0.28} strokeWidth={1.5} strokeLinecap="round" />
-          <path d="M52 112 L120 92 L184 66 L272 40" fill="none" stroke={c} strokeOpacity={0.45} strokeWidth={2} strokeLinecap="round" strokeDasharray="1 6" />
+          <path d="M40 30 L40 118 L288 118" fill="none" stroke={c} strokeOpacity={0.4} strokeWidth={1.5} strokeLinecap="round" />
+          <path d="M52 112 L120 92 L184 66 L272 40" fill="none" stroke={c} strokeOpacity={0.6} strokeWidth={2} strokeLinecap="round" strokeDasharray="1 6" />
           {dots.map((d, i) => (
             <circle key={i} cx={d[0]} cy={d[1]} r={i % 5 === 0 ? 4 : 3.2}
-              fill={i % 5 === 0 ? GOLD : c} fillOpacity={i % 5 === 0 ? 0.9 : 0.5} />
+              fill={i % 5 === 0 ? GOLD : c} fillOpacity={i % 5 === 0 ? 0.95 : 0.68} />
           ))}
         </g>
       )
@@ -226,18 +228,45 @@ function motif(type: string | undefined, c: string, rng: () => number): JSX.Elem
 }
 
 /** Обложка карточки: мягкий тон типа + детерминированный мотив данных.
- *  `zoom` укрупняет мотив вокруг центра viewBox (панель героя). */
-function MaterialArt({ type, seed, zoom = 1, style }: { type?: string; seed: string; zoom?: number; style?: React.CSSProperties }) {
+ *  `zoom` укрупняет мотив вокруг центра viewBox (панель героя).
+ *  Годовой отчёт — сплошная зелёная плашка с крупной типографикой года
+ *  (вместо «документа с абзацами»): читается издалека, держит бренд. */
+function MaterialArt({ type, seed, zoom = 1, year, style }: { type?: string; seed: string; zoom?: number; year?: string; style?: React.CSSProperties }) {
   const c = typeColor(type)
   const rng = useMemo(() => makeRng(seededHash(seed + (type ?? ''))), [seed, type])
   const gradId = useMemo(() => `art-${seededHash(seed).toString(36)}`, [seed])
+
+  if (type === 'Годовой отчёт') {
+    return (
+      <svg viewBox="0 0 320 140" preserveAspectRatio="xMidYMid slice" aria-hidden="true"
+        style={{ display: 'block', width: '100%', height: '100%', ...style }}>
+        <defs>
+          <linearGradient id={gradId} x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stopColor={G_700} />
+            <stop offset="0.55" stopColor="#007A40" />
+            <stop offset="1" stopColor={G_600} />
+          </linearGradient>
+        </defs>
+        <rect width={320} height={140} fill={`url(#${gradId})`} />
+        <text x={26} y={44} fontFamily="var(--ff)" fontSize={12} fontWeight={600} letterSpacing="1.5" fill="rgba(255,255,255,0.72)">
+          ГОДОВОЙ ОТЧЁТ
+        </text>
+        <text x={24} y={116} fontFamily="var(--ff)" fontSize={62} fontWeight={800} letterSpacing="-2" fill="#fff">
+          {year ?? '2025'}
+        </text>
+        <rect x={214} y={30} width={80} height={80} rx={10} fill="none" stroke={GOLD} strokeOpacity={0.55} strokeWidth={1.5} />
+        <line x1={26} y1={58} x2={110} y2={58} stroke={GOLD} strokeOpacity={0.8} strokeWidth={2} />
+      </svg>
+    )
+  }
+
   return (
     <svg viewBox="0 0 320 140" preserveAspectRatio="xMidYMid slice" aria-hidden="true"
       style={{ display: 'block', width: '100%', height: '100%', ...style }}>
       <defs>
         <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor={c} stopOpacity={0.04} />
-          <stop offset="1" stopColor={c} stopOpacity={0.13} />
+          <stop offset="0" stopColor={c} stopOpacity={0.07} />
+          <stop offset="1" stopColor={c} stopOpacity={0.22} />
         </linearGradient>
       </defs>
       <rect width={320} height={140} fill="#fff" />
@@ -301,11 +330,19 @@ export function AnalyticsCatalogPage() {
   return (
     <div className="page-fade container" style={{ paddingTop: 40, paddingBottom: 80 }}>
       <div style={{ marginBottom: 20 }}>
-        <div className="section-eyebrow" style={{ marginBottom: 8 }}>Прозрачность</div>
         <h1 className="section-title" style={{ fontSize: 32 }}>Аналитическая отчётность</h1>
         <p style={{ fontSize: 15, color: 'var(--color-text-2)', marginTop: 8, maxWidth: 720 }}>
           Единый каталог готовых аналитических материалов дочерних организаций Холдинга «Байтерек».
         </p>
+        {!isLoading && materials.length > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12, fontSize: 13, color: 'var(--color-text-3)', flexWrap: 'wrap' }}>
+            <span style={{ fontWeight: 600, color: 'var(--color-text-2)' }}>{materials.length} материалов</span>
+            <span aria-hidden style={{ color: 'var(--color-border-strong)' }}>·</span>
+            <span>{types.length} типов</span>
+            <span aria-hidden style={{ color: 'var(--color-border-strong)' }}>·</span>
+            <span>{orgs.length} организаций</span>
+          </div>
+        )}
       </div>
 
       {/* Positioning line (jury: подключение через ссылки/embedding, без дублирования BI) */}
@@ -377,6 +414,23 @@ export function AnalyticsCatalogPage() {
         )}
       </div>
 
+      {/* Финальный CTA для дочерних организаций */}
+      {!isLoading && (
+        <div className="screener-panel" style={{ marginTop: 48, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24, flexWrap: 'wrap' }}>
+          <div className="ornament-tile-gold ornament-fade" aria-hidden="true" />
+          <div style={{ position: 'relative', maxWidth: 560 }}>
+            <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.01em' }}>Подключите свою аналитику</div>
+            <p style={{ fontSize: 14, lineHeight: 1.55, color: 'rgba(255,255,255,0.82)', margin: '8px 0 0' }}>
+              Дочерние организации Холдинга публикуют отчёты, дашборды и исследования в общий каталог —
+              через ссылку или embedding, без дублирования BI-систем.
+            </p>
+          </div>
+          <a href="/contacts" className="btn btn-accent" style={{ position: 'relative', flexShrink: 0 }}>
+            <I.Mail size={16} /> Связаться с редакцией
+          </a>
+        </div>
+      )}
+
       {preview && <PreviewModal material={preview} onClose={() => setPreview(null)} />}
     </div>
   )
@@ -423,14 +477,21 @@ function MetaBlock({ material, org }: { material: AnalyticsMaterial; org: Resolv
 
 function MaterialCard({ material, onPreview }: { material: AnalyticsMaterial; onPreview: () => void }) {
   const org = resolveOrg(material.org)
+  const band = typeColor(material.material_type)
   return (
     <article className="card hover-lift" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
       <div style={{ position: 'relative', aspectRatio: '16 / 7' }}>
-        <MaterialArt type={material.material_type} seed={material.id} />
-        <div style={{ position: 'absolute', top: 10, left: 10 }}>
-          {material.material_type && <TypeBadge type={material.material_type} />}
-        </div>
-        <div style={{ position: 'absolute', top: 10, right: 10 }}>
+        <MaterialArt type={material.material_type} seed={material.id} year={reportYear(material)} />
+        {/* Верхняя цветовая полоса-плашка типа (не border-left): различает 5 типов
+            с расстояния. Для годового отчёта плашка золотая — плитка уже зелёная. */}
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, background: material.material_type === 'Годовой отчёт' ? GOLD : band }} />
+        {/* Обложка годового отчёта сама печатает «ГОДОВОЙ ОТЧЁТ» — бейдж лёг бы поверх дублем */}
+        {material.material_type && material.material_type !== 'Годовой отчёт' && (
+          <div style={{ position: 'absolute', top: 12, left: 10 }}>
+            <TypeBadge type={material.material_type} />
+          </div>
+        )}
+        <div style={{ position: 'absolute', top: 12, right: 10 }}>
           <FormatBadge format={material.format} />
         </div>
       </div>
@@ -487,9 +548,22 @@ function FeaturedCard({ material, onPreview }: { material: AnalyticsMaterial; on
           )}
         </div>
       </div>
-      <div className="analytics-hero-art" style={{ position: 'relative', minHeight: 180 }}>
-        <MaterialArt type={material.material_type} seed={material.id} zoom={1.5}
-          style={{ position: 'absolute', inset: 0, height: '100%' }} />
+      <div className="analytics-hero-art" style={{ position: 'relative', minHeight: 200 }}>
+        <DuotonePhoto src={REPORT_HERO_PHOTO} focus="center 42%" scrim="bottom">
+          <div style={{ position: 'absolute', inset: 0, padding: '22px 24px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', pointerEvents: 'none' }}>
+            <div style={{ display: 'inline-flex', alignSelf: 'flex-start', alignItems: 'center', gap: 7, padding: '5px 12px', borderRadius: 999, background: 'rgba(255,255,255,0.14)', border: '1px solid rgba(255,255,255,0.28)', fontSize: 11.5, fontWeight: 600, letterSpacing: '0.06em', color: '#FAF0D8' }}>
+              <I.Shield size={13} /> ГОДОВОЙ ОТЧЁТ
+            </div>
+            <div>
+              <div style={{ fontSize: 'clamp(52px, 8vw, 76px)', fontWeight: 800, lineHeight: 0.92, letterSpacing: '-0.03em', color: '#fff', textShadow: '0 2px 18px rgba(0,40,22,0.35)' }}>
+                {reportYear(material)}
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 500, color: 'rgba(255,255,255,0.86)', marginTop: 6 }}>
+                Консолидированные результаты Холдинга «Байтерек»
+              </div>
+            </div>
+          </div>
+        </DuotonePhoto>
       </div>
     </article>
   )

@@ -1,6 +1,29 @@
 // ── Мини-рендер markdown (подход из ServiceExplainer): ## / ###, списки, **жирный**,
 // *курсив-источник*. Без внешних зависимостей. Общий для новостей и базы знаний.
 
+/** Стабильный якорь из текста заголовка (## → h3) для оглавления статьи.
+ *  Кириллица в id/hash допустима в HTML5 и работает со scrollIntoView. */
+export function slugifyHeading(text: string): string {
+  return text
+    .replace(/\*\*/g, '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^0-9a-zа-яё]+/gi, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+/** Заголовки верхнего уровня (## …) статьи — для правого оглавления. */
+export function extractHeadings(text: string): Array<{ id: string; title: string }> {
+  return text
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => /^##\s+/.test(l) && !/^###/.test(l))
+    .map((l) => {
+      const title = l.replace(/^##\s+/, '').replace(/\*\*/g, '')
+      return { id: slugifyHeading(title), title }
+    })
+}
+
 function renderInline(text: string, keyBase: string): React.ReactNode[] {
   const parts = text.split(/\*\*(.+?)\*\*/g)
   return parts.map((p, i) =>
@@ -46,10 +69,11 @@ export function MarkdownBody({ text }: { text: string }) {
     }
     if (/^##\s+/.test(trimmed)) {
       flushList()
+      const headText = trimmed.replace(/^##\s+/, '')
       blocks.push(
-        <h3 key={`h3-${key++}`} style={{ fontSize: 19, fontWeight: 700, color: 'var(--color-primary)', margin: '26px 0 10px', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <h3 key={`h3-${key++}`} id={slugifyHeading(headText)} style={{ fontSize: 19, fontWeight: 700, color: 'var(--color-primary)', margin: '26px 0 10px', scrollMarginTop: 90, display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ width: 6, height: 6, borderRadius: 999, background: 'var(--color-accent)', flexShrink: 0 }} />
-          {renderInline(trimmed.replace(/^##\s+/, ''), `h3-${key}`)}
+          {renderInline(headText, `h3-${key}`)}
         </h3>,
       )
       continue

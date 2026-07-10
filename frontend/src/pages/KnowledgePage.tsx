@@ -3,15 +3,26 @@ import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { contentApi, type KnowledgeArticle } from '@/api/client'
 import { I } from '@/components/icons'
+import { DuotonePhoto } from '@/components/DuotonePhoto'
 import { fmtNewsDate } from '@/pages/NewsPage'
 
-const TEMPLATES: { slug: string; title: string; desc: string; icon: keyof typeof I; size: string }[] = [
-  { slug: 'business-plan-structure',    title: 'Структура бизнес-плана',                          desc: 'Разделы и содержание для подготовки бизнес-плана проекта', icon: 'Briefcase', size: '~4 КБ' },
-  { slug: 'support-application-form',   title: 'Заявление на получение меры поддержки',           desc: 'Готовая форма заявления с полями для заполнения',           icon: 'Document',  size: '~3 КБ' },
-  { slug: 'credit-application-checklist', title: 'Чек-лист документов для кредитной заявки',      desc: 'Полный список документов для подачи на финансирование',     icon: 'CheckCircle', size: '~3 КБ' },
-  { slug: 'financial-model-description', title: 'Финансовая модель проекта',                     desc: 'Структура листов финансовой модели (Excel/Google Sheets)',   icon: 'Coins',     size: '~4 КБ' },
-  { slug: 'leasing-readiness-checklist', title: 'Чек-лист готовности к подаче на лизинг',          desc: 'Проверка готовности документов и условий по лизингу',       icon: 'Shield',    size: '~3 КБ' },
-  { slug: 'power-of-attorney',           title: 'Доверенность на представителя',                  desc: 'Шаблон доверенности для подачи документов через представителя', icon: 'Users',   size: '~2 КБ' },
+// Фото для hero базы знаний — тёплый сюжет малого бизнеса (пекарня), под зелёным дуотоном.
+const KNOWLEDGE_HERO_PHOTO = '/media/services/microcredit.jpg'
+
+interface Template { slug: string; title: string; desc: string; icon: keyof typeof I; size: string; note?: string }
+
+// Хитовые шаблоны — вынесены карточками (лизинговый чек-лист = контрольный кейс).
+const FEATURED_TEMPLATES: Template[] = [
+  { slug: 'leasing-readiness-checklist', title: 'Чек-лист готовности к подаче на лизинг', desc: 'Пошаговая проверка документов и условий перед подачей заявки на лизинг сельхозтехники.', icon: 'Shield', size: '~3 КБ', note: 'Контрольный кейс' },
+  { slug: 'credit-application-checklist', title: 'Чек-лист документов для кредитной заявки', desc: 'Полный список документов для подачи на финансирование — ничего не забыть.', icon: 'CheckCircle', size: '~3 КБ' },
+]
+
+// Остальные шаблоны — компактным списком-таблицей, без сетки одинаковых карточек.
+const MORE_TEMPLATES: Template[] = [
+  { slug: 'business-plan-structure',     title: 'Структура бизнес-плана',                desc: 'Разделы и содержание для подготовки бизнес-плана проекта', icon: 'Briefcase', size: '~4 КБ' },
+  { slug: 'support-application-form',    title: 'Заявление на получение меры поддержки', desc: 'Готовая форма заявления с полями для заполнения',           icon: 'Document',  size: '~3 КБ' },
+  { slug: 'financial-model-description', title: 'Финансовая модель проекта',             desc: 'Структура листов финансовой модели (Excel/Google Sheets)', icon: 'Coins',     size: '~4 КБ' },
+  { slug: 'power-of-attorney',           title: 'Доверенность на представителя',         desc: 'Шаблон доверенности для подачи документов через представителя', icon: 'Users',  size: '~2 КБ' },
 ]
 
 function fmt(n: number): string {
@@ -77,7 +88,7 @@ function CreditCalculator() {
         </div>
       </div>
 
-      <div style={{ background: 'var(--color-surface-2)', borderRadius: 10, padding: 20, display: 'flex', flexDirection: 'column', gap: 14, justifyContent: 'center' }}>
+      <div style={{ background: 'linear-gradient(160deg, var(--color-primary-tint) 0%, var(--color-primary-soft) 100%)', border: '1px solid var(--color-primary-soft)', boxShadow: 'var(--sh-sm), inset 0 1px 0 rgba(255,255,255,0.7)', borderRadius: 12, padding: 20, display: 'flex', flexDirection: 'column', gap: 14, justifyContent: 'center' }}>
         <div>
           <div style={{ fontSize: 12, color: 'var(--color-text-3)' }}>Ежемесячный платёж (аннуитет)</div>
           <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--color-primary)' }}>
@@ -175,7 +186,7 @@ function SubsidyCalculator() {
           </div>
         </div>
 
-        <div style={{ background: 'var(--color-surface-2)', borderRadius: 10, padding: 20, display: 'flex', flexDirection: 'column', gap: 14, justifyContent: 'center' }}>
+        <div style={{ background: 'linear-gradient(160deg, var(--color-primary-tint) 0%, var(--color-primary-soft) 100%)', border: '1px solid var(--color-primary-soft)', boxShadow: 'var(--sh-sm), inset 0 1px 0 rgba(255,255,255,0.7)', borderRadius: 12, padding: 20, display: 'flex', flexDirection: 'column', gap: 14, justifyContent: 'center' }}>
           <div>
             <div style={{ fontSize: 12, color: 'var(--color-text-3)' }}>Ставка для заёмщика после субсидирования</div>
             <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--color-primary)' }}>
@@ -217,13 +228,43 @@ export function KnowledgePage() {
   ]
 
   return (
-    <div className="page-fade container" style={{ paddingTop: 40, paddingBottom: 80 }}>
-      <div style={{ marginBottom: 32 }}>
-        <div className="section-eyebrow" style={{ marginBottom: 8 }}>Помощь</div>
-        <h1 className="section-title" style={{ fontSize: 32 }}>База знаний</h1>
-        <p style={{ fontSize: 15, color: 'var(--color-text-3)', marginTop: 8 }}>Инструкции, FAQ, шаблоны документов и цифровые инструменты для предпринимателей</p>
-      </div>
+    <div className="page-fade">
+      {/* ── HERO ────────────────────────────────────────────────────────── */}
+      <section className="hero-gradient-bg" style={{ paddingTop: 44, paddingBottom: 44, position: 'relative', overflow: 'hidden' }}>
+        <div className="ornament-tile ornament-fade ornament-hero" aria-hidden="true" />
+        <div className="container" style={{ position: 'relative' }}>
+          <div className="hero-grid">
+            <div>
+              <h1 style={{ fontSize: 'clamp(28px, 5vw, 40px)', fontWeight: 700, letterSpacing: '-0.02em', margin: 0, color: 'var(--color-text)', lineHeight: 1.12 }}>
+                База знаний
+              </h1>
+              <p style={{ fontSize: 16, color: 'var(--color-text-2)', maxWidth: 540, lineHeight: 1.55, marginTop: 14, marginBottom: 0 }}>
+                Калькуляторы, шаблоны документов и пошаговые инструкции — всё, что нужно предпринимателю,
+                чтобы подготовить заявку без ошибок и лишних визитов.
+              </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 20, fontSize: 13.5, color: 'var(--color-text-2)', flexWrap: 'wrap' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}><I.Coins size={15} style={{ color: 'var(--color-primary)' }} /> 2 калькулятора</span>
+                <span aria-hidden style={{ color: 'var(--color-border-strong)' }}>·</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}><I.Document size={15} style={{ color: 'var(--color-primary)' }} /> 6 шаблонов</span>
+                <span aria-hidden style={{ color: 'var(--color-border-strong)' }}>·</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}><I.List size={15} style={{ color: 'var(--color-primary)' }} /> инструкции</span>
+              </div>
+            </div>
+            <div className="hero-visual-wrap">
+              <div style={{ position: 'relative', height: 260, borderRadius: 'var(--r-card)', overflow: 'hidden', boxShadow: 'var(--sh-lg)' }}>
+                <DuotonePhoto src={KNOWLEDGE_HERO_PHOTO} focus="center 46%" scrim="bottom">
+                  <div style={{ position: 'absolute', left: 20, right: 20, bottom: 18, color: '#fff', pointerEvents: 'none' }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: '-0.01em' }}>Помогаем бизнесу расти</div>
+                    <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.82)', marginTop: 3 }}>от идеи до первой заявки на поддержку</div>
+                  </div>
+                </DuotonePhoto>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
+      <div className="container" style={{ paddingTop: 40, paddingBottom: 80 }}>
       <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>Цифровые инструменты</h2>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 48 }}>
         {tools.map((tool) => {
@@ -262,36 +303,70 @@ export function KnowledgePage() {
       </div>
 
       <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>Шаблоны документов и чек-листы</h2>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12, marginBottom: 48 }}>
-        {TEMPLATES.map((t) => {
+
+      {/* Хитовые шаблоны — карточками */}
+      <div className="two-col-mobile-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 14 }}>
+        {FEATURED_TEMPLATES.map((t) => {
           const Icon = I[t.icon]
           return (
-            <div key={t.slug} className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div key={t.slug} className="card card-elevated" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                <div style={{ width: 40, height: 40, borderRadius: 8, background: 'var(--color-accent-soft)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-primary)', flexShrink: 0 }}>
-                  <Icon size={20} />
+                <div style={{ width: 42, height: 42, borderRadius: 10, background: 'var(--color-accent-soft)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-primary)', flexShrink: 0 }}>
+                  <Icon size={21} />
                 </div>
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 600 }}>{t.title}</div>
-                  <div style={{ fontSize: 12, color: 'var(--color-text-3)', marginTop: 2 }}>Markdown · {t.size}</div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 15, fontWeight: 650 }}>{t.title}</span>
+                    {t.note && <span className="badge" style={{ background: 'var(--color-accent-soft)', color: '#1A1206', fontWeight: 600 }}>{t.note}</span>}
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--color-text-3)', marginTop: 3 }}>Markdown · {t.size}</div>
                 </div>
               </div>
-              <p style={{ fontSize: 13, color: 'var(--color-text-2)', margin: 0, flex: 1 }}>{t.desc}</p>
+              <p style={{ fontSize: 13.5, color: 'var(--color-text-2)', margin: 0, lineHeight: 1.5, flex: 1 }}>{t.desc}</p>
               <a
                 href={`/templates/${t.slug}.md`}
                 download
-                className="btn btn-secondary btn-sm"
+                className="btn btn-primary btn-sm"
                 style={{ alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: 6, textDecoration: 'none' }}
               >
-                <I.Download size={14} /> Скачать
+                <I.Download size={14} /> Скачать шаблон
               </a>
             </div>
           )
         })}
       </div>
 
+      {/* Остальные — компактным списком (как «Статьи и инструкции») */}
+      <div className="card" style={{ padding: 0, marginBottom: 48 }}>
+        {MORE_TEMPLATES.map((t, i) => {
+          const Icon = I[t.icon]
+          return (
+            <a
+              key={t.slug}
+              href={`/templates/${t.slug}.md`}
+              download
+              style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 14, borderTop: i > 0 ? '1px solid var(--color-border)' : 'none', textDecoration: 'none', color: 'inherit', transition: 'background 140ms var(--ease-out)' }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--color-surface-2)' }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+            >
+              <div style={{ width: 34, height: 34, borderRadius: 8, background: 'var(--color-accent-soft)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-primary)', flexShrink: 0 }}>
+                <Icon size={17} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--color-text)' }}>{t.title}</div>
+                <div style={{ fontSize: 12, color: 'var(--color-text-3)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.desc}</div>
+              </div>
+              <span style={{ fontSize: 12, color: 'var(--color-text-3)', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+                {t.size} <I.Download size={15} />
+              </span>
+            </a>
+          )
+        })}
+      </div>
+
       <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>Статьи и инструкции</h2>
       <ArticlesSection />
+      </div>
     </div>
   )
 }
