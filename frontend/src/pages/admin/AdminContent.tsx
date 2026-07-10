@@ -54,7 +54,11 @@ export function AdminContent() {
 
       {/* Tabs — горизонтальный скролл на узких экранах (ряд шире вьюпорта) */}
       <div style={{ position: 'relative', marginBottom: 20, borderBottom: '1px solid var(--color-border)' }}>
-        <div className="no-scrollbar" style={{ display: 'flex', gap: 4, flexWrap: 'nowrap', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+        <div className="no-scrollbar" style={{
+          display: 'flex', gap: 4, flexWrap: 'nowrap', overflowX: 'auto', WebkitOverflowScrolling: 'touch',
+          WebkitMaskImage: 'linear-gradient(90deg, #000 calc(100% - 24px), transparent)',
+          maskImage: 'linear-gradient(90deg, #000 calc(100% - 24px), transparent)',
+        }}>
           {([
             { id: 'materials', label: 'Аналитика дочек' },
             { id: 'projects', label: 'Карта проектов' },

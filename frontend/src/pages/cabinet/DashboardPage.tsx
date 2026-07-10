@@ -260,7 +260,11 @@ export function CabinetDashboard() {
             </div>
           </div>
 
-          <div style={isNarrow ? { display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 2, WebkitOverflowScrolling: 'touch' } : undefined}>
+          <div style={isNarrow ? {
+            display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 2, WebkitOverflowScrolling: 'touch',
+            WebkitMaskImage: 'linear-gradient(90deg, #000 calc(100% - 24px), transparent)',
+            maskImage: 'linear-gradient(90deg, #000 calc(100% - 24px), transparent)',
+          } : undefined}>
             {navItems.map(it => {
               const Ic = I[it.icon]
               const isActive = section === it.id
@@ -305,7 +309,11 @@ export function CabinetDashboard() {
           {section === 'apps' && (
             <div className="page-fade">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
-                <div style={{ display: 'flex', gap: 4, background: 'var(--color-surface-2)', padding: 3, borderRadius: 8, maxWidth: '100%', overflowX: 'auto' }}>
+                <div style={{
+                  display: 'flex', gap: 4, background: 'var(--color-surface-2)', padding: 3, borderRadius: 8, maxWidth: '100%', overflowX: 'auto',
+                  WebkitMaskImage: 'linear-gradient(90deg, #000 calc(100% - 24px), transparent)',
+                  maskImage: 'linear-gradient(90deg, #000 calc(100% - 24px), transparent)',
+                }}>
                   {filterTabs.map(t => (
                     <button key={t.id} onClick={() => setFilter(t.id)} style={{
                       padding: '6px 12px', height: 32, border: 'none', borderRadius: 6,

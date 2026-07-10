@@ -126,7 +126,7 @@ export function AssistantWidget() {
       window.removeEventListener('scroll', dismiss)
       window.removeEventListener('pointerdown', dismiss)
     }
-    const ms = isMobile ? 6000 : 8000
+    const ms = isMobile ? 4000 : 5000
     const timer = window.setTimeout(dismiss, ms)
     window.addEventListener('scroll', dismiss, { passive: true, once: true })
     window.addEventListener('pointerdown', dismiss, { passive: true, once: true })

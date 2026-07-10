@@ -383,7 +383,7 @@ export function ServiceDetailPage() {
       {/* Key params bar — «выжимка»: top edge carries the category accent */}
       <div className="card card-elevated" style={{
         display: 'grid',
-        gridTemplateColumns: isNarrow ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
+        gridTemplateColumns: isNarrow ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
         padding: 0, marginBottom: 32, overflow: 'hidden',
         borderTop: `3px solid ${categoryColor(service.category)}`,
       }}>
