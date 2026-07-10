@@ -15,7 +15,7 @@ const STEPS: Array<{ n: number; icon: keyof typeof I; title: string; tag: string
     n: 1,
     icon: 'Search',
     title: 'Подберите меру поддержки',
-    tag: '70+ программ',
+    tag: 'Каталог программ',
     style: { top: 0, right: 36, transform: 'rotate(-5deg)', zIndex: 1, opacity: 0.92 },
   },
   {

@@ -189,6 +189,22 @@ type News struct {
 	UpdatedAt   time.Time  `db:"updated_at"   json:"updated_at"`
 }
 
+// KnowledgeArticle — статья базы знаний раздела /knowledge (миграция 020).
+// Управляется из админ-кабинета; Body хранится в markdown-подобном формате.
+type KnowledgeArticle struct {
+	ID          string     `db:"id"           json:"id"`
+	Slug        string     `db:"slug"         json:"slug"`
+	Category    string     `db:"category"     json:"category"`
+	Title       string     `db:"title"        json:"title"`
+	Excerpt     *string    `db:"excerpt"      json:"excerpt,omitempty"`
+	Body        string     `db:"body"         json:"body"`
+	ReadMinutes *int       `db:"read_minutes" json:"read_minutes,omitempty"`
+	PublishedAt *time.Time `db:"published_at"  json:"published_at,omitempty"`
+	SortOrder   int        `db:"sort_order"   json:"sort_order"`
+	CreatedAt   time.Time  `db:"created_at"   json:"created_at"`
+	UpdatedAt   time.Time  `db:"updated_at"   json:"updated_at"`
+}
+
 // MapProject — проект на публичной карте /projects-map (миграция 014).
 // Lat/Lng nullable: если пусто, фронт берёт координаты центра региона.
 type MapProject struct {

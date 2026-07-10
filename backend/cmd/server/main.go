@@ -108,6 +108,7 @@ func main() {
 		// Client-path AI (public — juries view cards before login):
 		r.Post("/ai/explain-service", aiH.ExplainService) // SSE stream, plain-language explainer
 		r.Post("/ai/pick-service", aiH.PickService)       // screener → AI match
+		r.Post("/ai/chat", aiH.Chat)                      // сайтовый AI-консультант (виджет чата), SSE
 		r.With(authMw).Post("/ai/review-application", aiH.ReviewApplication)
 		// AI-инсайты для автора услуги (по накопленным данным) — admin+author.
 		r.With(authMw, adminAuthorMw).Post("/ai/service-insights", aiH.ServiceInsights)
@@ -182,6 +183,13 @@ func main() {
 			r.With(authMw, adminAuthorMw).Post("/", contentH.CreateNews)
 			r.With(authMw, adminAuthorMw).Put("/{id}", contentH.UpdateNews)
 			r.With(authMw, adminAuthorMw).Delete("/{id}", contentH.DeleteNews)
+		})
+		r.Route("/knowledge", func(r chi.Router) {
+			r.Get("/", contentH.ListKnowledge)
+			r.Get("/{slug}", contentH.GetKnowledge)
+			r.With(authMw, adminAuthorMw).Post("/", contentH.CreateKnowledge)
+			r.With(authMw, adminAuthorMw).Put("/{id}", contentH.UpdateKnowledge)
+			r.With(authMw, adminAuthorMw).Delete("/{id}", contentH.DeleteKnowledge)
 		})
 		// Holding stats: фиксированный набор цифр о холдинге (главная).
 		// GET public; правка value/label/asof — admin/author, без create/delete.

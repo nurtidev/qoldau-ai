@@ -14,7 +14,7 @@ export function Footer() {
               <div style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>Qoldau AI</div>
             </div>
             <p style={{ fontSize: 13, lineHeight: 1.6, color: '#A7BBAF', maxWidth: 320, margin: 0 }}>
-              Единое окно государственной поддержки бизнеса. Объединяем 70+ мер поддержки от институтов развития РК.
+              Единое окно государственной поддержки бизнеса. Объединяем меры поддержки институтов развития РК в одном окне.
             </p>
             <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
               {['T', 'F', 'I', 'Y'].map((l, i) => (
@@ -27,7 +27,7 @@ export function Footer() {
               ))}
             </div>
           </div>
-          {[
+          {([
             { title: 'Платформа', items: [
               { label: 'Все услуги', to: '/services' },
               { label: 'База знаний', to: '/knowledge' },
@@ -41,18 +41,22 @@ export function Footer() {
               { label: 'Партнёры', to: '/' },
             ]},
             { title: 'Контакты', items: [
-              { label: '+7 (7172) 79-70-70', to: null },
-              { label: 'support@qoldau.kz', to: null },
-              { label: 'г. Астана, пр. Мангилик Ел, 55А', to: null },
-              { label: 'Пн–Пт, 09:00–18:00', to: null },
+              { label: 'Единый контакт-центр: 1408', href: 'tel:1408' },
+              { label: 'support@qoldau.kz', href: 'mailto:support@qoldau.kz' },
+              { label: 'г. Астана, пр. Мангилик Ел, 55А' },
+              { label: 'Пн–Пт, 08:30–17:30' },
             ]},
-          ].map((col, i) => (
+          ] as { title: string; items: { label: string; to?: string | null; href?: string }[] }[]).map((col, i) => (
             <div key={i}>
               <div style={{ fontSize: 13, fontWeight: 600, color: '#fff', marginBottom: 14, letterSpacing: '0.02em' }}>{col.title}</div>
               <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {col.items.map((it, j) => (
                   <li key={j} style={{ fontSize: 13, color: '#A7BBAF' }}>
-                    {it.to ? <Link to={it.to} style={{ color: '#A7BBAF' }}>{it.label}</Link> : it.label}
+                    {it.to
+                      ? <Link to={it.to} style={{ color: '#A7BBAF' }}>{it.label}</Link>
+                      : it.href
+                        ? <a href={it.href} style={{ color: '#A7BBAF' }}>{it.label}</a>
+                        : it.label}
                   </li>
                 ))}
               </ul>

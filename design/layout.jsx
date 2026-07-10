@@ -94,7 +94,7 @@ const Header = ({ go, current, onLogin }) => {
           </div>
           <button className="btn btn-ghost btn-sm">
             <I.Phone size={16} />
-            <span>1414</span>
+            <span>1408</span>
           </button>
           <button className="btn btn-secondary btn-sm" onClick={onLogin}>
             <I.User size={16} /> Войти

@@ -151,6 +151,24 @@ h1, h2, h3, h4, .section-title { font-family: var(--ff-display); }
   box-shadow: var(--sh-xs);
 }
 
+/* Ненавязчивый подъём карточки при наведении (каталог аналитики). */
+.hover-lift { transition: transform 180ms var(--ease-out), box-shadow 180ms var(--ease-out); }
+@media (hover: hover) {
+  .hover-lift:hover { transform: translateY(-2px); box-shadow: var(--sh-md); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hover-lift { transition: none; }
+  .hover-lift:hover { transform: none; }
+}
+
+/* Двухколоночный герой каталога; на узких экранах — одна колонка. */
+.analytics-hero { display: grid; grid-template-columns: 1.05fr 0.95fr; }
+.analytics-hero-art { border-left: 1px solid var(--color-border); }
+@media (max-width: 760px) {
+  .analytics-hero { grid-template-columns: 1fr; }
+  .analytics-hero-art { border-left: none; border-top: 1px solid var(--color-border); height: 200px; min-height: 0; }
+}
+
 /* ===== Inputs ===== */
 .input, .textarea, .select {
   width: 100%;
@@ -292,6 +310,8 @@ h1, h2, h3, h4, .section-title { font-family: var(--ff-display); }
 }
 
 /* ===== Scrollbar ===== */
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #D8CFB4; border-radius: 10px; border: 2px solid var(--color-bg); }

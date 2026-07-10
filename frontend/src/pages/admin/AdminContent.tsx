@@ -10,6 +10,8 @@ import {
   type MapProjectInput,
   type NewsItem,
   type NewsInput,
+  type KnowledgeArticle,
+  type KnowledgeInput,
   type HoldingStat,
   type HoldingStatInput,
   type FaqItem,
@@ -18,6 +20,7 @@ import {
 import type { Service } from '@/types'
 import { useToast } from '@/components/Toast'
 import { I } from '@/components/icons'
+import { Portal } from '@/components/Portal'
 
 const REGIONS = [
   'Акмолинская', 'Алматинская', 'Атырауская', 'ВКО', 'Жамбылская', 'ЗКО',
@@ -38,7 +41,7 @@ function apiErr(err: unknown, fallback: string): string {
 }
 
 export function AdminContent() {
-  const [tab, setTab] = useState<'materials' | 'projects' | 'news' | 'holding' | 'faq'>('materials')
+  const [tab, setTab] = useState<'materials' | 'projects' | 'news' | 'knowledge' | 'holding' | 'faq'>('materials')
 
   return (
     <div className="page-fade" style={{ padding: '32px 40px' }}>
@@ -49,32 +52,40 @@ export function AdminContent() {
         </p>
       </div>
 
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '1px solid var(--color-border)' }}>
-        {([
-          { id: 'materials', label: 'Аналитика дочек' },
-          { id: 'projects', label: 'Карта проектов' },
-          { id: 'news', label: 'Новости' },
-          { id: 'holding', label: 'О холдинге' },
-          { id: 'faq', label: 'FAQ' },
-        ] as const).map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            style={{
-              padding: '10px 16px', border: 'none', background: 'transparent', cursor: 'pointer',
-              fontSize: 14, fontWeight: tab === t.id ? 600 : 500,
-              color: tab === t.id ? 'var(--color-primary)' : 'var(--color-text-2)',
-              borderBottom: tab === t.id ? '2px solid var(--color-primary)' : '2px solid transparent',
-              marginBottom: -1,
-            }}
-          >
-            {t.label}
-          </button>
-        ))}
+      {/* Tabs — горизонтальный скролл на узких экранах (ряд шире вьюпорта) */}
+      <div style={{ position: 'relative', marginBottom: 20, borderBottom: '1px solid var(--color-border)' }}>
+        <div className="no-scrollbar" style={{ display: 'flex', gap: 4, flexWrap: 'nowrap', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          {([
+            { id: 'materials', label: 'Аналитика дочек' },
+            { id: 'projects', label: 'Карта проектов' },
+            { id: 'news', label: 'Новости' },
+            { id: 'knowledge', label: 'База знаний' },
+            { id: 'holding', label: 'О холдинге' },
+            { id: 'faq', label: 'FAQ' },
+          ] as const).map((t) => (
+            <button
+              key={t.id}
+              onClick={(e) => { setTab(t.id); e.currentTarget.scrollIntoView({ inline: 'nearest', block: 'nearest' }) }}
+              style={{
+                padding: '10px 16px', border: 'none', background: 'transparent', cursor: 'pointer',
+                fontSize: 14, fontWeight: tab === t.id ? 600 : 500, whiteSpace: 'nowrap', flexShrink: 0,
+                color: tab === t.id ? 'var(--color-primary)' : 'var(--color-text-2)',
+                borderBottom: tab === t.id ? '2px solid var(--color-primary)' : '2px solid transparent',
+                marginBottom: -1,
+              }}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+        {/* Правый край-фейд — подсказка о прокрутке */}
+        <div aria-hidden style={{
+          position: 'absolute', top: 0, right: 0, bottom: 0, width: 28, pointerEvents: 'none',
+          background: 'linear-gradient(to right, transparent, var(--color-bg))',
+        }} />
       </div>
 
-      {tab === 'materials' ? <MaterialsTab /> : tab === 'projects' ? <ProjectsTab /> : tab === 'news' ? <NewsTab /> : tab === 'holding' ? <HoldingTab /> : <FaqTab />}
+      {tab === 'materials' ? <MaterialsTab /> : tab === 'projects' ? <ProjectsTab /> : tab === 'news' ? <NewsTab /> : tab === 'knowledge' ? <KnowledgeTab /> : tab === 'holding' ? <HoldingTab /> : <FaqTab />}
     </div>
   )
 }
@@ -200,6 +211,7 @@ function MaterialModal({ value, isEdit, saving, onClose, onSave }: {
   }
 
   return (
+    <Portal>
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 640, width: '100%' }}>
         <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -257,6 +269,7 @@ function MaterialModal({ value, isEdit, saving, onClose, onSave }: {
         </form>
       </div>
     </div>
+    </Portal>
   )
 }
 
@@ -384,6 +397,7 @@ function ProjectModal({ value, isEdit, saving, onClose, onSave }: {
   const numOrNull = (s: string): number | null => (s.trim() === '' ? null : Number(s))
 
   return (
+    <Portal>
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 680, width: '100%' }}>
         <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -450,6 +464,7 @@ function ProjectModal({ value, isEdit, saving, onClose, onSave }: {
         </form>
       </div>
     </div>
+    </Portal>
   )
 }
 
@@ -586,6 +601,7 @@ function NewsModal({ value, isEdit, saving, onClose, onSave }: {
   }
 
   return (
+    <Portal>
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 680, width: '100%' }}>
         <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -639,6 +655,177 @@ function NewsModal({ value, isEdit, saving, onClose, onSave }: {
         </form>
       </div>
     </div>
+    </Portal>
+  )
+}
+
+// ─── Knowledge base ─────────────────────────────────────────────────────────────
+
+const KNOWLEDGE_CATEGORIES = ['С чего начать', 'Подача заявки', 'Документы', 'ЭЦП и eGov', 'Финансирование']
+
+const emptyKnowledge: KnowledgeInput = {
+  slug: '', category: 'С чего начать', title: '', excerpt: '', body: '',
+  read_minutes: null, published_at: '', sort_order: 0,
+}
+
+function KnowledgeTab() {
+  const { push } = useToast()
+  const qc = useQueryClient()
+  const [editing, setEditing] = useState<{ id?: string; data: KnowledgeInput } | null>(null)
+
+  const { data: items = [], isLoading } = useQuery<KnowledgeArticle[]>({
+    queryKey: ['knowledge'],
+    queryFn: () => contentApi.knowledge().then((r) => r.data ?? []),
+  })
+
+  const saveMut = useMutation({
+    mutationFn: ({ id, data }: { id?: string; data: KnowledgeInput }) =>
+      id ? contentApi.updateKnowledge(id, data) : contentApi.createKnowledge(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['knowledge'] })
+      push('Статья сохранена', 'success')
+      setEditing(null)
+    },
+    onError: (e) => push(apiErr(e, 'Не удалось сохранить статью'), 'error'),
+  })
+
+  const delMut = useMutation({
+    mutationFn: (id: string) => contentApi.deleteKnowledge(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['knowledge'] })
+      push('Статья удалена', 'success')
+    },
+    onError: (e) => push(apiErr(e, 'Не удалось удалить статью'), 'error'),
+  })
+
+  return (
+    <>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <div style={{ fontSize: 13, color: 'var(--color-text-3)' }}>Всего: {items.length}</div>
+        <button className="btn btn-primary btn-sm" onClick={() => setEditing({ data: { ...emptyKnowledge } })}>
+          <I.Plus size={14} /> Добавить статью
+        </button>
+      </div>
+
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', minWidth: 820, borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: 'var(--color-surface-2)' }}>
+                {['#', 'Заголовок', 'Категория', 'Мин', 'Дата', ''].map((h, i) => (
+                  <th key={i} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: 'var(--color-text-3)', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                <tr><td colSpan={6} style={{ padding: 48, textAlign: 'center', color: 'var(--color-text-3)' }}>Загрузка…</td></tr>
+              ) : items.length === 0 ? (
+                <tr><td colSpan={6} style={{ padding: 48, textAlign: 'center', color: 'var(--color-text-3)' }}>Статей пока нет</td></tr>
+              ) : items.map((a) => (
+                <tr key={a.id} style={{ borderTop: '1px solid var(--color-border)' }}>
+                  <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--color-text-3)' }}>{a.sort_order}</td>
+                  <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 500, maxWidth: 360 }}>{a.title}</td>
+                  <td style={{ padding: '12px 16px' }}><span className="badge badge-gray">{a.category}</span></td>
+                  <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--color-text-2)', whiteSpace: 'nowrap' }}>{a.read_minutes ?? '—'}</td>
+                  <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--color-text-2)', whiteSpace: 'nowrap' }}>{fmtDate(a.published_at)}</td>
+                  <td style={{ padding: '12px 16px' }}>
+                    <RowActions
+                      onEdit={() => setEditing({
+                        id: a.id,
+                        data: {
+                          slug: a.slug, category: a.category, title: a.title, excerpt: a.excerpt ?? '',
+                          body: a.body, read_minutes: a.read_minutes ?? null,
+                          published_at: toDateInput(a.published_at), sort_order: a.sort_order,
+                        },
+                      })}
+                      onDelete={() => { if (window.confirm(`Удалить статью «${a.title}»?`)) delMut.mutate(a.id) }}
+                      disabled={delMut.isPending}
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {editing && (
+        <KnowledgeModal
+          value={editing.data}
+          isEdit={!!editing.id}
+          saving={saveMut.isPending}
+          onClose={() => setEditing(null)}
+          onSave={(data) => saveMut.mutate({ id: editing.id, data })}
+        />
+      )}
+    </>
+  )
+}
+
+function KnowledgeModal({ value, isEdit, saving, onClose, onSave }: {
+  value: KnowledgeInput
+  isEdit: boolean
+  saving: boolean
+  onClose: () => void
+  onSave: (data: KnowledgeInput) => void
+}) {
+  const [f, setF] = useState<KnowledgeInput>(value)
+  const set = <K extends keyof KnowledgeInput>(k: K, v: KnowledgeInput[K]) => setF((p) => ({ ...p, [k]: v }))
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!f.title.trim() || !f.slug.trim() || !f.body.trim()) return
+    onSave({ ...f, title: f.title.trim(), slug: f.slug.trim(), body: f.body.trim() })
+  }
+
+  return (
+    <Portal>
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 680, width: '100%' }}>
+        <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontSize: 17, fontWeight: 700 }}>{isEdit ? 'Редактировать статью' : 'Новая статья'}</div>
+          <button onClick={onClose} className="btn btn-ghost btn-sm" style={{ width: 32, padding: 0 }}><I.X size={16} /></button>
+        </div>
+        <form onSubmit={submit} style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 14, maxHeight: '72vh', overflowY: 'auto' }}>
+          <Field label="Заголовок *">
+            <input className="input" value={f.title} onChange={(e) => set('title', e.target.value)} required />
+          </Field>
+          <Row>
+            <Field label="Slug *" hint="латиницей, в URL: /knowledge/slug">
+              <input className="input" value={f.slug} onChange={(e) => set('slug', e.target.value)} placeholder="podacha-zayavki" required />
+            </Field>
+            <Field label="Категория">
+              <select className="select" value={f.category} onChange={(e) => set('category', e.target.value)}>
+                {KNOWLEDGE_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </Field>
+          </Row>
+          <Field label="Краткое описание (excerpt)" hint="1–2 предложения — показывается в списке и как лид">
+            <textarea className="textarea" value={f.excerpt} onChange={(e) => set('excerpt', e.target.value)} rows={2} />
+          </Field>
+          <Field label="Текст *" hint="markdown: ## подзаголовок, «- » список, **жирный**">
+            <textarea className="textarea" value={f.body} onChange={(e) => set('body', e.target.value)} rows={12} required />
+          </Field>
+          <Row>
+            <Field label="Время чтения, мин">
+              <input className="input" type="number" min={0} value={f.read_minutes ?? ''} onChange={(e) => set('read_minutes', e.target.value === '' ? null : Number(e.target.value))} />
+            </Field>
+            <Field label="Дата публикации">
+              <input className="input" type="date" value={f.published_at} onChange={(e) => set('published_at', e.target.value)} />
+            </Field>
+            <Field label="Порядок">
+              <input className="input" type="number" value={f.sort_order ?? 0} onChange={(e) => set('sort_order', Number(e.target.value))} />
+            </Field>
+          </Row>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={onClose}>Отмена</button>
+            <button type="submit" className="btn btn-primary btn-sm" disabled={saving}>{saving ? 'Сохранение…' : 'Сохранить'}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    </Portal>
   )
 }
 
@@ -735,6 +922,7 @@ function HoldingModal({ value, saving, onClose, onSave }: {
   }
 
   return (
+    <Portal>
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 560, width: '100%' }}>
         <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -761,6 +949,7 @@ function HoldingModal({ value, saving, onClose, onSave }: {
         </form>
       </div>
     </div>
+    </Portal>
   )
 }
 
@@ -908,6 +1097,7 @@ function FaqModal({ value, isEdit, saving, services, onClose, onSave }: {
   }
 
   return (
+    <Portal>
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 640, width: '100%' }}>
         <div style={{ padding: '18px 24px', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -937,6 +1127,7 @@ function FaqModal({ value, isEdit, saving, services, onClose, onSave }: {
         </form>
       </div>
     </div>
+    </Portal>
   )
 }
 

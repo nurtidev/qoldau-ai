@@ -11,6 +11,7 @@ import { PrescoreCard, type PrescoreCardResult } from '@/components/PrescoreCard
 import type { ISZLivestockEntry } from '@/api/client'
 import { SlaBadge } from '@/components/SlaBadge'
 import { ECPSignModal } from '@/components/ECPSignModal'
+import { useIsNarrow } from '@/hooks/useMediaQuery'
 import { getSlaInfo } from '@/lib/sla'
 import type { Application, Document, ApplicationStatus, Service } from '@/types'
 import { APPLICATION_STATUS_LABELS } from '@/types'
@@ -92,6 +93,7 @@ export function ApplicationDetailPage() {
   const { user }  = useAuthStore()
   const qc        = useQueryClient()
   const toast     = useToast()
+  const isNarrow  = useIsNarrow()
 
   const [stage2Open, setStage2Open]           = useState(false)
   const [stage2Submitting, setStage2Submitting] = useState(false)
@@ -192,7 +194,7 @@ export function ApplicationDetailPage() {
         <I.ArrowLeft size={14} /> Мои заявки
       </Link>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 24, alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : '1fr 320px', gap: 24, alignItems: 'start' }}>
         {/* Main */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           {/* Header card */}
@@ -428,7 +430,7 @@ export function ApplicationDetailPage() {
 
         {/* Sidebar — timeline */}
         <aside>
-          <div className="card" style={{ padding: 20, position: 'sticky', top: 80 }}>
+          <div className="card" style={{ padding: 20, position: isNarrow ? 'static' : 'sticky', top: 80 }}>
             <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text-3)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 20 }}>
               Статус обработки
             </div>

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { servicesApi, contentApi, type HoldingStat } from '@/api/client'
+import { servicesApi, contentApi, type HoldingStat, type NewsItem } from '@/api/client'
 import { I } from '@/components/icons'
 import { EligibilityScreener } from '@/components/EligibilityScreener'
 import { EcosystemCard } from '@/components/HeroVisual'
@@ -9,22 +9,22 @@ import { HomeCalculator } from '@/components/HomeCalculator'
 import { categoryColor, categorySoftBg } from '@/lib/categoryColor'
 import { BAITEREK_GROUP, PARTNER_ORGS, type OrgEntry } from '@/lib/orgs'
 import { MediaCover } from '@/components/MediaCover'
+import { NewsCover, fmtNewsDate } from '@/pages/NewsPage'
 import { useIsNarrow, useMediaQuery } from '@/hooks/useMediaQuery'
 import type { Service } from '@/types'
 
+// title строго совпадает с category услуги в БД — иначе ссылка
+// /services?category=… ничего не отфильтрует. Счётчики считаются из реального
+// каталога (см. dirCounts в HomePage), хардкод-цифр здесь нет.
 const DIRECTIONS = [
-  { id: 'fin',   title: 'Финансирование', desc: 'Кредиты и займы для МСБ и крупного бизнеса', icon: 'Coins',    count: 23 },
-  { id: 'guar',  title: 'Гарантии',       desc: 'Государственные гарантии по кредитам',       icon: 'Shield',   count: 9  },
-  { id: 'exp',   title: 'Экспорт',        desc: 'Поддержка экспортной деятельности',           icon: 'Plane',    count: 14 },
-  { id: 'inv',   title: 'Инвестиции',     desc: 'Привлечение инвестиций и размещение',         icon: 'Building', count: 11 },
-  { id: 'agr',   title: 'Агросектор',     desc: 'Поддержка сельхозпроизводителей',             icon: 'Sprout',   count: 16 },
-  { id: 'grant', title: 'Гранты',         desc: 'Безвозмездные гранты и субсидии',             icon: 'Sparkle',  count: 7  },
-]
-
-const NEWS = [
-  { id: 1, org: 'Даму',    color: '#007A40', date: '24 апр. 2026', title: '«Өрлеу»: льготное кредитование МСБ по программе Даму расширено до 7 млрд ₸', tag: 'Программы' },
-  { id: 2, org: 'АКК',     color: '#1F6B3B', date: '22 апр. 2026', title: '«Кең дала 2»: АКК снизила ставку на весенне-полевые работы до 5%',           tag: 'Агросектор' },
-  { id: 3, org: 'Astana Hub', color: '#6E4A24', date: '18 апр. 2026', title: '«Іскер аймақ»: запущена единая программа поддержки малого бизнеса',        tag: 'Гранты'    },
+  { id: 'fin',   title: 'Финансирование', desc: 'Кредиты и займы для МСБ и крупного бизнеса', icon: 'Coins' },
+  { id: 'guar',  title: 'Гарантии',       desc: 'Государственные гарантии по кредитам',       icon: 'Shield' },
+  { id: 'exp',   title: 'Экспорт',        desc: 'Поддержка экспортной деятельности',           icon: 'Plane' },
+  { id: 'inv',   title: 'Инвестиции',     desc: 'Привлечение инвестиций и размещение',         icon: 'Building' },
+  { id: 'agr',   title: 'Агросектор',     desc: 'Поддержка сельхозпроизводителей',             icon: 'Sprout' },
+  { id: 'lease', title: 'Лизинг',         desc: 'Лизинг техники, оборудования и транспорта',   icon: 'Grid' },
+  { id: 'subs',  title: 'Субсидии',       desc: 'Субсидирование ставки и части затрат',        icon: 'Tag' },
+  { id: 'grant', title: 'Гранты',         desc: 'Безвозмездные гранты на развитие',            icon: 'Sparkle' },
 ]
 
 /**
@@ -104,7 +104,7 @@ function HeroMedia() {
       {/* Нижний мягкий стык с секцией: медиа полностью растворяется в кремовом
           фоне секции (снизу секция = var(--color-bg)), стык поднят и усилен —
           сплошной кремовый до 34% высоты полосы, затем плавно в прозрачность,
-          чтобы не было видимого шва между фото/видео и калькулятором ниже. */}
+          чтобы не было видимого шва между фото/видео и скринером ниже. */}
       {anyVisible && (
         <div style={{
           position: 'absolute', insetInline: 0, bottom: 0, height: 160,
@@ -115,11 +115,13 @@ function HeroMedia() {
   )
 }
 
-function HeroSearch() {
+function HeroSearch({ count }: { count: number }) {
   const [q, setQ] = useState('')
   const [focused, setFocused] = useState(false)
   const navigate = useNavigate()
   const suggestions = ['Льготное финансирование', 'Гарантии по кредиту', 'Гранты для стартапов', 'Лизинг сельхозтехники']
+  // Честная цифра каталога; пока услуги не загрузились — консервативный фолбэк.
+  const catalogCount = count > 0 ? count : 17
 
   return (
     <section className="hero-gradient-bg" style={{
@@ -138,7 +140,7 @@ function HeroSearch() {
         <div style={{ minWidth: 0, maxWidth: 660 }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 12px', background: '#fff', border: '1px solid var(--color-border)', borderRadius: 999, fontSize: 12, color: 'var(--color-text-2)', marginBottom: 20 }}>
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--color-success)' }} />
-            70+ мер поддержки от 8 организаций группы «Байтерек» и партнёров
+            {catalogCount} мер поддержки — группа «Байтерек» и партнёры
           </div>
           <h1 style={{ fontSize: 'clamp(30px, 6vw, 52px)', lineHeight: 1.1, fontWeight: 700, letterSpacing: '-0.025em', margin: 0, maxWidth: 820, color: 'var(--color-text)' }}>
             Единое окно поддержки <br />
@@ -189,7 +191,7 @@ function HeroSearch() {
 
           {/* Stats — elevated glass tiles */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(132px, 1fr))', gap: 14, marginTop: 40, maxWidth: 640 }}>
-            {[{ v: '70+', l: 'мер поддержки' }, { v: '8', l: 'институтов группы «Байтерек»' }, { v: '24/7', l: 'подача заявок онлайн' }, { v: '1414', l: 'единый колл-центр' }].map((s, i) => (
+            {[{ v: String(catalogCount), l: 'мер поддержки в каталоге' }, { v: '9', l: 'организаций группы «Байтерек»' }, { v: '24/7', l: 'подача заявок онлайн' }, { v: '1408', l: 'единый колл-центр' }].map((s, i) => (
               <div key={i} className="glass" style={{
                 padding: '16px 18px',
                 boxShadow: 'var(--sh-lg), inset 0 1px 0 rgba(255,255,255,0.85)',
@@ -205,7 +207,7 @@ function HeroSearch() {
   )
 }
 
-function DirectionCard({ d }: { d: typeof DIRECTIONS[0] }) {
+function DirectionCard({ d, count }: { d: typeof DIRECTIONS[0]; count?: number }) {
   const Icon = I[d.icon as keyof typeof I]
   // Спокойное оживление: категорийный цвет в иконке/стрелке + лёгкий стеклянный
   // хайлайт сверху и подъём на hover. Секция остаётся светлой — не спорит с
@@ -229,7 +231,7 @@ function DirectionCard({ d }: { d: typeof DIRECTIONS[0] }) {
         <div style={{ fontSize: 13, color: 'var(--color-text-3)', lineHeight: 1.5 }}>{d.desc}</div>
       </div>
       <div style={{ position: 'relative', marginTop: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8 }}>
-        <span style={{ fontSize: 12, color: 'var(--color-text-3)' }}>{d.count} услуг</span>
+        <span style={{ fontSize: 12, color: 'var(--color-text-3)' }}>{count == null ? '—' : `${count} услуг`}</span>
         <I.ArrowRight size={16} style={{ color: accent }} />
       </div>
     </Link>
@@ -363,7 +365,7 @@ function HoldingSection() {
               }}
             >
               <I.Building size={15} />
-              7 дочерних организаций + КазАгроФинанс и ФРП в составе группы
+              7 дочерних организаций холдинга, а также ФРП и КазАгроФинанс в составе группы
             </a>
             <p style={{ fontSize: 12, color: 'var(--color-text-3)', marginTop: 22, marginBottom: 0 }}>
               По данным официальной отчётности и публикаций холдинга.
@@ -404,12 +406,45 @@ function HoldingSection() {
   )
 }
 
+function NewsTile({ item }: { item: NewsItem }) {
+  return (
+    <Link to={`/news/${item.id}`} className="card" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column', textDecoration: 'none', color: 'inherit', transition: 'box-shadow 140ms' }}
+      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = 'var(--sh-md)' }}
+      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = 'var(--sh-xs)' }}
+    >
+      <NewsCover item={item} aspect="16 / 10" />
+      <div style={{ padding: 20 }}>
+        <div style={{ fontSize: 12, color: 'var(--color-text-3)', marginBottom: 10 }}>{fmtNewsDate(item.published_at)}</div>
+        <div style={{ fontSize: 16, fontWeight: 600, lineHeight: 1.4 }}>{item.title}</div>
+      </div>
+    </Link>
+  )
+}
+
 export function HomePage() {
   const isNarrow = useIsNarrow()
   const { data: services = [] } = useQuery<Service[]>({
     queryKey: ['services'],
     queryFn: () => servicesApi.list().then((r) => r.data),
   })
+  const { data: newsData, isLoading: newsLoading } = useQuery<NewsItem[]>({
+    queryKey: ['news'],
+    queryFn: () => contentApi.news().then((r) => r.data ?? []),
+  })
+  const latestNews = useMemo(() => {
+    return [...(newsData ?? [])]
+      .sort((a, b) => (b.published_at ?? '').localeCompare(a.published_at ?? ''))
+      .slice(0, 3)
+  }, [newsData])
+
+  // Реальные счётчики услуг по направлениям (точный матч category → title карточки).
+  const dirCounts = useMemo(() => {
+    const map: Record<string, number> = {}
+    for (const s of services) {
+      if (s.category) map[s.category] = (map[s.category] ?? 0) + 1
+    }
+    return map
+  }, [services])
 
   // Реальные счётчики услуг по организациям (матч по подстроке org_name).
   const orgCounts = useMemo(() => {
@@ -423,7 +458,10 @@ export function HomePage() {
 
   return (
     <div className="page-fade">
-      <HeroSearch />
+      <HeroSearch count={services.length} />
+
+      {/* Подбор программы — первый шаг клиентского пути, сразу под hero */}
+      <EligibilityScreener services={services} />
 
       {/* Кредитный калькулятор + карточка «Экосистема Байтерек» */}
       <section className="container" style={{ paddingTop: 64 }}>
@@ -443,8 +481,6 @@ export function HomePage() {
         </div>
       </section>
 
-      <EligibilityScreener services={services} />
-
       {/* Directions */}
       <section className="container" style={{ paddingTop: 64 }}>
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 24 }}>
@@ -457,7 +493,7 @@ export function HomePage() {
           </Link>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
-          {DIRECTIONS.map((d) => <DirectionCard key={d.id} d={d} />)}
+          {DIRECTIONS.map((d) => <DirectionCard key={d.id} d={d} count={services.length ? dirCounts[d.title] ?? 0 : undefined} />)}
         </div>
       </section>
 
@@ -489,12 +525,12 @@ export function HomePage() {
         )}
       </section>
 
-      {/* Organisations: группа «Байтерек» (8 дочек) + партнёрские программы (4) */}
+      {/* Organisations: группа «Байтерек» (9 организаций) + партнёрские программы (4) */}
       <section id="baiterek-group" className="container" style={{ paddingTop: 72, scrollMarginTop: 80 }}>
         <div style={{ marginBottom: 24 }}>
           <div className="section-eyebrow" style={{ marginBottom: 6 }}>Группа «Байтерек»</div>
-          <h2 className="section-title">Дочерние организации холдинга</h2>
-          <p style={{ fontSize: 14, color: 'var(--color-text-3)', marginTop: 6 }}>8 институтов развития в составе холдинга «Байтерек»</p>
+          <h2 className="section-title">Организации группы</h2>
+          <p style={{ fontSize: 14, color: 'var(--color-text-3)', marginTop: 6 }}>9 организаций группы «Байтерек» — 7 дочерних холдинга, ФРП и КазАгроФинанс</p>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
           {BAITEREK_GROUP.map((o) => <OrgTile key={o.id} org={o} count={orgCounts[o.id]} size="lg" />)}
@@ -517,37 +553,26 @@ export function HomePage() {
       <HoldingSection />
 
       {/* News */}
-      <section className="container" style={{ paddingTop: 72 }}>
-        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 24 }}>
-          <div>
-            <div className="section-eyebrow" style={{ marginBottom: 6 }}>События</div>
-            <h2 className="section-title">Новости и анонсы</h2>
+      {(newsLoading || latestNews.length > 0) && (
+        <section className="container" style={{ paddingTop: 72 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 24 }}>
+            <div>
+              <div className="section-eyebrow" style={{ marginBottom: 6 }}>События</div>
+              <h2 className="section-title">Новости и анонсы</h2>
+            </div>
+            <Link to="/news" style={{ fontSize: 14, color: 'var(--color-accent-text)', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              Все новости <I.ArrowRight size={14} />
+            </Link>
           </div>
-          <Link to="/news" style={{ fontSize: 14, color: 'var(--color-accent-text)', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-            Все новости <I.ArrowRight size={14} />
-          </Link>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
-          {NEWS.map((n) => (
-            <article key={n.id} className="card" style={{ overflow: 'hidden', cursor: 'pointer', transition: 'box-shadow 140ms' }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = 'var(--sh-md)' }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = 'var(--sh-xs)' }}
-            >
-              <div style={{ height: 160, background: `repeating-linear-gradient(135deg, ${n.color}18 0 12px, ${n.color}08 12px 24px)`, borderBottom: '1px solid var(--color-border)', position: 'relative' }}>
-                <div style={{ position: 'absolute', top: 12, left: 12 }}>
-                  <span className="badge" style={{ background: '#fff', color: n.color }}>{n.org}</span>
-                </div>
-              </div>
-              <div style={{ padding: 20 }}>
-                <div style={{ display: 'flex', gap: 10, fontSize: 12, color: 'var(--color-text-3)', marginBottom: 10 }}>
-                  <span>{n.date}</span><span>·</span><span>{n.tag}</span>
-                </div>
-                <div style={{ fontSize: 16, fontWeight: 600, lineHeight: 1.4 }}>{n.title}</div>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
+            {newsLoading
+              ? [...Array(3)].map((_, i) => (
+                  <div key={i} className="skeleton" style={{ height: 240, borderRadius: 14 }} />
+                ))
+              : latestNews.map((n) => <NewsTile key={n.id} item={n} />)}
+          </div>
+        </section>
+      )}
 
       {/* eGov CTA */}
       <section className="container" style={{ paddingTop: 80 }}>

@@ -4,6 +4,7 @@ import { useAuthStore } from '@/store/auth'
 import { ToastProvider } from '@/components/Toast'
 import { Header, AdminTopBar, AdminSidebar } from '@/components/Layout/Header'
 import { Footer } from '@/components/Layout/Footer'
+import { AssistantWidget } from '@/components/AssistantWidget'
 import { useIsBelowLaptop } from '@/hooks/useMediaQuery'
 
 import { HomePage }             from '@/pages/HomePage'
@@ -22,6 +23,7 @@ import { AdminSettings }        from '@/pages/admin/AdminSettings'
 import { AdminAnalytics }       from '@/pages/admin/AdminAnalytics'
 import { LoginPage }            from '@/pages/LoginPage'
 import { KnowledgePage }        from '@/pages/KnowledgePage'
+import { KnowledgeArticlePage } from '@/pages/KnowledgeArticlePage'
 import { NewsPage }             from '@/pages/NewsPage'
 import { NewsDetailPage }       from '@/pages/NewsDetailPage'
 import { ContactsPage }         from '@/pages/ContactsPage'
@@ -107,6 +109,7 @@ function Shell() {
             <Route path="/services/:id" element={<ServiceDetailPage />} />
             <Route path="/login"      element={<LoginPage />} />
             <Route path="/knowledge"  element={<KnowledgePage />} />
+            <Route path="/knowledge/:slug" element={<KnowledgeArticlePage />} />
             <Route path="/projects-map" element={<ProjectsMapPage />} />
             <Route path="/analytics"  element={<AnalyticsCatalogPage />} />
             <Route path="/news"       element={<NewsPage />} />
@@ -122,6 +125,7 @@ function Shell() {
       )}
 
       {!isAdmin && <Footer />}
+      {!isAdmin && <AssistantWidget />}
     </div>
   )
 }

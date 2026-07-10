@@ -88,7 +88,7 @@ const HeroSearch = ({ go }) => {
             { v: '70+', l: 'мер поддержки' },
             { v: '6',   l: 'институтов развития' },
             { v: '24/7', l: 'подача заявок онлайн' },
-            { v: '1414', l: 'единый колл-центр' },
+            { v: '1408', l: 'единый колл-центр' },
           ].map((s, i) => (
             <div key={i}>
               <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--color-primary)', letterSpacing: '-0.01em' }}>{s.v}</div>

@@ -3,14 +3,14 @@ import { useQuery } from '@tanstack/react-query'
 import { contentApi } from '@/api/client'
 import { I } from '@/components/icons'
 import { MarkdownBody } from '@/components/MarkdownBody'
-import { NewsCover, fmtNewsDate } from '@/pages/NewsPage'
+import { fmtNewsDate } from '@/pages/NewsPage'
 
-export function NewsDetailPage() {
-  const { id = '' } = useParams()
+export function KnowledgeArticlePage() {
+  const { slug = '' } = useParams()
   const { data: item, isLoading, isError } = useQuery({
-    queryKey: ['news', id],
-    queryFn: () => contentApi.newsOne(id).then((r) => r.data),
-    enabled: !!id,
+    queryKey: ['knowledge', slug],
+    queryFn: () => contentApi.knowledgeOne(slug).then((r) => r.data),
+    enabled: !!slug,
   })
 
   return (
@@ -19,67 +19,52 @@ export function NewsDetailPage() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--color-text-3)', marginBottom: 22, flexWrap: 'wrap' }}>
         <Link to="/" style={{ color: 'var(--color-text-3)', textDecoration: 'none' }}>Главная</Link>
         <span>/</span>
-        <Link to="/news" style={{ color: 'var(--color-text-3)', textDecoration: 'none' }}>Новости</Link>
-        {item && (<><span>/</span><span style={{ color: 'var(--color-text-2)' }}>{item.rubric ?? 'Материал'}</span></>)}
+        <Link to="/knowledge" style={{ color: 'var(--color-text-3)', textDecoration: 'none' }}>База знаний</Link>
+        {item && (<><span>/</span><span style={{ color: 'var(--color-text-2)' }}>{item.category}</span></>)}
       </div>
 
       {isLoading ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div className="skeleton" style={{ height: 12, width: '30%' }} />
           <div className="skeleton" style={{ height: 30, width: '92%' }} />
-          <div className="skeleton" style={{ aspectRatio: '16 / 9', borderRadius: 14, marginTop: 8 }} />
           <div className="skeleton" style={{ height: 16, width: '100%', marginTop: 12 }} />
           <div className="skeleton" style={{ height: 16, width: '85%' }} />
           <div className="skeleton" style={{ height: 16, width: '90%' }} />
         </div>
       ) : isError || !item ? (
         <div className="card" style={{ padding: 48, textAlign: 'center' }}>
-          <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--color-text-2)' }}>Материал не найден</div>
-          <Link to="/news" className="btn btn-secondary btn-sm" style={{ marginTop: 16 }}>
-            <I.ArrowLeft size={14} /> Все новости
+          <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--color-text-2)' }}>Статья не найдена</div>
+          <Link to="/knowledge" className="btn btn-secondary btn-sm" style={{ marginTop: 16 }}>
+            <I.ArrowLeft size={14} /> В базу знаний
           </Link>
         </div>
       ) : (
         <article>
           {/* Мета */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: 'var(--color-text-3)', marginBottom: 14, flexWrap: 'wrap' }}>
-            <time>{fmtNewsDate(item.published_at)}</time>
-            {item.source && (<><span aria-hidden>·</span><span style={{ color: 'var(--color-accent)', fontWeight: 600 }}>{item.source}</span></>)}
+            <span className="badge badge-gray">{item.category}</span>
+            {item.published_at && <time>{fmtNewsDate(item.published_at)}</time>}
+            {item.read_minutes ? (<><span aria-hidden>·</span><span>{item.read_minutes} мин чтения</span></>) : null}
           </div>
 
           <h1 style={{ fontSize: 32, fontWeight: 700, lineHeight: 1.18, letterSpacing: '-0.02em', margin: '0 0 22px' }}>
             {item.title}
           </h1>
 
-          {/* Обложка */}
-          <div style={{ borderRadius: 14, overflow: 'hidden', marginBottom: 26 }}>
-            <NewsCover item={item} aspect="16 / 9" ornament />
-          </div>
-
           {/* Лид с левым бордером */}
-          {item.lead && (
+          {item.excerpt && (
             <p style={{ fontSize: 18, fontWeight: 500, lineHeight: 1.6, color: 'var(--color-text)', borderLeft: '4px solid var(--color-primary)', paddingLeft: 18, margin: '0 0 30px' }}>
-              {item.lead}
+              {item.excerpt}
             </p>
           )}
 
           {/* Тело */}
-          {item.body && <MarkdownBody text={item.body} />}
-
-          {/* Ссылка на источник */}
-          {item.source_url && (
-            <div style={{ marginTop: 28, paddingTop: 20, borderTop: '1px solid var(--color-border)', fontSize: 13, color: 'var(--color-text-3)' }}>
-              Источник:{' '}
-              <a href={item.source_url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary)', fontWeight: 600 }}>
-                {item.source ?? item.source_url}
-              </a>
-            </div>
-          )}
+          <MarkdownBody text={item.body} />
 
           {/* Назад */}
           <div style={{ marginTop: 34 }}>
-            <Link to="/news" className="btn btn-secondary btn-sm">
-              <I.ArrowLeft size={14} /> Все новости
+            <Link to="/knowledge" className="btn btn-secondary btn-sm">
+              <I.ArrowLeft size={14} /> В базу знаний
             </Link>
           </div>
         </article>

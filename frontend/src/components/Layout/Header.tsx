@@ -128,7 +128,7 @@ export function Header() {
               {/* Телефон поддержки — скрываем у авторизованного, чтобы шапка не переполнялась */}
               {!user && (
                 <button className="btn btn-ghost btn-sm">
-                  <I.Phone size={16} /><span>1414</span>
+                  <I.Phone size={16} /><span>1408</span>
                 </button>
               )}
 
@@ -283,8 +283,8 @@ export function Header() {
             <div style={{ marginTop: 'auto', padding: 16, borderTop: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', gap: 12, flexShrink: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
                 {langSwitcher}
-                <a href="tel:1414" className="btn btn-ghost btn-sm" style={{ textDecoration: 'none' }}>
-                  <I.Phone size={16} /><span>1414</span>
+                <a href="tel:1408" className="btn btn-ghost btn-sm" style={{ textDecoration: 'none' }}>
+                  <I.Phone size={16} /><span>1408</span>
                 </a>
               </div>
               {user ? (
@@ -649,7 +649,7 @@ export function AdminSidebar({ offCanvas = false, open = false, onClose }: {
         <aside style={{
           ...baseStyle,
           position: 'fixed', top: 0, left: 0, bottom: 0, zIndex: 61,
-          overflowY: 'auto', boxShadow: 'var(--sh-lg)',
+          height: '100dvh', overflowY: 'auto', boxShadow: 'var(--sh-lg)',
           transform: open ? 'translateX(0)' : 'translateX(-100%)',
           transition: 'transform 220ms ease',
         }}>

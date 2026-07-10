@@ -197,7 +197,7 @@ const ContactsPage = ({ go }) => {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 32 }}>
         {[
-          { icon: 'Phone', title: 'Колл-центр', value: '1414', sub: 'Бесплатно по Казахстану' },
+          { icon: 'Phone', title: 'Колл-центр', value: '1408', sub: 'Бесплатно по Казахстану' },
           { icon: 'Mail',  title: 'Email',      value: 'support@qolday.kz', sub: 'Ответим в течение 24 часов' },
         ].map((c, i) => {
           const Ic = I[c.icon];

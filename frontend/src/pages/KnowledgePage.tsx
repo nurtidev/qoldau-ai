@@ -1,23 +1,9 @@
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
+import { contentApi, type KnowledgeArticle } from '@/api/client'
 import { I } from '@/components/icons'
-
-const CATEGORIES = [
-  { id: 'start', title: 'С чего начать',    count: 8,  icon: 'Sparkle' },
-  { id: 'apply', title: 'Подача заявки',    count: 12, icon: 'Document' },
-  { id: 'docs',  title: 'Документы',        count: 9,  icon: 'Briefcase' },
-  { id: 'edit',  title: 'ЭЦП и eGov',      count: 6,  icon: 'Shield' },
-  { id: 'fin',   title: 'Финансирование',   count: 14, icon: 'Coins' },
-  { id: 'faq',   title: 'Часто задаваемые', count: 23, icon: 'Info' },
-]
-
-const ARTICLES = [
-  { title: 'Как зарегистрироваться на портале Qoldau AI',              read: '3 мин', date: '20 апр. 2026' },
-  { title: 'Пошаговая инструкция по подаче заявки на финансирование',  read: '7 мин', date: '18 апр. 2026' },
-  { title: 'Установка и настройка NCALayer для подписания ЭЦП',        read: '5 мин', date: '14 апр. 2026' },
-  { title: 'Какие документы нужны для подачи заявки на кредит',        read: '4 мин', date: '12 апр. 2026' },
-  { title: 'Различия между льготным и коммерческим финансированием',    read: '6 мин', date: '08 апр. 2026' },
-  { title: 'Что делать, если заявка отклонена',                        read: '4 мин', date: '02 апр. 2026' },
-]
+import { fmtNewsDate } from '@/pages/NewsPage'
 
 const TEMPLATES: { slug: string; title: string; desc: string; icon: keyof typeof I; size: string }[] = [
   { slug: 'business-plan-structure',    title: 'Структура бизнес-плана',                          desc: 'Разделы и содержание для подготовки бизнес-плана проекта', icon: 'Briefcase', size: '~4 КБ' },
@@ -304,42 +290,99 @@ export function KnowledgePage() {
         })}
       </div>
 
-      <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>Разделы базы знаний</h2>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12, marginBottom: 48 }}>
-        {CATEGORIES.map((cat) => {
-          const Icon = I[cat.icon as keyof typeof I]
+      <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>Статьи и инструкции</h2>
+      <ArticlesSection />
+    </div>
+  )
+}
+
+function ArticlesSection() {
+  const [active, setActive] = useState<string>('__all__')
+
+  const { data: articles = [], isLoading } = useQuery({
+    queryKey: ['knowledge'],
+    queryFn: () => contentApi.knowledge().then((r) => r.data ?? []),
+  })
+
+  // Счётчики категорий из реально загруженных статей (без фейковых цифр).
+  const chips = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const a of articles) counts.set(a.category, (counts.get(a.category) ?? 0) + 1)
+    const cats = [...counts.entries()].map(([id, count]) => ({ id, count }))
+    return [{ id: '__all__', count: articles.length }, ...cats]
+  }, [articles])
+
+  const visible = active === '__all__' ? articles : articles.filter((a) => a.category === active)
+
+  if (isLoading) {
+    return (
+      <div className="card" style={{ padding: 0 }}>
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} style={{ padding: '16px 20px', borderTop: i > 0 ? '1px solid var(--color-border)' : 'none' }}>
+            <div className="skeleton" style={{ height: 15, width: '70%' }} />
+            <div className="skeleton" style={{ height: 11, width: '35%', marginTop: 8 }} />
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  if (articles.length === 0) {
+    return (
+      <div className="card" style={{ padding: 48, textAlign: 'center', color: 'var(--color-text-3)' }}>
+        <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--color-text-2)' }}>Статей пока нет</div>
+        <div style={{ fontSize: 13, marginTop: 6 }}>Материалы появятся здесь, как только редакция их опубликует.</div>
+      </div>
+    )
+  }
+
+  return (
+    <>
+      {/* Фильтр-чипы категорий с реальными счётчиками */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+        {chips.map((c) => {
+          const isActive = active === c.id
           return (
-            <div key={cat.id} className="card" style={{ padding: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 14, transition: 'border-color 140ms' }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--color-accent)' }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--color-border)' }}
+            <button
+              key={c.id}
+              onClick={() => setActive(c.id)}
+              className="badge"
+              style={{
+                cursor: 'pointer', border: '1px solid', padding: '6px 12px', fontSize: 13, fontWeight: 500,
+                borderColor: isActive ? 'var(--color-primary)' : 'var(--color-border)',
+                background: isActive ? 'var(--color-primary)' : 'var(--color-surface)',
+                color: isActive ? '#fff' : 'var(--color-text-2)',
+                transition: 'all 140ms',
+              }}
             >
-              <div style={{ width: 40, height: 40, borderRadius: 8, background: 'var(--color-accent-soft)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-primary)', flexShrink: 0 }}>
-                {Icon && <Icon size={20} />}
-              </div>
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 600 }}>{cat.title}</div>
-                <div style={{ fontSize: 12, color: 'var(--color-text-3)', marginTop: 2 }}>{cat.count} статей</div>
-              </div>
-            </div>
+              {c.id === '__all__' ? 'Все' : c.id}
+              <span style={{ marginLeft: 6, opacity: 0.7 }}>{c.count}</span>
+            </button>
           )
         })}
       </div>
 
-      <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>Популярные статьи</h2>
       <div className="card" style={{ padding: 0 }}>
-        {ARTICLES.map((a, i) => (
-          <div key={i} style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 16, borderTop: i > 0 ? '1px solid var(--color-border)' : 'none', cursor: 'pointer' }}
+        {visible.map((a: KnowledgeArticle, i) => (
+          <Link
+            key={a.id}
+            to={`/knowledge/${a.slug}`}
+            style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 16, borderTop: i > 0 ? '1px solid var(--color-border)' : 'none', textDecoration: 'none', color: 'inherit', transition: 'background 140ms' }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--color-surface-2)' }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
           >
-            <div style={{ flex: 1 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--color-text)' }}>{a.title}</div>
-              <div style={{ fontSize: 12, color: 'var(--color-text-3)', marginTop: 4 }}>{a.date} · {a.read} чтения</div>
+              <div style={{ fontSize: 12, color: 'var(--color-text-3)', marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+                <span className="badge badge-gray">{a.category}</span>
+                {a.read_minutes ? <span>{a.read_minutes} мин</span> : null}
+                {a.published_at ? <span>· {fmtNewsDate(a.published_at)}</span> : null}
+              </div>
             </div>
-            <I.ChevronRight size={16} style={{ color: 'var(--color-text-4)', flexShrink: 0 }} />
-          </div>
+            <I.ChevronRight size={16} style={{ color: 'var(--color-text-3)', flexShrink: 0 }} />
+          </Link>
         ))}
       </div>
-    </div>
+    </>
   )
 }

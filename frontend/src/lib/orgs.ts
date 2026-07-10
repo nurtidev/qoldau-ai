@@ -2,15 +2,17 @@
  * Каноника организаций портала (ЕППБ ТЗ п.5) — единый источник истины вместо
  * россыпи локальных `ORGS`-массивов по страницам.
  *
- * Группа «Байтерек» — 8 дочерних организаций холдинга. `Astana Hub`,
+ * Группа «Байтерек» на портале = 7 прямых дочек холдинга (БРК, Даму, Отбасы,
+ * КЖК, ЭКА, АКК, QIC) + ФРП (дочка БРК) и КазАгроФинанс (дочка АКК) — итого
+ * 9 организаций группы. `Astana Hub`,
  * `QazIndustry`, `Kazakh Invest` и «Центры занятости (enbek.kz)» — это НЕ
  * дочки холдинга, а партнёрские программы других ведомств; путать их с
  * группой — фактическая ошибка, которую мгновенно замечает жюри (сотрудники
  * самого «Байтерека»).
  *
  * `dbMatch` — подстрока для матчинга РЕАЛЬНОГО `service.org_name` из БД
- * (см. backend/migrations/013_actualize_programs.up.sql). У БРК, Отбасы банка
- * и QIC своих услуг в MVP-каталоге пока нет — `dbMatch` не задан, значит:
+ * (см. backend/migrations/013_actualize_programs.up.sql). У БРК, Отбасы банка,
+ * КЖК и QIC своих услуг в MVP-каталоге пока нет — `dbMatch` не задан, значит:
  * не считаем услуги, не даём клик по плашке (см. HomePage.tsx OrgTile).
  */
 
@@ -36,8 +38,9 @@ export const BAITEREK_GROUP: OrgEntry[] = [
   { id: 'brk',    short: 'БРК',                full: 'Банк развития Казахстана',                    color: '#14532D', tag: 'БР', website: 'kdb.kz',           logo: '/img/orgs/brk.png' },
   { id: 'frp',    short: 'ФРП',                full: 'Фонд развития промышленности',                color: '#0A4F3A', tag: 'ФР', website: 'idfrk.kz',        dbMatch: 'Фонд развития промышленности', logo: '/img/orgs/frp.png' },
   { id: 'damu',   short: 'Даму',               full: 'Фонд развития предпринимательства «Даму»',     color: '#085E2C', tag: 'ДМ', website: 'damu.kz',          dbMatch: 'Даму', logo: '/img/orgs/damu.png' },
-  { id: 'otbasy', short: 'Отбасы банк',        full: 'Отбасы банк',                                  color: '#3A8B5C', tag: 'ОБ', website: 'homeportal.kz',    logo: '/img/orgs/otbasy.svg' },
-  { id: 'eca',    short: 'ЭКА KazakhExport',   full: 'Экспортное страховое агентство KazakhExport',  color: '#176D62', tag: 'ЭК', website: 'kazakhexport.kz', dbMatch: 'ЭКА KazakhExport', logo: '/img/orgs/eca.png' },
+  { id: 'otbasy', short: 'Отбасы банк',        full: 'Отбасы банк',                                  color: '#3A8B5C', tag: 'ОБ', website: 'otbasybank.kz',    logo: '/img/orgs/otbasy.svg' },
+  { id: 'kzhk',   short: 'Казахстанская жилищная компания', full: 'АО «Казахстанская жилищная компания»', color: '#2F6B4F', tag: 'КЖ', website: 'homeportal.kz' },
+  { id: 'eca',    short: 'ЭКА KazakhExport',   full: 'Экспортно-кредитное агентство Казахстана (KazakhExport)', color: '#176D62', tag: 'ЭК', website: 'kazakhexport.kz', dbMatch: 'ЭКА KazakhExport', logo: '/img/orgs/eca.png' },
   { id: 'kaf',    short: 'КазАгроФинанс',      full: 'КазАгроФинанс',                                color: '#257E43', tag: 'КФ', website: 'kaf.kz',           dbMatch: 'КазАгроФинанс', logo: '/img/orgs/kaf.png' },
   { id: 'akk',    short: 'АКК',                full: 'Аграрная кредитная корпорация',                color: '#1F6B3B', tag: 'АК', website: 'agrocredit.kz',    dbMatch: 'Аграрная кредитная корпорация', logo: '/img/orgs/akk.png' },
   { id: 'qic',    short: 'QIC',                full: 'Qazaqstan Investment Corporation',             color: '#0F6B4D', tag: 'QC', website: 'qic.kz',           logo: '/img/orgs/qic.svg' },

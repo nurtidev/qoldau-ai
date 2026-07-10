@@ -7,6 +7,7 @@ import { I } from '@/components/icons'
 import { useToast } from '@/components/Toast'
 import { SlaBadge } from '@/components/SlaBadge'
 import { useIsNarrow } from '@/hooks/useMediaQuery'
+import { Portal } from '@/components/Portal'
 import type { Application, Notification, ApplicationStatus, Document } from '@/types'
 import { APPLICATION_STATUS_LABELS } from '@/types'
 
@@ -54,6 +55,7 @@ function ApplicationDetailModal({ app, onClose }: { app: Application; onClose: (
   ]
 
   return (
+    <Portal>
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 600 }}>
         <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -148,6 +150,7 @@ function ApplicationDetailModal({ app, onClose }: { app: Application; onClose: (
         </div>
       </div>
     </div>
+    </Portal>
   )
 }
 

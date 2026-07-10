@@ -240,7 +240,7 @@ export function ServiceFaq({ serviceId }: { serviceId: string }) {
     <div style={{ marginTop: 40 }}>
       <h2 style={{ fontSize: 20, fontWeight: 700, marginTop: 0, marginBottom: 4 }}>Вопросы и ответы</h2>
       <p style={{ fontSize: 13, color: 'var(--color-text-3)', marginTop: 0, marginBottom: 16 }}>
-        Не нашли ответ — задайте вопрос оператору 1414.
+        Не нашли ответ — задайте вопрос оператору 1408.
       </p>
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
         {list.map((item, i) => (

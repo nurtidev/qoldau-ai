@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { mockApi, type ECPSignature } from '@/api/client'
 import { I } from '@/components/icons'
+import { Portal } from '@/components/Portal'
 
 interface Props {
   open: boolean
@@ -107,6 +108,7 @@ export function ECPSignModal({ open, iin, fullName, onSigned, onCancel }: Props)
   }
 
   return (
+    <Portal>
     <div
       onClick={phase === 'signing' ? undefined : handleCancel}
       style={{
@@ -268,5 +270,6 @@ export function ECPSignModal({ open, iin, fullName, onSigned, onCancel }: Props)
         )}
       </div>
     </div>
+    </Portal>
   )
 }

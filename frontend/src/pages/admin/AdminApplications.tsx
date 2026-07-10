@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { applicationsApi, usersApi } from '@/api/client'
 import { useToast } from '@/components/Toast'
 import { I } from '@/components/icons'
+import { Portal } from '@/components/Portal'
 import { PrescoreCard, type PrescoreCardResult } from '@/components/PrescoreCard'
 import { SlaBadge } from '@/components/SlaBadge'
 import { getSlaInfo } from '@/lib/sla'
@@ -374,6 +375,7 @@ export function AdminApplications() {
 
       {/* "Request additional data" modal */}
       {docsModal && (
+        <Portal>
         <div className="modal-backdrop" onClick={() => setDocsModal(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 460 }}>
             <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -411,6 +413,7 @@ export function AdminApplications() {
             </div>
           </div>
         </div>
+        </Portal>
       )}
     </div>
   )

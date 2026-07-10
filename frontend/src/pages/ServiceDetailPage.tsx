@@ -1,24 +1,17 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { servicesApi, funnelApi } from '@/api/client'
 import { useAuthStore } from '@/store/auth'
 import { I } from '@/components/icons'
 import { ServiceCalculator } from '@/components/ServiceCalculator'
-import { useIsNarrow } from '@/hooks/useMediaQuery'
+import { useIsNarrow, useMediaQuery } from '@/hooks/useMediaQuery'
 import { categoryColor } from '@/lib/categoryColor'
 import { CategoryArt } from '@/components/CategoryArt'
 import { ServiceExplainer } from '@/components/ServiceExplainer'
 import { ServiceFaq } from '@/components/ServiceFaq'
 import { isPartnerOrg } from '@/lib/orgs'
-import type { Service, FormField } from '@/types'
-
-const BASE_TABS = [
-  { id: 'desc', label: 'Описание' },
-  { id: 'cond', label: 'Условия' },
-  { id: 'docs', label: 'Документы' },
-  { id: 'how',  label: 'Как подать' },
-]
+import type { Service, FormField, EligibilityRule } from '@/types'
 
 type IconName = keyof typeof I
 
@@ -30,31 +23,6 @@ function formatAmount(v: number): string {
   if (v >= 1_000_000) return `${Math.round(v / 1_000_000)} млн ₸`
   if (v >= 1_000)     return `${Math.round(v / 1_000)} тыс ₸`
   return `${v} ₸`
-}
-
-function TabBar({ tabs, active, onChange }: {
-  tabs: { id: string; label: string }[]
-  active: string
-  onChange: (id: string) => void
-}) {
-  return (
-    <div style={{
-      display: 'flex', gap: 4, borderBottom: '1px solid var(--color-border)', marginBottom: 32,
-      overflowX: 'auto', WebkitOverflowScrolling: 'touch',
-    }}>
-      {tabs.map(t => (
-        <button key={t.id} onClick={() => onChange(t.id)} style={{
-          padding: '14px 16px', background: 'none', border: 'none', cursor: 'pointer',
-          fontSize: 14, fontWeight: 500, whiteSpace: 'nowrap', flexShrink: 0,
-          color: active === t.id ? 'var(--color-primary)' : 'var(--color-text-3)',
-          borderBottom: active === t.id ? '2px solid var(--color-primary)' : '2px solid transparent',
-          marginBottom: -1, transition: 'color 120ms',
-        }}>
-          {t.label}
-        </button>
-      ))}
-    </div>
-  )
 }
 
 const ORG_COLORS = ['var(--color-primary)', '#176D62', '#1F6B3B', '#705C33', '#0A4F3A', '#6E4A24']
@@ -168,12 +136,59 @@ function EmptySchemaInfo() {
   )
 }
 
+// Секция единого скролл-потока: общий id-якорь, отступ сверху под липкую
+// навигацию (scrollMarginTop) и вертикальный ритм между блоками.
+function Section({ id, title, children }: { id: string; title?: string; children: React.ReactNode }) {
+  return (
+    <section id={id} style={{ scrollMarginTop: 120, marginBottom: 48 }}>
+      {title && <h2 style={{ fontSize: 20, fontWeight: 700, marginTop: 0, marginBottom: 16 }}>{title}</h2>}
+      {children}
+    </section>
+  )
+}
+
+// Группа правил соответствия (eligibility_rules) — блокирующие/учитываемые.
+function RuleGroup({ title, rules, icon, iconColor }: {
+  title: string
+  rules: EligibilityRule[]
+  icon: IconName
+  iconColor: string
+}) {
+  const Ic = I[icon]
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <h3 style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text-2)', margin: '0 0 10px' }}>{title}</h3>
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        {rules.map((r, i) => (
+          <div key={r.id} style={{
+            padding: '14px 18px', display: 'flex', gap: 12, alignItems: 'flex-start',
+            borderBottom: i < rules.length - 1 ? '1px solid var(--color-border)' : 'none',
+          }}>
+            <Ic size={18} style={{ color: iconColor, flexShrink: 0, marginTop: 1 }} />
+            <div>
+              <div style={{ fontSize: 14, color: 'var(--color-text-2)', lineHeight: 1.5 }}>
+                {r.ok_label || r.title}
+              </div>
+              {r.detail && (
+                <div style={{ fontSize: 13, color: 'var(--color-text-3)', marginTop: 3, lineHeight: 1.5 }}>
+                  {r.detail}
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export function ServiceDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { user } = useAuthStore()
   const isNarrow = useIsNarrow()
-  const [tab, setTab]               = useState('desc')
+  const reduceMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
   const [bookmarked, setBookmarked] = useState(false)
+  const [activeSection, setActiveSection] = useState('overview')
 
   const { data: service, isLoading } = useQuery<Service>({
     queryKey: ['service', id],
@@ -203,17 +218,18 @@ export function ServiceDetailPage() {
   // calculated-поле, на витрине сам собой появляется интерактивный виджет.
   const hasCalculator = useMemo(() => allFields.some(f => f.type === 'calculated'), [allFields])
 
-  const tabs = useMemo(() => {
-    if (!hasCalculator) return BASE_TABS
-    const withCalc = [...BASE_TABS]
-    withCalc.splice(2, 0, { id: 'calc', label: 'Калькулятор' })
-    return withCalc
+  // Пункты якорной навигации — калькулятор появляется только при наличии формул.
+  const navItems = useMemo(() => {
+    const items = [
+      { id: 'overview',     label: 'Обзор' },
+      { id: 'requirements', label: 'Требования' },
+      { id: 'documents',    label: 'Документы' },
+    ]
+    if (hasCalculator) items.push({ id: 'calculator', label: 'Калькулятор' })
+    items.push({ id: 'how', label: 'Как подать' })
+    items.push({ id: 'faq', label: 'Вопросы' })
+    return items
   }, [hasCalculator])
-
-  // Если переключились на услугу без калькулятора, находясь на его вкладке — вернёмся к описанию.
-  useEffect(() => {
-    if (tab === 'calc' && !hasCalculator) setTab('desc')
-  }, [tab, hasCalculator])
 
   const benefits = useMemo(() => {
     const b: string[] = ['Онлайн-подача заявки']
@@ -224,12 +240,48 @@ export function ServiceDetailPage() {
     return b
   }, [allFields, service])
 
-  const requirements = useMemo(() => {
+  // Эвристический fallback критериев участия: select/radio-поля первого шага.
+  // Используется только когда у услуги нет размеченных eligibility_rules.
+  const criteria = useMemo(() => {
     if (!service?.form_schema?.steps?.length) return []
     return service.form_schema.steps[0].fields
       .filter(f => (f.type === 'select' || f.type === 'radio') && f.options?.length)
       .map(f => `${f.label}: ${f.options!.join(', ')}`)
   }, [service])
+
+  // Scrollspy: подсвечиваем активный пункт навигации по секции под липкой панелью.
+  // rootMargin сдвигает «активную линию» ниже шапки+навигации (~120px сверху).
+  useEffect(() => {
+    if (!service) return
+    const ids = navItems.map(n => n.id)
+    const els = ids
+      .map(id => document.getElementById(id))
+      .filter((el): el is HTMLElement => !!el)
+    if (els.length === 0) return
+
+    const visible = new Set<string>()
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(e => {
+          if (e.isIntersecting) visible.add(e.target.id)
+          else visible.delete(e.target.id)
+        })
+        // Активна самая верхняя видимая секция в порядке документа.
+        const first = ids.find(id => visible.has(id))
+        if (first) setActiveSection(first)
+      },
+      { rootMargin: '-140px 0px -55% 0px', threshold: 0 }
+    )
+    els.forEach(el => observer.observe(el))
+    return () => observer.disconnect()
+  }, [navItems, service])
+
+  const scrollToSection = (targetId: string) => {
+    const el = document.getElementById(targetId)
+    if (!el) return
+    setActiveSection(targetId)
+    el.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
+  }
 
   if (isLoading) {
     return (
@@ -275,6 +327,11 @@ export function ServiceDetailPage() {
     : []
 
   const formSteps = hasSteps ? service.form_schema.steps : []
+
+  // Правила соответствия из конструктора: блокирующие vs учитываемые при рассмотрении.
+  const rules = service.eligibility_rules?.rules ?? []
+  const blockingRules = rules.filter(r => r.level === 'blocking')
+  const softRules = rules.filter(r => r.level !== 'blocking')
 
   return (
     <div className="container page-fade" style={{ paddingTop: 24, paddingBottom: 40 }}>
@@ -323,7 +380,7 @@ export function ServiceDetailPage() {
         </div>
       </div>
 
-      {/* Key params bar — top edge carries the category accent */}
+      {/* Key params bar — «выжимка»: top edge carries the category accent */}
       <div className="card card-elevated" style={{
         display: 'grid',
         gridTemplateColumns: isNarrow ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
@@ -349,8 +406,11 @@ export function ServiceDetailPage() {
                 <Ic size={18} />
               </div>
               <div>
-                <div style={{ fontSize: 12, color: 'var(--color-text-3)', marginBottom: 2 }}>{k.l}</div>
-                <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--color-text)', letterSpacing: '-0.01em' }}>{k.v}</div>
+                <div style={{
+                  fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em',
+                  color: 'var(--color-text-3)', marginBottom: 3,
+                }}>{k.l}</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-primary)', letterSpacing: '-0.01em' }}>{k.v}</div>
               </div>
             </div>
           )
@@ -360,89 +420,120 @@ export function ServiceDetailPage() {
       {/* Two-column layout */}
       <div className="two-col-mobile-stack" style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 32 }}>
         <main>
-          <TabBar tabs={tabs} active={tab} onChange={setTab} />
+          {/* Липкая якорная навигация — заменяет прежние вкладки */}
+          <nav className="svc-anchor-nav" style={{
+            position: 'sticky', top: 64, zIndex: 40,
+            display: 'flex', gap: 4, marginBottom: 32,
+            padding: '10px 0',
+            background: 'var(--color-bg)',
+            borderBottom: '1px solid var(--color-border)',
+            overflowX: 'auto', WebkitOverflowScrolling: 'touch',
+          }}>
+            {navItems.map(item => {
+              const active = activeSection === item.id
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => scrollToSection(item.id)}
+                  style={{
+                    padding: '7px 14px', borderRadius: 999, border: 'none', cursor: 'pointer',
+                    fontSize: 14, fontWeight: active ? 600 : 500, whiteSpace: 'nowrap', flexShrink: 0,
+                    background: active ? 'var(--color-primary-soft)' : 'transparent',
+                    color: active ? 'var(--color-primary)' : 'var(--color-text-3)',
+                    transition: reduceMotion ? 'none' : 'background 120ms, color 120ms',
+                  }}
+                >
+                  {item.label}
+                </button>
+              )
+            })}
+          </nav>
 
-          {/* Описание */}
-          {tab === 'desc' && (
-            <div className="page-fade">
-              <h2 style={{ fontSize: 20, fontWeight: 700, marginTop: 0, marginBottom: 12 }}>О программе</h2>
-              <p style={{ fontSize: 15, lineHeight: 1.7, color: 'var(--color-text-2)', marginTop: 0 }}>
-                {service.description ||
-                  'Программа направлена на поддержку субъектов малого и среднего предпринимательства Республики Казахстан, реализующих проекты в приоритетных секторах экономики. Финансирование предоставляется на расширение деятельности, пополнение оборотных средств и приобретение основных средств.'}
-              </p>
+          {/* Обзор */}
+          <Section id="overview" title="О программе">
+            <p style={{ fontSize: 15, lineHeight: 1.7, color: 'var(--color-text-2)', marginTop: 0 }}>
+              {service.description ||
+                'Программа направлена на поддержку субъектов малого и среднего предпринимательства Республики Казахстан, реализующих проекты в приоритетных секторах экономики. Финансирование предоставляется на расширение деятельности, пополнение оборотных средств и приобретение основных средств.'}
+            </p>
 
-              <div style={{
-                background: 'var(--color-info-soft)', border: '1px solid #BAE6FD',
-                borderRadius: 10, padding: '14px 18px', display: 'flex', gap: 12,
-                marginTop: 24, marginBottom: 32,
-              }}>
-                <I.Info size={20} style={{ color: 'var(--color-info)', flexShrink: 0, marginTop: 1 }} />
-                <div style={{ fontSize: 14, color: '#0C4A6E', lineHeight: 1.55 }}>
-                  Заявки принимаются круглосуточно. Решение по заявке принимается в течение 10 рабочих дней с момента подачи полного пакета документов.
+            {/* «Важно знать» — мягкая тонированная плашка без левой полосы */}
+            <div style={{
+              display: 'flex', gap: 12, background: 'var(--color-info-soft)',
+              borderRadius: 12, padding: '14px 18px', marginTop: 20, marginBottom: 28,
+            }}>
+              <I.Info size={20} style={{ color: 'var(--color-info)', flexShrink: 0, marginTop: 1 }} />
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--color-text)', marginBottom: 2 }}>Важно знать</div>
+                <div style={{ fontSize: 14, color: 'var(--color-text-2)', lineHeight: 1.55 }}>
+                  Заявки принимаются круглосуточно. Решение принимается в течение 10 рабочих дней с момента подачи полного пакета документов.
                 </div>
               </div>
+            </div>
 
-              <h3 style={{ fontSize: 16, fontWeight: 600, marginTop: 0, marginBottom: 16 }}>Ключевые преимущества</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginBottom: 32 }}>
-                {benefits.map((b, i) => (
-                  <div key={i} style={{ display: 'flex', gap: 10, padding: '12px 14px', background: 'var(--color-surface-2)', borderRadius: 8 }}>
-                    <I.Check size={18} style={{ color: 'var(--color-success)', flexShrink: 0, marginTop: 1 }} strokeWidth={2.5} />
-                    <span style={{ fontSize: 14, color: 'var(--color-text-2)', lineHeight: 1.45 }}>{b}</span>
+            <h3 style={{ fontSize: 16, fontWeight: 600, marginTop: 0, marginBottom: 16 }}>Ключевые преимущества</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginBottom: 28 }}>
+              {benefits.map((b, i) => (
+                <div key={i} style={{ display: 'flex', gap: 10, padding: '12px 14px', background: 'var(--color-surface-2)', borderRadius: 8 }}>
+                  <I.Check size={18} style={{ color: 'var(--color-success)', flexShrink: 0, marginTop: 1 }} strokeWidth={2.5} />
+                  <span style={{ fontSize: 14, color: 'var(--color-text-2)', lineHeight: 1.45 }}>{b}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* AI-объяснение «простыми словами» — на видном месте в конце обзора */}
+            <ServiceExplainer key={service.id} serviceId={service.id} />
+          </Section>
+
+          {/* Требования к заёмщику */}
+          <Section id="requirements" title="Требования к заёмщику">
+            {rules.length > 0 ? (
+              <>
+                {blockingRules.length > 0 && (
+                  <RuleGroup
+                    title="Обязательные условия"
+                    rules={blockingRules}
+                    icon="CheckCircle"
+                    iconColor="var(--color-success)"
+                  />
+                )}
+                {softRules.length > 0 && (
+                  <RuleGroup
+                    title="Учитывается при рассмотрении"
+                    rules={softRules}
+                    icon="Info"
+                    iconColor="var(--color-warning)"
+                  />
+                )}
+              </>
+            ) : criteria.length > 0 ? (
+              // Fallback: эвристические критерии участия из полей формы.
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {criteria.map((c, i) => (
+                  <div key={i} className="card" style={{ padding: '14px 18px', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                    <div style={{
+                      width: 22, height: 22, borderRadius: '50%',
+                      background: 'var(--color-success-soft)', color: 'var(--color-success)',
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                    }}>
+                      <I.Check size={13} strokeWidth={3} />
+                    </div>
+                    <span style={{ fontSize: 14, color: 'var(--color-text-2)', lineHeight: 1.5, paddingTop: 1 }}>{c}</span>
                   </div>
                 ))}
               </div>
-            </div>
-          )}
+            ) : (
+              <EmptySchemaInfo />
+            )}
+          </Section>
 
-          {/* Условия */}
-          {tab === 'cond' && (
-            <div className="page-fade">
-              <ServiceExplainer key={service.id} serviceId={service.id} />
-              <h2 style={{ fontSize: 20, fontWeight: 700, marginTop: 0, marginBottom: 16 }}>Критерии участия</h2>
-              {requirements.length === 0 ? (
-                <EmptySchemaInfo />
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 32 }}>
-                  {requirements.map((r, i) => (
-                    <div key={i} className="card" style={{ padding: '14px 18px', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                      <div style={{
-                        width: 22, height: 22, borderRadius: '50%',
-                        background: 'var(--color-success-soft)', color: 'var(--color-success)',
-                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                      }}>
-                        <I.Check size={13} strokeWidth={3} />
-                      </div>
-                      <span style={{ fontSize: 14, color: 'var(--color-text-2)', lineHeight: 1.5, paddingTop: 1 }}>{r}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Вопросы и ответы — Kaspi-паттерн, рядом с требованиями */}
-              <ServiceFaq key={service.id} serviceId={service.id} />
-            </div>
-          )}
-
-          {/* Калькулятор — авто-собран из calculated-полей конструктора */}
-          {tab === 'calc' && hasCalculator && (
-            <div className="page-fade">
-              <h2 style={{ fontSize: 20, fontWeight: 700, marginTop: 0, marginBottom: 8 }}>Калькулятор</h2>
-              <p style={{ fontSize: 13, color: 'var(--color-text-3)', marginTop: 0, marginBottom: 20, lineHeight: 1.5 }}>
-                Расчёт формируется автоматически из конструктора формы.
-              </p>
-              <div style={{ marginBottom: 32 }}>
-                <ServiceCalculator key={service.id} schema={service.form_schema} />
+          {/* Пакет документов — нумерованный чек-лист */}
+          <Section id="documents" title="Пакет документов">
+            {fileFields.length === 0 ? (
+              <div style={{ padding: '24px 0', color: 'var(--color-text-3)', fontSize: 14, lineHeight: 1.6 }}>
+                Для этой программы документы загружаются после одобрения заявки.
               </div>
-            </div>
-          )}
-
-          {/* Документы — динамически из form_schema */}
-          {tab === 'docs' && (
-            <div className="page-fade">
-              <h2 style={{ fontSize: 20, fontWeight: 700, marginTop: 0, marginBottom: 16 }}>Необходимые документы</h2>
-              {fileFields.length === 0 ? (
-                <EmptySchemaInfo />
-              ) : (
+            ) : (
+              <>
                 <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
                   {fileFields.map((f, i) => {
                     const badge = fileTypeBadge(f.accept)
@@ -452,56 +543,76 @@ export function ServiceDetailPage() {
                         borderBottom: i < fileFields.length - 1 ? '1px solid var(--color-border)' : 'none',
                       }}>
                         <div style={{
-                          width: 40, height: 48, borderRadius: 6,
-                          background: badge.bg, color: badge.color,
+                          width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
+                          background: 'var(--color-primary-tint)', color: 'var(--color-primary)',
                           display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: 10, fontWeight: 700,
-                        }}>{badge.label}</div>
-                        <div style={{ flex: 1 }}>
+                          fontSize: 13, fontWeight: 700,
+                        }}>{i + 1}</div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--color-text)' }}>{f.label}</div>
                           {f.accept && (
                             <div style={{ fontSize: 12, color: 'var(--color-text-3)', marginTop: 2 }}>{f.accept}</div>
                           )}
                         </div>
+                        <span style={{
+                          padding: '3px 8px', borderRadius: 6, flexShrink: 0,
+                          background: badge.bg, color: badge.color, fontSize: 10, fontWeight: 700,
+                        }}>{badge.label}</span>
                       </div>
                     )
                   })}
                 </div>
-              )}
-            </div>
+                <div style={{ display: 'flex', gap: 8, marginTop: 12, fontSize: 13, color: 'var(--color-text-3)', lineHeight: 1.5 }}>
+                  <I.Info size={15} style={{ flexShrink: 0, marginTop: 1 }} />
+                  <span>Точный перечень фиксируется на шаге подачи заявки — форма подскажет каждому файлу своё место.</span>
+                </div>
+              </>
+            )}
+          </Section>
+
+          {/* Калькулятор — авто-собран из calculated-полей конструктора */}
+          {hasCalculator && (
+            <Section id="calculator" title="Рассчитайте условия">
+              <p style={{ fontSize: 13, color: 'var(--color-text-3)', marginTop: -6, marginBottom: 20, lineHeight: 1.5 }}>
+                Расчёт формируется автоматически из конструктора формы.
+              </p>
+              <ServiceCalculator key={service.id} schema={service.form_schema} />
+            </Section>
           )}
 
           {/* Как подать — шаги из form_schema */}
-          {tab === 'how' && (
-            <div className="page-fade">
-              <h2 style={{ fontSize: 20, fontWeight: 700, marginTop: 0, marginBottom: 24 }}>Процесс подачи заявки</h2>
-              {formSteps.length === 0 ? (
-                <EmptySchemaInfo />
-              ) : (
-                <div style={{ position: 'relative' }}>
-                  <div style={{ position: 'absolute', left: 18, top: 18, bottom: 18, width: 2, background: 'var(--color-border)' }} />
-                  {formSteps.map((st, i) => (
-                    <div key={st.id} style={{ display: 'flex', gap: 16, marginBottom: 20, position: 'relative' }}>
-                      <div style={{
-                        width: 38, height: 38, borderRadius: '50%',
-                        background: i === 0 ? 'var(--color-primary)' : '#fff',
-                        color:      i === 0 ? '#fff' : 'var(--color-text-2)',
-                        border: '2px solid ' + (i === 0 ? 'var(--color-primary)' : 'var(--color-border-strong)'),
-                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 14, fontWeight: 700, flexShrink: 0, zIndex: 1,
-                      }}>{i + 1}</div>
-                      <div className="card" style={{ flex: 1, padding: '14px 18px' }}>
-                        <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--color-text)' }}>{st.title}</div>
-                        <div style={{ fontSize: 13, color: 'var(--color-text-3)', marginTop: 4 }}>
-                          {st.fields.length} {st.fields.length === 1 ? 'поле' : st.fields.length < 5 ? 'поля' : 'полей'}
-                        </div>
+          <Section id="how" title="Как подать заявку">
+            {formSteps.length === 0 ? (
+              <EmptySchemaInfo />
+            ) : (
+              <div style={{ position: 'relative' }}>
+                <div style={{ position: 'absolute', left: 18, top: 18, bottom: 18, width: 2, background: 'var(--color-border)' }} />
+                {formSteps.map((st, i) => (
+                  <div key={st.id} style={{ display: 'flex', gap: 16, marginBottom: 20, position: 'relative' }}>
+                    <div style={{
+                      width: 38, height: 38, borderRadius: '50%',
+                      background: i === 0 ? 'var(--color-primary)' : '#fff',
+                      color:      i === 0 ? '#fff' : 'var(--color-text-2)',
+                      border: '2px solid ' + (i === 0 ? 'var(--color-primary)' : 'var(--color-border-strong)'),
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 14, fontWeight: 700, flexShrink: 0, zIndex: 1,
+                    }}>{i + 1}</div>
+                    <div className="card" style={{ flex: 1, padding: '14px 18px' }}>
+                      <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--color-text)' }}>{st.title}</div>
+                      <div style={{ fontSize: 13, color: 'var(--color-text-3)', marginTop: 4 }}>
+                        {st.fields.length} {st.fields.length === 1 ? 'поле' : st.fields.length < 5 ? 'поля' : 'полей'}
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </Section>
+
+          {/* Вопросы и ответы — Kaspi-паттерн (компонент рендерит свой заголовок) */}
+          <section id="faq" style={{ scrollMarginTop: 120 }}>
+            <ServiceFaq key={service.id} serviceId={service.id} />
+          </section>
 
         </main>
 
@@ -525,12 +636,15 @@ export function ServiceDetailPage() {
                     </div>
                   </div>
                 </div>
+                {/* Блок общий для любой организации — показываем канонические
+                    контакты портала (единый контакт-центр), а не выдуманные
+                    номера конкретной дочки. */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 13, color: 'var(--color-text-2)' }}>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <I.Phone size={14} style={{ color: 'var(--color-text-3)' }} />+7 (7172) 79-70-70
+                    <I.Phone size={14} style={{ color: 'var(--color-text-3)' }} />1408 · единый контакт-центр
                   </div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <I.Mail size={14} style={{ color: 'var(--color-text-3)' }} />info@organization.kz
+                    <I.Mail size={14} style={{ color: 'var(--color-text-3)' }} />support@qoldau.kz
                   </div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
                     <I.MapPin size={14} style={{ color: 'var(--color-text-3)', marginTop: 2 }} />
@@ -564,6 +678,10 @@ export function ServiceDetailPage() {
           </div>
         </aside>
       </div>
+
+      {/* Скрыть скроллбар у горизонтальной якорной навигации на узких экранах */}
+      <style>{`.svc-anchor-nav { scrollbar-width: none; }
+.svc-anchor-nav::-webkit-scrollbar { display: none; }`}</style>
     </div>
   )
 }

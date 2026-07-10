@@ -280,6 +280,31 @@ export type NewsInput = {
   sort_order?: number
 }
 
+export interface KnowledgeArticle {
+  id: string
+  slug: string
+  category: string
+  title: string
+  excerpt?: string
+  body: string // markdown
+  read_minutes?: number
+  published_at?: string // ISO date
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
+export type KnowledgeInput = {
+  slug: string
+  category: string
+  title: string
+  excerpt?: string
+  body: string
+  read_minutes?: number | null
+  published_at?: string // 'YYYY-MM-DD'
+  sort_order?: number
+}
+
 export interface HoldingStat {
   id: string
   stat_key: string
@@ -318,6 +343,12 @@ export const contentApi = {
 
   holdingStats: () => api.get<HoldingStat[]>('/holding-stats'),
   updateHoldingStat: (id: string, data: HoldingStatInput) => api.put(`/holding-stats/${id}`, data),
+
+  knowledge: () => api.get<KnowledgeArticle[]>('/knowledge'),
+  knowledgeOne: (slug: string) => api.get<KnowledgeArticle>(`/knowledge/${slug}`),
+  createKnowledge: (data: KnowledgeInput) => api.post('/knowledge', data),
+  updateKnowledge: (id: string, data: KnowledgeInput) => api.put(`/knowledge/${id}`, data),
+  deleteKnowledge: (id: string) => api.delete(`/knowledge/${id}`),
 }
 
 // ─── Service FAQ ─────────────────────────────────────────────────────────────

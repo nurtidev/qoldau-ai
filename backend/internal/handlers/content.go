@@ -329,6 +329,94 @@ func (h *ContentHandler) DeleteNews(w http.ResponseWriter, r *http.Request) {
 		"news not found", "failed to delete news")
 }
 
+// ─── Knowledge base ────────────────────────────────────────────────────────────
+
+func (h *ContentHandler) ListKnowledge(w http.ResponseWriter, r *http.Request) {
+	items := make([]models.KnowledgeArticle, 0)
+	if err := h.db.Select(&items,
+		`SELECT * FROM knowledge_articles ORDER BY sort_order ASC, published_at DESC NULLS LAST, created_at DESC`); err != nil {
+		respondErr(w, http.StatusInternalServerError, "failed to fetch knowledge articles")
+		return
+	}
+	respond(w, http.StatusOK, items)
+}
+
+func (h *ContentHandler) GetKnowledge(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "slug")
+	var a models.KnowledgeArticle
+	if err := h.db.Get(&a, `SELECT * FROM knowledge_articles WHERE slug=$1`, slug); err != nil {
+		respondErr(w, http.StatusNotFound, "knowledge article not found")
+		return
+	}
+	respond(w, http.StatusOK, a)
+}
+
+type knowledgeReq struct {
+	Slug        string `json:"slug"`
+	Category    string `json:"category"`
+	Title       string `json:"title"`
+	Excerpt     string `json:"excerpt"`
+	Body        string `json:"body"`
+	ReadMinutes *int   `json:"read_minutes"`
+	PublishedAt string `json:"published_at"`
+	SortOrder   int    `json:"sort_order"`
+}
+
+func (h *ContentHandler) CreateKnowledge(w http.ResponseWriter, r *http.Request) {
+	var req knowledgeReq
+	if err := decode(r, &req); err != nil || req.Title == "" || req.Slug == "" || req.Category == "" || req.Body == "" {
+		respondErr(w, http.StatusBadRequest, "slug, category, title and body required")
+		return
+	}
+
+	var a models.KnowledgeArticle
+	err := h.db.QueryRowx(
+		`INSERT INTO knowledge_articles
+		   (slug, category, title, excerpt, body, read_minutes, published_at, sort_order)
+		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+		req.Slug, req.Category, req.Title, nullStr(req.Excerpt), req.Body,
+		req.ReadMinutes, nullStr(req.PublishedAt), req.SortOrder,
+	).StructScan(&a)
+	if err != nil {
+		respondErr(w, http.StatusInternalServerError, "failed to create knowledge article")
+		return
+	}
+	respond(w, http.StatusCreated, a)
+}
+
+func (h *ContentHandler) UpdateKnowledge(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	if !isUUID(id) {
+		respondErr(w, http.StatusNotFound, "knowledge article not found")
+		return
+	}
+	var req knowledgeReq
+	if err := decode(r, &req); err != nil || req.Title == "" || req.Slug == "" || req.Category == "" || req.Body == "" {
+		respondErr(w, http.StatusBadRequest, "slug, category, title and body required")
+		return
+	}
+
+	var a models.KnowledgeArticle
+	err := h.db.QueryRowx(
+		`UPDATE knowledge_articles SET
+		   slug=$1, category=$2, title=$3, excerpt=$4, body=$5,
+		   read_minutes=$6, published_at=$7, sort_order=$8, updated_at=NOW()
+		 WHERE id=$9 RETURNING *`,
+		req.Slug, req.Category, req.Title, nullStr(req.Excerpt), req.Body,
+		req.ReadMinutes, nullStr(req.PublishedAt), req.SortOrder, id,
+	).StructScan(&a)
+	if err != nil {
+		updateErr(w, err, "knowledge article not found", "failed to update knowledge article")
+		return
+	}
+	respond(w, http.StatusOK, a)
+}
+
+func (h *ContentHandler) DeleteKnowledge(w http.ResponseWriter, r *http.Request) {
+	h.deleteByID(w, "knowledge_articles", chi.URLParam(r, "id"),
+		"knowledge article not found", "failed to delete knowledge article")
+}
+
 // ─── Holding stats ─────────────────────────────────────────────────────────────
 
 func (h *ContentHandler) ListHoldingStats(w http.ResponseWriter, r *http.Request) {

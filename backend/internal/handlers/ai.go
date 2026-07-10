@@ -1004,3 +1004,195 @@ func (h *AIHandler) ReviewApplication(w http.ResponseWriter, r *http.Request) {
 		"issues":  issues,
 	})
 }
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Chat: сайтовый AI-консультант портала (плавающий виджет). Публичный, SSE.
+// Знает каталог опубликованных программ и ведёт диалог с предпринимателем.
+// ──────────────────────────────────────────────────────────────────────────────
+
+const chatSystemPromptHead = `Ты — AI-консультант единого портала поддержки бизнеса Qoldau (группа холдинга «Байтерек»).
+Отвечай кратко (2–5 предложений), дружелюбно, на языке вопроса (русский или казахский).
+Рекомендуя программу — называй её точно, как в каталоге, и давай ссылку вида /services/{id} в Markdown
+(например: [Название программы](/services/{id})). Не выдумывай программы, которых нет в каталоге.
+Если вопрос не о поддержке бизнеса или портале — вежливо скажи, что помогаешь по темам портала,
+и предложи единый контакт-центр 1408 (бесплатно, Пн–Пт 08:30–17:30).
+
+Каталог программ (JSON):
+`
+
+func (h *AIHandler) Chat(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Messages []claudeMessage `json:"messages"`
+	}
+	if err := decode(r, &req); err != nil {
+		respondErr(w, http.StatusBadRequest, "invalid request")
+		return
+	}
+
+	// Оставляем только последние 12 сообщений, отбрасываем пустые и обрезаем
+	// каждое до ~4000 символов (защита от разбухания контекста).
+	const maxMessages = 12
+	const maxContentLen = 4000
+	if len(req.Messages) > maxMessages {
+		req.Messages = req.Messages[len(req.Messages)-maxMessages:]
+	}
+	messages := make([]claudeMessage, 0, len(req.Messages))
+	for _, m := range req.Messages {
+		content := strings.TrimSpace(m.Content)
+		if content == "" {
+			continue
+		}
+		if len(content) > maxContentLen {
+			content = content[:maxContentLen]
+		}
+		role := m.Role
+		if role != "user" && role != "assistant" {
+			role = "user"
+		}
+		messages = append(messages, claudeMessage{Role: role, Content: content})
+	}
+	if len(messages) == 0 {
+		respondErr(w, http.StatusBadRequest, "empty messages")
+		return
+	}
+
+	// Каталог опубликованных программ — компактный (описание обрезаем до ~200 символов).
+	type catService struct {
+		ID          string  `db:"id" json:"id"`
+		Title       string  `db:"title" json:"title"`
+		Category    *string `db:"category" json:"category,omitempty"`
+		OrgName     *string `db:"org_name" json:"org_name,omitempty"`
+		Description *string `db:"description" json:"description,omitempty"`
+	}
+	var services []catService
+	err := h.db.Select(&services,
+		`SELECT id, title, category, org_name, description
+		 FROM services WHERE status = 'published' ORDER BY created_at DESC LIMIT 80`)
+	if err != nil {
+		respondErr(w, http.StatusInternalServerError, "failed to fetch services")
+		return
+	}
+	for i := range services {
+		if services[i].Description != nil {
+			d := strings.TrimSpace(*services[i].Description)
+			if len(d) > 200 {
+				d = d[:200]
+			}
+			services[i].Description = &d
+		}
+	}
+	catalogJSON, _ := json.Marshal(services)
+	system := chatSystemPromptHead + string(catalogJSON)
+
+	// SSE-заголовки (как в ExplainService/GenerateFormStream).
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("X-Accel-Buffering", "no")
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "streaming unsupported", http.StatusInternalServerError)
+		return
+	}
+
+	_, err = h.streamClaudeMessages(r.Context(), system, messages, 1000, func(delta string) {
+		chunk, _ := json.Marshal(map[string]string{"t": delta})
+		fmt.Fprintf(w, "data: %s\n\n", chunk)
+		flusher.Flush()
+	})
+	if err != nil {
+		errMsg, _ := json.Marshal(err.Error())
+		fmt.Fprintf(w, "data: {\"error\":%s}\n\n", errMsg)
+		flusher.Flush()
+		return
+	}
+	fmt.Fprintf(w, "data: {\"done\":true}\n\n")
+	flusher.Flush()
+}
+
+// streamClaudeMessages — как streamClaude, но принимает полную историю сообщений
+// (диалог), а не одно user-сообщение. Используется чат-консультантом.
+func (h *AIHandler) streamClaudeMessages(ctx context.Context, system string, messages []claudeMessage, maxTokens int, onDelta func(string)) (string, error) {
+	type streamPayload struct {
+		Model     string          `json:"model"`
+		MaxTokens int             `json:"max_tokens"`
+		System    string          `json:"system"`
+		Messages  []claudeMessage `json:"messages"`
+		Stream    bool            `json:"stream"`
+	}
+	payload := streamPayload{
+		Model:     anthropicModel,
+		MaxTokens: maxTokens,
+		System:    system,
+		Messages:  messages,
+		Stream:    true,
+	}
+	body, _ := json.Marshal(payload)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, anthropicURL, bytes.NewReader(body))
+	if err != nil {
+		return "", fmt.Errorf("request build failed")
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("x-api-key", h.apiKey)
+	req.Header.Set("anthropic-version", anthropicVersion)
+
+	resp, err := aiHTTPClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("claude api unreachable")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		errBody, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("claude error: %s", strings.TrimSpace(string(errBody)))
+	}
+
+	scanner := bufio.NewScanner(resp.Body)
+	scanner.Buffer(make([]byte, 512*1024), 512*1024)
+
+	var full strings.Builder
+	for scanner.Scan() {
+		select {
+		case <-ctx.Done():
+			return full.String(), ctx.Err()
+		default:
+		}
+		line := scanner.Text()
+		if !strings.HasPrefix(line, "data: ") {
+			continue
+		}
+		data := strings.TrimPrefix(line, "data: ")
+
+		var event struct {
+			Type  string `json:"type"`
+			Delta *struct {
+				Type string `json:"type"`
+				Text string `json:"text"`
+			} `json:"delta"`
+			Error *struct {
+				Message string `json:"message"`
+			} `json:"error"`
+		}
+		if err := json.Unmarshal([]byte(data), &event); err != nil {
+			continue
+		}
+		switch event.Type {
+		case "content_block_delta":
+			if event.Delta != nil && event.Delta.Type == "text_delta" {
+				full.WriteString(event.Delta.Text)
+				onDelta(event.Delta.Text)
+			}
+		case "message_stop":
+			return full.String(), nil
+		case "error":
+			if event.Error != nil {
+				return full.String(), fmt.Errorf("%s", event.Error.Message)
+			}
+			return full.String(), fmt.Errorf("stream error")
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return full.String(), err
+	}
+	return full.String(), nil
+}
