@@ -68,7 +68,7 @@ function HeroMedia() {
           onLoad={() => setPosterState('ready')}
           onError={() => setPosterState('error')}
           style={{
-            position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover',
+            position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 30%',
             opacity: posterVisible ? 1 : 0, transition: 'opacity 700ms var(--ease-out)',
           }}
         />
@@ -87,7 +87,7 @@ function HeroMedia() {
           onPlaying={() => setVideoState('ready')}
           onError={() => setVideoState('error')}
           style={{
-            position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover',
+            position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 30%',
             opacity: videoVisible ? 1 : 0, transition: 'opacity 700ms var(--ease-out)',
           }}
         />
