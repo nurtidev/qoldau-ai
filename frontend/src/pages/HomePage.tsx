@@ -125,7 +125,8 @@ function HeroSearch({ count }: { count: number }) {
 
   return (
     <section className="hero-gradient-bg" style={{
-      paddingTop: 64, paddingBottom: 64, position: 'relative', overflow: 'hidden',
+      paddingTop: 48, paddingBottom: 48, position: 'relative', overflow: 'hidden',
+      minHeight: 'calc(100svh - 64px)', display: 'flex', alignItems: 'center',
     }}>
       <HeroMedia />
       <div style={{
@@ -136,7 +137,7 @@ function HeroSearch({ count }: { count: number }) {
         pointerEvents: 'none',
       }} />
       <div className="ornament-tile ornament-fade ornament-hero" aria-hidden="true" />
-      <div className="container" style={{ position: 'relative' }}>
+      <div className="container" style={{ position: 'relative', width: '100%' }}>
         <div style={{ minWidth: 0, maxWidth: 660 }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 12px', background: '#fff', border: '1px solid var(--color-border)', borderRadius: 999, fontSize: 12, color: 'var(--color-text-2)', marginBottom: 20 }}>
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--color-success)' }} />
