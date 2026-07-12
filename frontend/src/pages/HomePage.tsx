@@ -63,7 +63,7 @@ function HeroMedia() {
       {/* Постер — самостоятельный слой (виден и когда mp4 ещё нет/не готов). */}
       {posterState !== 'error' && (
         <img
-          src="/media/hero/hero-main.jpg"
+          src="/media/hero/hero-main.jpg?v=2"
           alt=""
           onLoad={() => setPosterState('ready')}
           onError={() => setPosterState('error')}
@@ -77,7 +77,7 @@ function HeroMedia() {
       {/* Видео — поверх постера, кроссфейд когда реально готово. */}
       {!reduce && videoState !== 'error' && (
         <video
-          src="/media/hero/hero-main.mp4"
+          src="/media/hero/hero-main.mp4?v=2"
           autoPlay
           muted
           loop
