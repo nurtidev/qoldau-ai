@@ -76,4 +76,5 @@ export const I = {
   TrendingDown:(p: IconProps) => <Icon {...p}><path d="m3 7 7 7 4-4 7 7"/><path d="M21 17v-4h-4"/></Icon>,
   ThumbsUp:    (p: IconProps) => <Icon {...p}><path d="M7 10v11H4a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1Z"/><path d="M7 10l4-7a2.5 2.5 0 0 1 2.5 2.5V8h4.5a2 2 0 0 1 2 2.3l-1.2 8A2 2 0 0 1 16.8 20H7"/></Icon>,
   ThumbsDown:  (p: IconProps) => <Icon {...p}><path d="M17 14V3h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1Z"/><path d="M17 14l-4 7a2.5 2.5 0 0 1-2.5-2.5V16H6a2 2 0 0 1-2-2.3l1.2-8A2 2 0 0 1 7.2 4H17"/></Icon>,
+  Mic:         (p: IconProps) => <Icon {...p}><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M6 11a6 6 0 0 0 12 0"/><path d="M12 17v4M9 21h6"/></Icon>,
 }

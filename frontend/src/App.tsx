@@ -21,6 +21,7 @@ import { AdminUsers }           from '@/pages/admin/AdminUsers'
 import { AdminContent }         from '@/pages/admin/AdminContent'
 import { AdminSettings }        from '@/pages/admin/AdminSettings'
 import { AdminAnalytics }       from '@/pages/admin/AdminAnalytics'
+import { AdminVoice }            from '@/pages/admin/AdminVoice'
 import { LoginPage }            from '@/pages/LoginPage'
 import { KnowledgePage }        from '@/pages/KnowledgePage'
 import { KnowledgeArticlePage } from '@/pages/KnowledgeArticlePage'
@@ -85,6 +86,7 @@ function Shell() {
       <Route path="/admin/applications"      element={<RequireAdmin><AdminApplications /></RequireAdmin>} />
       <Route path="/admin/users"             element={<RequireAdmin><AdminUsers /></RequireAdmin>} />
       <Route path="/admin/analytics"         element={<RequireAdmin><AdminAnalytics /></RequireAdmin>} />
+      <Route path="/admin/voice"             element={<RequireAdmin><AdminVoice /></RequireAdmin>} />
     </>
   )
 

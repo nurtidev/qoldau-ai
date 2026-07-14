@@ -545,6 +545,7 @@ const ADMIN_NAV = [
   { id: 'content',  label: 'Контент',      icon: 'Sparkle',   to: '/admin/content',      adminOnly: false },
   { id: 'users',    label: 'Пользователи', icon: 'User',      to: '/admin/users',        adminOnly: true },
   { id: 'analytics',label: 'Аналитика',    icon: 'Hash',      to: '/admin/analytics',    adminOnly: true },
+  { id: 'voice',    label: 'Qoldau Voice', icon: 'Mic',       to: '/admin/voice',        adminOnly: true },
   { id: 'settings', label: 'Настройки',    icon: 'Sliders',   to: '/admin/settings',     adminOnly: false },
 ]
 
@@ -564,6 +565,7 @@ export function AdminSidebar({ offCanvas = false, open = false, onClose }: {
     : location.pathname.startsWith('/admin/content') ? 'content'
     : location.pathname.startsWith('/admin/users') ? 'users'
     : location.pathname.startsWith('/admin/analytics') ? 'analytics'
+    : location.pathname.startsWith('/admin/voice') ? 'voice'
     : location.pathname.startsWith('/admin/settings') ? 'settings'
     : 'dash'
 
