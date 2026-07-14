@@ -1,15 +1,16 @@
 import { test, expect, Page } from '@playwright/test'
 
-// For each of the 4 AI-prompt presets, run the full lifecycle:
+// For each of the 5 AI-prompt presets, run the full lifecycle:
 //   click chip → generate via AI → apply to canvas → fill meta → publish →
 //   open public catalog → open service → click "Подать заявку" → confirm ApplyPage opens.
 // This is what the jury will reproduce live. Slow (each AI call ~45-60s),
 // so we share login across cases.
 
 const PRESETS = [
-  { id: 'brk-leasing',         label: '⭐ БРК-Лизинг (контрольный кейс)' },
+  { id: 'brk-leasing',         label: '⭐ ФРП — лизинг вагонов (контрольный кейс)' },
+  { id: 'agro-livestock',      label: '⭐ АКК — животноводство (контрольный кейс)' },
   { id: 'baiterek-equipment',  label: '🏭 Байтерек: оборудование' },
-  { id: 'damu-credit',         label: '💰 Damu: льготный кредит' },
+  { id: 'damu-credit',         label: '💰 Даму: льготный кредит' },
   { id: 'youth-grant',         label: '🎯 Молодёжный грант' },
 ]
 
