@@ -199,6 +199,13 @@ h1, h2, h3, h4, .section-title { font-family: var(--ff-display); }
 /* ===== Layout ===== */
 .container { max-width: 1280px; margin: 0 auto; padding: 0 32px; }
 
+/* Admin panel pages: caps content width on wide/ultrawide monitors (was
+   unbounded on some pages — KPI tiles and bars stretched absurdly on
+   1920/2560 — while others hardcoded a narrower 1200px ad hoc). One shared
+   ceiling for all admin pages. */
+.admin-page { width: 100%; max-width: 1560px; margin: 0 auto; padding: 32px 40px; }
+@media (max-width: 768px) { .admin-page { padding: 24px 16px; } }
+
 /* Rail/two-column layouts (fixed sidebar + fluid content) collapse to a
    single stacked column on mobile. DOM order decides stacking order.
    min-width:0 on the grid items prevents "grid blowout": without it, a

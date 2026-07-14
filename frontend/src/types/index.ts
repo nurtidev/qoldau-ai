@@ -145,6 +145,10 @@ export interface Application {
   /** Admin message describing what additional data was requested (docs_requested). */
   request_message: string
   service_title?: string
+  /** ФИО заявителя (JOIN users) — приходит только в админ-списке заявок. */
+  applicant_name?: string
+  /** Организация заявителя — пусто, если физлицо/не указана. */
+  applicant_org?: string
   created_at: string
   updated_at: string
 }

@@ -192,7 +192,7 @@ export function AdminAnalytics() {
   const byMsb = audience?.by_msb ?? []
 
   return (
-    <div className="page-fade" style={{ padding: '32px 40px' }}>
+    <div className="page-fade admin-page">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 style={{ fontSize: 26, fontWeight: 700, margin: '0 0 8px' }}>Аналитика</h1>
@@ -233,8 +233,10 @@ export function AdminAnalytics() {
         </div>
       ) : (
         <>
-          {/* Funnel + drilldown */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16, marginBottom: 24 }}>
+          {/* Funnel + drilldown — alignItems: start so "Разбор просадки" (often
+              shorter content) hugs its own content instead of stretching to
+              match the taller "Воронка" card's height (grid default is stretch). */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16, marginBottom: 24, alignItems: 'start' }}>
             <SectionCard
               title="Воронка"
               subtitle={funnel ? funnel.service_title : (funnelLoading ? 'Загрузка…' : undefined)}

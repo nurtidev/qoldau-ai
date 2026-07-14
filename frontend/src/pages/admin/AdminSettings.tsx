@@ -206,7 +206,7 @@ export function AdminSettings() {
   const joined = user?.created_at ? new Date(user.created_at).toLocaleDateString('ru-KZ') : '—'
 
   return (
-    <div className="page-fade" style={{ padding: '32px 40px', maxWidth: 760 }}>
+    <div className="page-fade admin-page" style={{ maxWidth: 760 }}>
       <h1 style={{ fontSize: 26, fontWeight: 700, margin: '0 0 8px' }}>Настройки</h1>
       <p style={{ fontSize: 14, color: 'var(--color-text-3)', margin: '0 0 24px' }}>
         Профиль аккаунта, уведомления и параметры отображения админ-панели.

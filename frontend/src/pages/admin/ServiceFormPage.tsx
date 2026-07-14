@@ -1327,9 +1327,10 @@ function FormulaBuilder({ formula, mask, numericFields, onChange }: {
 
 // ─── RightPanel ───────────────────────────────────────────────────────────────
 
-function RightPanel({ field, allFields, onChange, onClose, overlay }: {
+function RightPanel({ field, allFields, steps, onChange, onClose, overlay }: {
   field: BuilderField | null
   allFields: BuilderField[]
+  steps: BuilderStep[]
   onChange: (f: BuilderField) => void
   onClose: () => void
   overlay?: boolean
@@ -1340,14 +1341,54 @@ function RightPanel({ field, allFields, onChange, onClose, overlay }: {
   if (overlay && !field) return null
 
   if (!field) {
+    // Пустая колонка справа — вместо заглушки показываем сводку по текущей схеме,
+    // чтобы широкий экран не выглядел как пустой баг вёрстки.
+    const totalFields = allFields.length
+    const requiredCount = allFields.filter(f => f.required).length
+    const calculatedCount = allFields.filter(f => f.type === 'calculated').length
+    const conditionalCount = allFields.filter(f => f.condition).length + steps.filter(s => s.condition).length
+    const stage2Count = steps.filter(s => s.stage === 2).reduce((n, s) => n + s.fields.length, 0)
+    const prefillCount = allFields.filter(f => f.prefill_from).length
+
+    const summaryRows: { icon: keyof typeof I; label: string; value: number }[] = [
+      { icon: 'List',        label: 'Этапов',            value: steps.length },
+      { icon: 'Document',    label: 'Полей всего',       value: totalFields },
+      { icon: 'CheckCircle', label: 'Обязательных',      value: requiredCount },
+      { icon: 'Hash',        label: 'Расчётных',         value: calculatedCount },
+      { icon: 'Filter',      label: 'С условием показа', value: conditionalCount },
+      { icon: 'Info',        label: 'Полей этапа 2',     value: stage2Count },
+      { icon: 'Download',    label: 'С eGov-префиллом',  value: prefillCount },
+    ]
+
     return (
-      <aside style={{ width: 300, flexShrink: 0, borderLeft: '1px solid var(--color-border)', background: '#fff', padding: '40px 20px', overflowY: 'auto' }}>
-        <div style={{ textAlign: 'center', color: 'var(--color-text-3)', marginTop: 60 }}>
-          <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'var(--color-surface-2)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
-            <I.Sliders size={20} />
+      <aside style={{ width: 300, flexShrink: 0, borderLeft: '1px solid var(--color-border)', background: '#fff', padding: '20px', overflowY: 'auto' }}>
+        <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-text-3)', fontWeight: 600, marginBottom: 14 }}>
+          Сводка формы
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {summaryRows.map(r => {
+            const IconComp = I[r.icon] as (p: { size: number }) => JSX.Element
+            return (
+              <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 26, height: 26, borderRadius: 6, background: 'var(--color-surface-2)', color: 'var(--color-text-2)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <IconComp size={13} />
+                </div>
+                <span style={{ fontSize: 13, color: 'var(--color-text-2)', flex: 1 }}>{r.label}</span>
+                <span style={{ fontSize: 13, fontWeight: 600 }}>{r.value}</span>
+              </div>
+            )
+          })}
+        </div>
+        <div style={{ marginTop: 18, paddingTop: 14, borderTop: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ fontSize: 12, color: 'var(--color-text-3)', lineHeight: 1.5 }}>
+            Кликните на поле, чтобы настроить маску, формулу или условие показа
           </div>
-          <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--color-text-2)', marginBottom: 6 }}>Настройки поля</div>
-          <div style={{ fontSize: 13, lineHeight: 1.5 }}>Кликните на поле в холсте, чтобы изменить его свойства</div>
+          <div style={{ fontSize: 12, color: 'var(--color-text-3)', lineHeight: 1.5 }}>
+            Шаг с пометкой «Этап 2» будет дозапрошен после первичного одобрения
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--color-text-3)', lineHeight: 1.5 }}>
+            Поля с eGov-префиллом подставляются автоматически из mock eGov API
+          </div>
         </div>
       </aside>
     )
@@ -1773,7 +1814,7 @@ export function ServiceFormPage() {
           </button>
         </div>
 
-        <div style={{ maxWidth: 800, margin: '0 auto', padding: '24px 28px 60px' }}>
+        <div style={{ maxWidth: 880, margin: '0 auto', padding: '24px 28px 60px' }}>
           <div data-tour-id="canvas-header" style={{ marginBottom: 20 }}>
             <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-3)', fontWeight: 600, marginBottom: 4 }}>Холст формы</div>
             <h2 style={{ fontSize: 22, fontWeight: 700, margin: 0, letterSpacing: '-0.01em' }}>Структура заявки</h2>
@@ -1831,6 +1872,7 @@ export function ServiceFormPage() {
       <RightPanel
         field={selectedField}
         allFields={allFields}
+        steps={steps}
         onChange={updateField}
         onClose={() => setSelectedFieldId(null)}
         overlay={isBelowLaptop}

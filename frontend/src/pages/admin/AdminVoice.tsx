@@ -650,7 +650,7 @@ export function AdminVoice() {
   }, [])
 
   return (
-    <div className="page-fade" style={{ padding: '32px 40px' }}>
+    <div className="page-fade admin-page">
       {/* Шапка */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10, flexWrap: 'wrap' }}>
         <div style={{

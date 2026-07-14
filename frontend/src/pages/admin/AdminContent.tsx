@@ -44,7 +44,7 @@ export function AdminContent() {
   const [tab, setTab] = useState<'materials' | 'projects' | 'news' | 'knowledge' | 'holding' | 'faq'>('materials')
 
   return (
-    <div className="page-fade" style={{ padding: '32px 40px' }}>
+    <div className="page-fade admin-page">
       <div style={{ marginBottom: 20 }}>
         <h1 style={{ fontSize: 26, fontWeight: 700, margin: 0 }}>Контент порталов</h1>
         <p style={{ fontSize: 14, color: 'var(--color-text-3)', marginTop: 6 }}>

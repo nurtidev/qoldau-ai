@@ -65,8 +65,11 @@ func (h *ApplicationsHandler) List(w http.ResponseWriter, r *http.Request) {
 		// drafts are surfaced in the "Брошенные черновики" analytics widget
 		// (GET /api/analytics/quality), not in the queue.
 		err = h.db.Select(&apps,
-			`SELECT a.*, s.title AS service_title
-			 FROM applications a JOIN services s ON a.service_id = s.id
+			`SELECT a.*, s.title AS service_title,
+			        u.full_name AS applicant_name, COALESCE(u.org_name, '') AS applicant_org
+			 FROM applications a
+			 JOIN services s ON a.service_id = s.id
+			 JOIN users u ON u.id = a.user_id
 			 WHERE a.is_synthetic = FALSE AND a.status != 'draft'
 			 ORDER BY a.created_at DESC`)
 	} else {

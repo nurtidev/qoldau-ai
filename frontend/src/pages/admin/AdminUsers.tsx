@@ -101,7 +101,7 @@ export function AdminUsers() {
   }
 
   return (
-    <div className="page-fade" style={{ padding: '32px 40px' }}>
+    <div className="page-fade admin-page">
       <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
         <h1 style={{ fontSize: 26, fontWeight: 700, margin: 0 }}>
           Пользователи{' '}

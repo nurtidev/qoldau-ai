@@ -133,6 +133,10 @@ type Application struct {
 type ApplicationWithService struct {
 	Application
 	ServiceTitle string `db:"service_title" json:"service_title"`
+	// Заявитель (JOIN users) — заполняется только в админ-списке заявок.
+	// В остальных запросах этой структуры остаётся пустым (sqlx не требует колонку).
+	ApplicantName string `db:"applicant_name" json:"applicant_name"`
+	ApplicantOrg  string `db:"applicant_org"  json:"applicant_org"`
 }
 
 type Document struct {

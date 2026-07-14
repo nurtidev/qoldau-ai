@@ -5,12 +5,33 @@ import { servicesApi } from '@/api/client'
 import { I } from '@/components/icons'
 import { ServiceInsights } from '@/components/ServiceInsights'
 import type { Service } from '@/types'
-import { useIsNarrow } from '@/hooks/useMediaQuery'
+import { useIsNarrow, useIsBelowLaptop } from '@/hooks/useMediaQuery'
 import { useAuthStore } from '@/store/auth'
+
+/** Сокращённое форматирование суммы: ≥1 млрд → «5 млрд ₸», ≥1 млн → «500 млн ₸», иначе тыс. ₸. */
+function formatAmountShort(v: number): string {
+  if (v >= 1_000_000_000) {
+    const n = v / 1_000_000_000
+    return `${n % 1 === 0 ? n : n.toFixed(1)} млрд ₸`
+  }
+  if (v >= 1_000_000) return `${Math.round(v / 1_000_000)} млн ₸`
+  return `${Math.round(v / 1_000)} тыс. ₸`
+}
+
+/** Три фиксированных слота условий программы (ставка / сумма / срок) для строки услуги.
+ *  Слоты с value: null резервируют место, чтобы колонки выравнивались между строками списка. */
+function serviceConditions(service: Service): { label: string; value: string | null }[] {
+  return [
+    { label: 'Ставка',   value: service.interest_rate   != null ? `${new Intl.NumberFormat('ru-RU').format(service.interest_rate)}%` : null },
+    { label: 'Сумма до', value: service.max_amount      != null ? formatAmountShort(service.max_amount) : null },
+    { label: 'Срок',     value: service.max_term_months != null ? `до ${new Intl.NumberFormat('ru-RU').format(service.max_term_months)} мес.` : null },
+  ]
+}
 
 export function AdminServices() {
   const qc = useQueryClient()
   const isNarrow = useIsNarrow()
+  const isBelowLaptop = useIsBelowLaptop()
   // Publish/delete are admin-only on the backend (adminMw). Authors build drafts only.
   const isAdmin = useAuthStore((s) => s.user?.role === 'admin')
   // Service whose AI-insights panel is open.
@@ -32,7 +53,7 @@ export function AdminServices() {
   })
 
   return (
-    <div className="page-fade" style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 28px' }}>
+    <div className="page-fade admin-page">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
         <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, letterSpacing: '-0.01em' }}>Услуги</h1>
         <Link to="/admin/services/new" className="btn btn-primary">
@@ -79,6 +100,28 @@ export function AdminServices() {
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: isNarrow ? 0 : 16, flexShrink: 1, flexWrap: 'wrap', minWidth: 0, maxWidth: '100%' }}>
+                  {!isBelowLaptop && serviceConditions(service).some(c => c.value !== null) && (
+                    <div style={{ display: 'flex', gap: 14 }}>
+                      {serviceConditions(service).map((c) => (
+                        <div key={c.label} style={{ display: 'flex', flexDirection: 'column', gap: 2, width: 92 }}>
+                          {c.value !== null && (
+                            <>
+                              <span style={{
+                                fontSize: 10, fontWeight: 600, textTransform: 'uppercase',
+                                letterSpacing: '0.04em', color: 'var(--color-text-3)',
+                              }}>
+                                {c.label}
+                              </span>
+                              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text)', whiteSpace: 'nowrap' }}>
+                                {c.value}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
                   <span className={service.status === 'published' ? 'badge badge-green' : 'badge badge-gray'}>
                     {service.status === 'published' ? 'Опубликована' : 'Черновик'}
                   </span>

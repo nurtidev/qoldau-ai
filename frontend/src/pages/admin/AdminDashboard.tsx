@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { analyticsApi, applicationsApi } from '@/api/client'
 import { I } from '@/components/icons'
@@ -43,6 +43,7 @@ function StatTile({ label, value, icon, accent }: { label: string; value: string
 }
 
 function DashboardContent() {
+  const navigate = useNavigate()
   const { data: summary, isLoading: summaryLoading } = useQuery<AnalyticsSummary>({
     queryKey: ['analytics-summary'],
     queryFn: () => analyticsApi.summary().then((r) => r.data),
@@ -171,10 +172,21 @@ function DashboardContent() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             {recentApplications.map((a) => (
-              <div key={a.id} style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
-                padding: '12px 0', borderBottom: '1px solid var(--color-border)', flexWrap: 'wrap',
-              }}>
+              <div
+                key={a.id}
+                onClick={() => navigate('/admin/applications')}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/admin/applications') } }}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+                  padding: '12px 8px', margin: '0 -8px', borderRadius: 8, cursor: 'pointer',
+                  borderBottom: '1px solid var(--color-border)', flexWrap: 'wrap',
+                  transition: 'background 120ms',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-surface-2)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+              >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
                   <span style={{
                     width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
@@ -207,7 +219,7 @@ function EmptyNote({ text }: { text: string }) {
 
 export function AdminDashboard() {
   return (
-    <div style={{ padding: '32px 40px' }}>
+    <div className="admin-page">
       <DashboardContent />
     </div>
   )

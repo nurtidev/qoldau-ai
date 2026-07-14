@@ -1,13 +1,15 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { applicationsApi, usersApi } from '@/api/client'
+import { applicationsApi, servicesApi, usersApi } from '@/api/client'
 import { useToast } from '@/components/Toast'
 import { I } from '@/components/icons'
 import { Portal } from '@/components/Portal'
 import { PrescoreCard, type PrescoreCardResult } from '@/components/PrescoreCard'
 import { SlaBadge } from '@/components/SlaBadge'
 import { getSlaInfo } from '@/lib/sla'
-import type { Application, ApplicationStatus } from '@/types'
+import { extractRequestedAmount } from '@/lib/prescore'
+import { useIsNarrow } from '@/hooks/useMediaQuery'
+import type { Application, ApplicationStatus, FormSchema, Service } from '@/types'
 import { APPLICATION_STATUS_LABELS, APPLICATION_STATUS_COLORS } from '@/types'
 
 // Статусные табы очереди. Черновики сюда не попадают вовсе: бэкенд
@@ -64,6 +66,17 @@ function tabStyle(active: boolean): React.CSSProperties {
   }
 }
 
+// Заголовок колонки. TH_HUG — колонка «по контенту» (прижимается к своему
+// содержимому: width 1% + nowrap), TH_BASE без ширины — растягивается (Услуга).
+const TH_BASE: React.CSSProperties = {
+  padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 600,
+  color: 'var(--color-text-3)', textTransform: 'uppercase', letterSpacing: '0.04em',
+}
+const TH_HUG: React.CSSProperties = { ...TH_BASE, width: '1%', whiteSpace: 'nowrap' }
+// Ячейки данных: плотный паддинг; TD_HUG — «по контенту».
+const TD_PAD: React.CSSProperties = { padding: '10px 14px' }
+const TD_HUG: React.CSSProperties = { ...TD_PAD, width: '1%', whiteSpace: 'nowrap' }
+
 export function AdminApplications() {
   const [filter, setFilter] = useState('all')
   const [selected, setSelected] = useState<string[]>([])
@@ -82,11 +95,25 @@ export function AdminApplications() {
 
   const { push } = useToast()
   const qc = useQueryClient()
+  const isNarrow = useIsNarrow()
 
   const { data: applications = [] } = useQuery<Application[]>({
     queryKey: ['admin-applications'],
     queryFn: () => applicationsApi.list().then((r) => r.data),
   })
+
+  // Услуги нужны только ради form_schema — по нему хелпер извлекает
+  // запрашиваемую сумму из form_data каждой заявки. Go отдаёт null вместо
+  // пустого массива, поэтому `?? []`.
+  const { data: services = [] } = useQuery<Service[]>({
+    queryKey: ['admin-apps-services'],
+    queryFn: () => servicesApi.list().then((r) => r.data ?? []),
+  })
+  const serviceSchemaById = useMemo(() => {
+    const m = new Map<string, FormSchema>()
+    for (const s of services) m.set(s.id, s.form_schema)
+    return m
+  }, [services])
 
   // Debounce ввода поиска, чтобы не гонять запрос к /users на каждый символ.
   useEffect(() => {
@@ -163,7 +190,7 @@ export function AdminApplications() {
   const allOnPageSelected = pageItems.length > 0 && pageItems.every((a) => selected.includes(a.id))
 
   return (
-    <div className="page-fade" style={{ padding: '32px 40px' }}>
+    <div className="page-fade admin-page">
       <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
         <h1 style={{ fontSize: 26, fontWeight: 700, margin: 0 }}>
           Заявки <span style={{ fontSize: 14, color: 'var(--color-text-3)', fontWeight: 500 }}>· {total}</span>
@@ -239,7 +266,7 @@ export function AdminApplications() {
         <table style={{ width: '100%', minWidth: 780, borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: 'var(--color-surface-2)' }}>
-              <th style={{ padding: '10px 16px', width: 40 }}>
+              <th style={{ padding: '10px 14px', width: 40 }}>
                 <input type="checkbox"
                   checked={allOnPageSelected}
                   onChange={(e) => {
@@ -250,29 +277,35 @@ export function AdminApplications() {
                   }}
                   style={{ accentColor: 'var(--color-accent)' }} />
               </th>
-              {['Номер', 'Услуга', 'Дата', 'Статус', 'Действия'].map((h) => (
-                <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: 'var(--color-text-3)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</th>
-              ))}
+              <th style={TH_HUG}>Номер</th>
+              {!isNarrow && <th style={TH_HUG}>Заявитель</th>}
+              <th style={TH_BASE}>Услуга</th>
+              {!isNarrow && <th style={{ ...TH_HUG, textAlign: 'right' }}>Сумма</th>}
+              <th style={TH_HUG}>Дата</th>
+              <th style={TH_HUG}>Статус</th>
+              <th style={TH_HUG}>Действия</th>
             </tr>
           </thead>
           <tbody>
             {pageItems.length === 0 ? (
-              <tr><td colSpan={6} style={{ padding: 48, textAlign: 'center', color: 'var(--color-text-3)' }}>
+              <tr><td colSpan={isNarrow ? 6 : 8} style={{ padding: 48, textAlign: 'center', color: 'var(--color-text-3)' }}>
                 {applications.length === 0 ? 'Заявок нет' : 'По заданным фильтрам ничего не найдено'}
               </td></tr>
             ) : pageItems.map((a) => {
               const checked = selected.includes(a.id)
               const prescore = a.form_data?._prescore as PrescoreCardResult | undefined
               const isOpen = expanded === a.id
+              // Запрашиваемая сумма из form_data по схеме соответствующей услуги.
+              const requestedAmount = extractRequestedAmount(serviceSchemaById.get(a.service_id), a.form_data)
               return (
                 <Fragment key={a.id}>
                 <tr style={{ borderTop: '1px solid var(--color-border)', background: checked ? 'var(--color-accent-soft)' : 'transparent' }}>
-                  <td style={{ padding: '12px 16px' }}>
+                  <td style={TD_PAD}>
                     <input type="checkbox" checked={checked}
                       onChange={() => setSelected((arr) => checked ? arr.filter((x) => x !== a.id) : [...arr, a.id])}
                       style={{ accentColor: 'var(--color-accent)' }} />
                   </td>
-                  <td style={{ padding: '12px 16px', fontFamily: 'ui-monospace, monospace', fontSize: 12, color: 'var(--color-text-2)' }}>
+                  <td style={{ ...TD_HUG, fontFamily: 'ui-monospace, monospace', fontSize: 12, color: 'var(--color-text-2)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       {prescore ? (
                         <button
@@ -295,13 +328,38 @@ export function AdminApplications() {
                       {a.id.slice(0, 8).toUpperCase()}
                     </div>
                   </td>
-                  <td style={{ padding: '12px 16px', fontSize: 13 }}>
+                  {!isNarrow && (
+                    <td style={TD_HUG}>
+                      {a.applicant_name ? (
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 500, maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {a.applicant_name}
+                          </div>
+                          {a.applicant_org && (
+                            <div style={{ fontSize: 12, color: 'var(--color-text-3)', maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {a.applicant_org}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span style={{ color: 'var(--color-text-3)' }}>—</span>
+                      )}
+                    </td>
+                  )}
+                  <td style={{ ...TD_PAD, fontSize: 13 }}>
                     <div style={{ fontWeight: 500 }}>{a.service_title ?? '—'}</div>
                   </td>
-                  <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--color-text-3)' }}>
+                  {!isNarrow && (
+                    <td style={{ ...TD_HUG, textAlign: 'right', fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>
+                      {requestedAmount !== undefined
+                        ? new Intl.NumberFormat('ru-RU').format(requestedAmount) + ' ₸'
+                        : <span style={{ color: 'var(--color-text-3)' }}>—</span>}
+                    </td>
+                  )}
+                  <td style={{ ...TD_HUG, fontSize: 13, color: 'var(--color-text-3)' }}>
                     {new Date(a.created_at).toLocaleDateString('ru-KZ')}
                   </td>
-                  <td style={{ padding: '12px 16px' }}>
+                  <td style={TD_HUG}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                       <span className={`badge badge-dot ${APPLICATION_STATUS_COLORS[a.status].includes('blue') ? 'badge-blue' : APPLICATION_STATUS_COLORS[a.status].includes('green') ? 'badge-green' : APPLICATION_STATUS_COLORS[a.status].includes('red') ? 'badge-red' : APPLICATION_STATUS_COLORS[a.status].includes('yellow') ? 'badge-amber' : 'badge-gray'}`}>
                         {APPLICATION_STATUS_LABELS[a.status]}
@@ -309,7 +367,7 @@ export function AdminApplications() {
                       <SlaBadge app={a} inline />
                     </div>
                   </td>
-                  <td style={{ padding: '12px 16px' }}>
+                  <td style={TD_HUG}>
                     <select
                       value={a.status}
                       onChange={(e) => {
@@ -334,7 +392,7 @@ export function AdminApplications() {
                 </tr>
                 {isOpen && prescore && (
                   <tr style={{ background: 'var(--color-surface-2)' }}>
-                    <td colSpan={6} style={{ padding: '12px 16px 18px 46px' }}>
+                    <td colSpan={isNarrow ? 6 : 8} style={{ padding: '12px 16px 18px 46px' }}>
                       <div style={{ maxWidth: 640 }}>
                         <PrescoreCard result={prescore} compact />
                       </div>
